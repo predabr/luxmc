@@ -10,18 +10,24 @@ beforeEach(() => {
 });
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
-it('warms every local content section before waiting for provider icons and retains newer file-tree icons', async () => {
+it('prepares local content while provider requests run and retains newer file-tree icons', async () => {
     const calls: string[] = [];
+    let release!: () => void;
+    const provider = new Promise<void>(resolve => { release = resolve; });
     mocks.tree.mockImplementation(async (_id:string,folder:string) => [{name:folder+(folder === 'mods' ? '.jar' : '.zip'),isDir:false,iconKey:folder,icon:null,iconResolved:false},{name:'memory_repo',isDir:true,iconKey:folder+':internal',icon:null,iconResolved:false}].filter(entry => !entry.isDir || folder === 'mods'));
     mocks.icons.mockImplementation(async (_id:string,folder:string,names:string[],lookup:boolean) => {
         calls.push(`${folder}:${Boolean(lookup)}`);
         expect(names).not.toContain('memory_repo');
+        if (lookup) await provider;
         return names.map(name => ({name,iconKey:folder,icon:lookup?'https://example.test/'+folder+'.png':null,resolved:Boolean(lookup)}));
     });
     vi.stubGlobal('Image',class { decoding=''; src=''; onload=null; onerror=null; });
     const {prefetchInstanceContent,hydrateContentIcons} = await import('./contentPrefetch');
-    await prefetchInstanceContent('instance');
-    expect(calls.slice(0,3)).toEqual(['mods:false','resourcepacks:false','shaderpacks:false']);
+    const preparing = prefetchInstanceContent('instance');
+    await vi.waitFor(() => expect(calls.filter(call=>call.endsWith(':false'))).toEqual(['mods:false','resourcepacks:false','shaderpacks:false']));
+    expect(calls.filter(call=>call.endsWith(':true')).length).toBeGreaterThan(0);
+    release();
+    await preparing;
     expect(calls.filter(call=>call.endsWith(':true'))).toHaveLength(3);
     const entries = [{name:'mods.jar',path:'/mods.jar',isDir:false,size:1,iconKey:'mods',icon:null,iconResolved:false}];
     expect(hydrateContentIcons(entries)[0].icon).toBe('https://example.test/mods.png');

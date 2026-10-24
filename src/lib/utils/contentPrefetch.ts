@@ -79,7 +79,17 @@ export function prefetchInstanceContent(profileId: string, refresh = false): Pro
     if (pending.size >= 20) return Promise.resolve();
     if (typeof window === 'undefined' || !profileId || settings.value.preloadContentIcons === false || document.hidden || appState.isLaunching || appState.isGameRunning || !refresh && Date.now() - (warmed.get(profileId) || 0) < 120000) return Promise.resolve();
     const request = prefetchTail.then(async () => {
-        const lookups: Array<{ folder: string; names: string[] }> = [];
+        const remote = [Promise.resolve(), Promise.resolve()];
+        let nextLane = 0;
+        let incomplete = false;
+        function lookup(folder: string, names: string[]) {
+            const lane = nextLane++ % remote.length;
+            remote[lane] = remote[lane].then(async () => {
+                if (document.hidden || appState.isLaunching || appState.isGameRunning) { incomplete = true; return; }
+                try { rememberContentIcons(await instanceContentIcons(profileId, folder, names, true)); }
+                catch { incomplete = true; }
+            });
+        }
         for (const folder of ['mods', 'resourcepacks', 'shaderpacks']) {
             if (document.hidden || appState.isLaunching || appState.isGameRunning) return;
             const entries = instanceContentEntries(await instanceFileTree(profileId, folder), folder);
@@ -93,18 +103,13 @@ export function prefetchInstanceContent(profileId: string, refresh = false): Pro
                     const names = batches.shift()!;
                     const result = await instanceContentIcons(profileId, folder, names);
                     rememberContentIcons(result);
-                    const remote = result.filter(entry => !entry.resolved).map(entry => entry.name);
-                    if (remote.length) lookups.push({folder, names: remote});
+                    const missing = result.filter(entry => !entry.resolved).map(entry => entry.name);
+                    if (missing.length) lookup(folder, missing);
                 }
             }));
         }
-        await Promise.all(Array.from({length: 2}, async () => {
-            while (lookups.length && !document.hidden && !appState.isLaunching && !appState.isGameRunning) {
-                const lookup = lookups.shift()!;
-                rememberContentIcons(await instanceContentIcons(profileId, lookup.folder, lookup.names, true));
-            }
-        }));
-        if (lookups.length) return;
+        await Promise.all(remote);
+        if (incomplete) return;
         warmed.set(profileId, Date.now());
         if (warmed.size > 20) warmed.delete(warmed.keys().next().value!);
     }).catch(() => {}).finally(() => pending.delete(profileId));

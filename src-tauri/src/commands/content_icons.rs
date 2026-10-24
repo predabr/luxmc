@@ -66,6 +66,26 @@ pub fn cache_is_resolved(value: &str) -> bool {
     !value.is_empty()
 }
 fn now() -> u64 { SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() }
+fn declared_shader_project(directory: &std::path::Path) -> Option<String> {
+    use std::io::Read;
+    let mut projects = std::collections::BTreeSet::new();
+    for name in ["InformationEuphoriaPatches.md", "Credits.txt", "README.md", "readme.md", "readme.txt", "shaders/shaders.properties"] {
+        let Ok(path) = crate::core::instance_paths::resolve_within(directory, name) else { continue; };
+        if !std::fs::metadata(&path).is_ok_and(|metadata| metadata.is_file() && metadata.len() <= 128 * 1024) { continue; }
+        let Ok(file) = std::fs::File::open(path) else { continue; };
+        let mut text = String::new();
+        if file.take(128 * 1024 + 1).read_to_string(&mut text).is_err() || text.len() > 128 * 1024 { continue; }
+        for token in text.split_whitespace().flat_map(|value| value.split(['(', ')', '[', ']', '<', '>', '"'])) {
+            let Ok(url) = reqwest::Url::parse(token.trim_end_matches([',', ';'])) else { continue; };
+            if url.scheme() != "https" || !url.username().is_empty() || url.password().is_some() || url.port_or_known_default() != Some(443) { continue; }
+            if name == "InformationEuphoriaPatches.md" && matches!(url.host_str(), Some("euphoriapatches.com" | "www.euphoriapatches.com")) { return Some("euphoria-patches".into()); }
+            if !matches!(url.host_str(), Some("modrinth.com" | "www.modrinth.com")) { continue; }
+            let parts: Vec<_> = url.path_segments().into_iter().flatten().collect();
+            if parts.len() >= 2 && parts[0] == "shader" && !parts[1].is_empty() && parts[1].len() <= 128 && parts[1].bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte,b'_' | b'-')) { projects.insert(parts[1].to_owned()); }
+        }
+    }
+    if projects.len() == 1 { projects.into_iter().next() } else { None }
+}
 fn matching_shader_archive(directory: &std::path::Path) -> Option<std::path::PathBuf> {
     use std::io::Read;
     let base = directory.parent()?;
@@ -158,7 +178,17 @@ pub async fn instance_content_icons_core(state: &AppState, profile_id: String, s
             let path = if shader_directory {
                 let directory = path.clone();
                 let _permit = WORK.acquire().await.map_err(|error| AppError::Internal(error.to_string()))?;
-                match tokio::task::spawn_blocking(move || matching_shader_archive(&directory)).await.map_err(|error| AppError::Internal(error.to_string()))? {
+                let (project, archive) = tokio::task::spawn_blocking(move || {
+                    let project = declared_shader_project(&directory);
+                    let archive = if project.is_none() { matching_shader_archive(&directory) } else { None };
+                    (project,archive)
+                }).await.map_err(|error| AppError::Internal(error.to_string()))?;
+                if let Some(project) = project {
+                    known.entry(("modrinth".into(),project)).or_default().push(results.len());
+                    results.push(ContentIcon { name, icon, icon_key: key, resolved });
+                    continue;
+                }
+                match archive {
                     Some(archive) => archive,
                     None => { results.push(ContentIcon { name, icon, icon_key: key, resolved: true }); continue; }
                 }
@@ -280,6 +310,31 @@ pub async fn instance_content_icons_core(state: &AppState, profile_id: String, s
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn extracted_shader_metadata_identifies_patched_variants_without_guessing_the_folder_name() {
+        let root = tempfile::tempdir().unwrap();
+        let information = root.path().join("InformationEuphoriaPatches.md");
+        std::fs::write(&information,"[Documentation](https://www.euphoriapatches.com/properties/)").unwrap();
+        assert_eq!(declared_shader_project(root.path()).as_deref(),Some("euphoria-patches"));
+        std::fs::write(&information,"https://www.euphoriapatches.com.evil.test/").unwrap();
+        assert!(declared_shader_project(root.path()).is_none());
+        std::fs::write(root.path().join("README.md"),"[Download](https://modrinth.com/shader/author-pack)").unwrap();
+        assert_eq!(declared_shader_project(root.path()).as_deref(),Some("author-pack"));
+        std::fs::write(root.path().join("README.md"),"https://modrinth.com/shader/author-pack https://modrinth.com/shader/other-pack").unwrap();
+        assert!(declared_shader_project(root.path()).is_none());
+    }
+    #[test]
+    #[ignore]
+    fn real_installed_shader_directories_use_declared_project_metadata() {
+        let root = std::path::PathBuf::from(std::env::var("LUXMC_READONLY_SHADER_ROOT").expect("Select a shaderpacks directory for read-only validation"));
+        let mut count = 0;
+        for entry in std::fs::read_dir(root).unwrap().filter_map(Result::ok) {
+            if !entry.file_type().unwrap().is_dir() { continue; }
+            let project = declared_shader_project(&entry.path()).expect("Installed shader has no declared project");
+            println!("{}: {project}",entry.file_name().to_string_lossy()); count += 1;
+        }
+        assert!(count > 0);
+    }
     #[test]
     fn extracted_shader_variants_match_actual_code_instead_of_names() {
         use std::io::Write;
