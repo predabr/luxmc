@@ -194,6 +194,7 @@ test("account validation keeps invalid credentials local and focuses the failing
       json: async () => ({ error: "SessÃ£o expirada" }),
     };
   };
+  window.LuxI18n = {getLanguage: () => "pt"};
   window.eval(read("account.js"));
   await settle();
   const baseline = writes,
@@ -252,6 +253,7 @@ test("account service failure restores the form and does not expose deployment d
       error: "Internal deployment secret configuration required",
     }),
   });
+  window.LuxI18n = {getLanguage: () => "pt"};
   window.eval(read("account.js"));
   await settle();
   try {
@@ -375,5 +377,25 @@ test("a failed tour image can be retried without changing the selected screen ea
     await settle();
     assert.match(window.document.querySelector("#productTourImage").src, /two\.png$/);
     assert.equal(buttons[1].getAttribute("aria-pressed"), "true");
+  } finally { window.close(); }
+});
+
+test('account page follows English and Spanish without clearing entered credentials', async () => {
+  const dom = createDom(read("conta.html")), window = dom.window;
+  window.localStorage.setItem('luxmc_lang', 'en');
+  window.fetch = async () => ({ok:false,status:401,json:async()=>({error:'Session expired'})});
+  window.eval(read('i18n.js'));
+  window.eval(read('account.js'));
+  await settle();
+  try {
+    assert.match(window.document.querySelector('#authTitle').textContent, /Sign in/);
+    assert.match(window.document.querySelector('#microsoftLogin').textContent, /Sign in with Microsoft/);
+    window.document.querySelector('#nickname').value = 'ValidNick';
+    window.document.querySelector('#password').value = 'keep-private-value';
+    window.LuxI18n.setLanguage('es');
+    assert.match(window.document.querySelector('#authTitle').textContent, /Entra en tu cuenta/);
+    assert.match(window.document.querySelector('#microsoftLogin').textContent, /Entrar con Microsoft/);
+    assert.equal(window.document.querySelector('#nickname').value, 'ValidNick');
+    assert.equal(window.document.querySelector('#password').value, 'keep-private-value');
   } finally { window.close(); }
 });

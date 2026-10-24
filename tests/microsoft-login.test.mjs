@@ -67,11 +67,11 @@ test('authorization uses PKCE and a separate HttpOnly browser binding', async t 
     assert.equal(url.searchParams.get('code_challenge_method'), 'S256');
     assert.equal(url.searchParams.get('redirect_uri'), `${origin}/api/microsoft/callback`);
     assert.equal(url.searchParams.get('scope'), 'XboxLive.signin');
-    assert.notEqual(url.searchParams.get('state'), f.jar.get('__Host-luxmc-microsoft'));
+    assert.notEqual(url.searchParams.get('state'), f.jar.get(`__Host-luxmc-microsoft-${url.searchParams.get('state')}`));
     assert.doesNotMatch(url.href, /server-only-test-secret|code_verifier/);
     const pending = f.sqlite.prepare('SELECT * FROM lux_microsoft_pending').get();
     assert.equal(pending.state_hash, sha(url.searchParams.get('state')));
-    assert.equal(pending.browser_hash, sha(f.jar.get('__Host-luxmc-microsoft')));
+    assert.equal(pending.browser_hash, sha(f.jar.get(`__Host-luxmc-microsoft-${url.searchParams.get('state')}`)));
     assert.equal(url.searchParams.get('code_challenge'), createHash('sha256').update(pending.verifier).digest('base64url'));
 });
 
@@ -111,17 +111,17 @@ test('Minecraft provider blocks are explicit and cannot create an unverified ide
 });
 
 test('callback rejects stolen state, expiry and replay before exchanging a token', async t => {
-    const f = fixture(t), url = await f.start(), browser = f.jar.get('__Host-luxmc-microsoft');
-    f.jar.set('__Host-luxmc-microsoft', 'e'.repeat(64));
+    const f = fixture(t), url = await f.start(), browser = f.jar.get(`__Host-luxmc-microsoft-${url.searchParams.get('state')}`);
+    f.jar.set(`__Host-luxmc-microsoft-${url.searchParams.get('state')}`, 'e'.repeat(64));
     assert.equal((await f.callback(url)).headers.get('Location'), '/conta?microsoft_error=expired');
     assert.equal(f.calls.length, 0);
-    f.jar.set('__Host-luxmc-microsoft', browser);
+    f.jar.set(`__Host-luxmc-microsoft-${url.searchParams.get('state')}`, browser);
     f.sqlite.prepare('UPDATE lux_microsoft_pending SET expires_at=0').run();
     assert.equal((await f.callback(url)).headers.get('Location'), '/conta?microsoft_error=expired');
     const valid = await f.start();
     assert.equal((await f.callback(valid)).headers.get('Location'), '/conta');
     const count = f.calls.length;
-    f.jar.set('__Host-luxmc-microsoft', browser);
+    f.jar.set(`__Host-luxmc-microsoft-${url.searchParams.get('state')}`, browser);
     assert.equal((await f.callback(valid)).headers.get('Location'), '/conta?microsoft_error=expired');
     assert.equal(f.calls.length, count);
 });
@@ -183,4 +183,14 @@ test('Microsoft users cannot reset a local password or modify the Microsoft pass
     const recover = await f.call('recover', { method: 'POST', handler: account, body: { username: 'Spect3rBW', password: 'New-test-password', recoveryCode: '0'.repeat(64) } });
     assert.equal(recover.status, 401);
     assert.match((await recover.json()).error, /Microsoft/);
+});
+
+test('independent browser tabs keep their own one-time login binding', async t => {
+    const f = fixture(t), first = await f.start(), second = await f.start();
+    assert.equal((await f.callback(first)).headers.get('Location'), '/conta');
+    assert.equal((await f.callback(second)).headers.get('Location'), '/conta');
+    const count = f.calls.length;
+    assert.equal((await f.callback(first)).headers.get('Location'), '/conta?microsoft_error=expired');
+    assert.equal(f.calls.length, count);
+    assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM lux_microsoft_accounts').get().count, 1);
 });

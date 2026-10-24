@@ -1,7 +1,8 @@
 import { digest, randomToken, validNickname } from "./accounts.js";
 const MICROSOFT_COOKIE = "__Host-luxmc-microsoft";
-const microsoftCookie = (token, age = 600) => `${MICROSOFT_COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${age}`;
-const microsoftBrowser = (request) => request.headers.get("Cookie")?.split(";").map((value) => value.trim()).find((value) => value.startsWith(`${MICROSOFT_COOKIE}=`))?.slice(MICROSOFT_COOKIE.length + 1) || "";
+const microsoftCookieName = (state = "") => /^[a-f0-9]{64}$/.test(state) ? `${MICROSOFT_COOKIE}-${state}` : MICROSOFT_COOKIE;
+const microsoftCookie = (token, age = 600, state = "") => `${microsoftCookieName(state)}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${age}`;
+const microsoftBrowser = (request, state = "") => request.headers.get("Cookie")?.split(";").map((value) => value.trim()).find((value) => value.startsWith(`${microsoftCookieName(state)}=`))?.slice(microsoftCookieName(state).length + 1) || "";
 function microsoftConfiguration(env) {
   if (!env.MICROSOFT_CLIENT_ID || !/^[a-f0-9-]{36}$/i.test(env.MICROSOFT_CLIENT_ID) || !env.MICROSOFT_CLIENT_SECRET) return null;
   const redirect = env.MICROSOFT_REDIRECT_URI || "https://luxmc-r92.pages.dev/api/microsoft/callback";

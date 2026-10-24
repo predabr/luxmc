@@ -12,7 +12,8 @@ export async function onRequest({ request, env, params, waitUntil }: SiteContext
     if (!configuration || !env.SOCIAL_DB) return json({ error: 'O login Microsoft do site ainda precisa ser habilitado pelo responsável do Luxmc.' }, 503);
     const db = env.SOCIAL_DB;
     const now = Math.floor(Date.now() / 1000);
-    const redirect = (reason = '') => new Response(null, { status: 303, headers: { Location: `/conta${reason ? `?microsoft_error=${reason}` : ''}`, 'Set-Cookie': microsoftCookie('', 0), 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
+    const callbackState = new URL(request.url).searchParams.get('state') || '';
+    const redirect = (reason = '') => new Response(null, { status: 303, headers: { Location: `/conta${reason ? `?microsoft_error=${reason}` : ''}`, 'Set-Cookie': microsoftCookie('', 0, callbackState), 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
     try {
         if (action === 'start') {
             if (!sameOrigin(request) || request.headers.get('Origin') !== new URL(configuration.redirect).origin) return json({ error: 'Origem não permitida.' }, 403);
@@ -24,9 +25,9 @@ export async function onRequest({ request, env, params, waitUntil }: SiteContext
             const challenge = btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
             const url = new URL('https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize');
             url.search = new URLSearchParams({ client_id: configuration.clientId, response_type: 'code', redirect_uri: configuration.redirect, response_mode: 'query', scope: 'XboxLive.signin', state, code_challenge: challenge, code_challenge_method: 'S256', prompt: 'select_account' }).toString();
-            return json({ url: url.href }, 200, { 'Set-Cookie': microsoftCookie(browser) });
+            return json({ url: url.href }, 200, { 'Set-Cookie': microsoftCookie(browser, 600, state) });
         }
-        const url = new URL(request.url), state = url.searchParams.get('state') || '', browser = microsoftBrowser(request);
+        const url = new URL(request.url), state = url.searchParams.get('state') || '', browser = microsoftBrowser(request, state);
         if (!/^[a-f0-9]{64}$/.test(state) || !/^[a-f0-9]{64}$/.test(browser)) return redirect('expired');
         const pending = await db.prepare('DELETE FROM lux_microsoft_pending WHERE state_hash = ? AND browser_hash = ? AND expires_at > ? RETURNING verifier, social_id').bind(await digest(state), await digest(browser), now).first();
         if (!pending) return redirect('expired');

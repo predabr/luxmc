@@ -731,7 +731,8 @@
             "social.inviteNote": "Conexión directa o relay. Túnel cifrado.",
         },
     };
-    let language = "pt";
+    const browserLanguage = (navigator.languages?.[0] || navigator.language || "en").toLowerCase();
+    let language = browserLanguage.startsWith("pt") ? "pt" : browserLanguage.startsWith("es") ? "es" : "en";
     try {
         const saved = localStorage.getItem("luxmc_lang");
         if (saved && ["pt", "en", "es"].includes(saved))
