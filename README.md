@@ -7,6 +7,10 @@
 
 Luxmc reúne versões Java, modpacks, organização de instâncias, personalização e recursos sociais. O backend usa Rust e Tauri 2; a interface usa Svelte 5 e TypeScript. O projeto tem raízes no Linux e instalador nativo para Windows.
 
+**Versão atual: 4.0.0.** As correções da linha 4.0 recebem uma identificação própria de build. O código em `main` pode conter mudanças ainda não incluídas nos instaladores públicos; confira a [última release publicada](https://github.com/predabr/luxmc/releases/latest) antes de baixar.
+
+**Licenciamento:** a [proposta de licença própria não comercial 2.0](docs/licensing/proposed/LUXMC-NONCOMMERCIAL-2.0-DRAFT.md) está publicada para revisão. Ela ainda não substitui a GPL vigente; veja o [status e o plano de adoção](docs/licensing/proposed/README.md).
+
 ## Instalação
 
 - **Windows:** [instalador oficial](https://luxmc-r92.pages.dev/download/windows).
@@ -59,23 +63,11 @@ Versões GDK usam Gaming Services. O Luxmc prepara esse componente oficial quand
 
 Temas, wallpaper e ajustes visuais são configuráveis. As telas e abas têm transições curtas; movimento reduzido e efeitos desativados são respeitados. Ativar animações explicitamente permite usá-las com movimento reduzido no Windows; o modo de desempenho dispensa animações de entrada. O fundo e o tema recuperam a gravação mais recente das preferências.
 
-A [versão 3.9 — Sua Marca, Seu Mundo](docs/releases/v3.9.0.md) traz um editor de perfil com prévia, imagens e GIFs, estilos conforme o plano e favoritos ampliados. Plus oferece seis paletas, Halo, Contorno duplo e 16 favoritos. Pro acrescenta Órbita, Brilho, Pulso, composição centralizada e 24 favoritos. Free conserva sua personalização básica. A preparação de instâncias lê somente os metadados necessários na auditoria de instalação e prepara Java e loader em paralelo, mantendo a análise do Shield antes de abrir o jogo. Navegação e indicadores de progresso receberam transições adicionais.
+Na linha 4.0, o editor de perfil reúne prévia, imagens, GIFs e favoritos com capas. Plus e Pro oferecem recursos conforme o plano validado pela API; Pro acrescenta fundos de cartão, composições de vitrine e auras. Wallpapers continuam gratuitos. As [notas da 4.0](docs/releases/v4.0.0.md) distinguem as mudanças e os limites de validação.
 
-O [relatório da 3.9](docs/releases/validation-v3.9.0.md) registra as verificações e os limites. A atualização preserva contas, mundos, instâncias e preferências. O instalador mantém o nome **Lux MC Launcher.exe**. Planos são validados pela API autenticada; hospedagem de servidores permanece adiada.
+A preparação de instâncias organiza Java e loader em paralelo e mantém a conferência dos arquivos antes de abrir o jogo. O instalador continua com o nome **Lux MC Launcher.exe**. Instale uma atualização sobre a instalação existente para preservar seus dados; evite opções de remoção de contas, instâncias e mundos.
 
-Prévia do catálogo 3.8, com dados de demonstração:
-
-![Catálogo com filtros à direita](docs/validation/catalog-navigation/catalog-dark.png)
-
-Capturas fornecidas pelo autor em 9 de outubro de 2026:
-
-![Biblioteca](website/assets/captures-3.6/home-window.svg)
-![Catálogo](website/assets/captures-3.6/mods-window.svg)
-![Instâncias](website/assets/captures-3.6/instances-window.svg)
-![Amigos](website/assets/captures-3.6/friends-window.svg)
-![Personalização](website/assets/captures-3.6/personalizer-window.svg)
-
-Os [resultados de verificação da revisão 2](docs/releases/validation-v3.6-revision.2.md) registram testes de interface, instalação, um modpack real e abertura Bedrock. A partida LAN entre duas redes distintas ainda precisa do retorno dos participantes. O site publica uma medição local da 3.6 com as condições e dados completos, sem prometer consumo fixo.
+Capturas históricas e relatórios anteriores permanecem em [docs/validation](docs/validation) e [docs/releases](docs/releases). Eles não representam necessariamente a aparência ou o resultado de testes da revisão atual.
 
 ## Desenvolvimento
 
@@ -94,6 +86,8 @@ O site usa fontes TypeScript em `site-client/` e `site-server/`; `pnpm build:web
 ## Licença e identidade
 
 O código original do Luxmc é distribuído sob [GNU GPLv3](LICENSE), com identificador `GPL-3.0-only`. A licença permite cópia, modificação, redistribuição e uso comercial; quem distribui o programa ou versões derivadas deve cumprir suas obrigações de disponibilizar o código correspondente e preservar os avisos. Versões modificadas devem ser identificadas como modificadas. Consulte [BRANDING.md](BRANDING.md) e [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+A publicação da proposta não concede autorização adicional para oferecer o código original do projeto sob MIT ou outra licença alternativa. Bibliotecas e arquivos de terceiros que já usam MIT ou outras licenças conservam seus próprios termos. Qualquer futura restrição não comercial só poderá alcançar material cujos titulares concedam os direitos necessários; permissões das cópias anteriormente distribuídas sob GPL não são revogadas.
 
 Bibliotecas, componentes de rede, conteúdo dos packs, imagens dos usuários e marcas de terceiros mantêm suas licenças e titulares. Luxmc não é um produto oficial de Minecraft nem é aprovado ou associado à Mojang ou à Microsoft.
 
