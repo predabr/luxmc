@@ -5,7 +5,6 @@ mod presence;
 mod diagnostic;
 mod startup;
 pub mod session;
-#[cfg(any(target_os = "windows", test))]
 mod native_cache;
 mod loader_natives;
 pub mod launch_state;

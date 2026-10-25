@@ -50,7 +50,7 @@ const fs = require('node:fs');
                 const animate = Element.prototype.animate;
                 Element.prototype.animate = function(frames, options) {
                     if (this.hasAttribute('data-page-route')) window.motionCalls.push(options.duration);
-                    window.motionDetails.push({ route: location.pathname, target: this.id || this.className, frames, duration: options.duration, delay: options.delay });
+                    window.motionDetails.push({ route: location.pathname, target: this.id || this.className, pageRoot: this.hasAttribute('data-page-route'), frames, duration: options.duration, delay: options.delay });
                     return animate.call(this, frames, options);
                 };
             }, performanceMode);
@@ -116,7 +116,7 @@ const fs = require('node:fs');
             await dialog.waitFor({ state: 'detached' });
             await page.locator('aside a[href="/settings"]').click();
             await page.locator('[data-page-route="/settings"]').waitFor();
-            await page.waitForFunction(() => window.motionDetails.some(call => call.route === '/settings' && call.duration === 360) || document.documentElement.classList.contains('no-anim'));
+            await page.waitForFunction(() => window.motionDetails.some(call => call.route === '/settings' && call.duration <= 180 && call.frames.some(frame => frame.translate !== undefined)) || document.documentElement.classList.contains('no-anim'));
             await page.getByRole('tab', { name: /Aparência/ }).click();
             await page.locator('#settings-panel[aria-labelledby="settings-tab-appearance"]').waitFor();
             await page.waitForFunction(() => !document.querySelector('#settings-panel').getAnimations({ subtree: true }).some(animation => animation.id === 'luxmc-page-entry'));
@@ -149,8 +149,14 @@ const fs = require('node:fs');
             await page.waitForFunction(() => window.testCalls.some(call => call.command === 'bedrock_install' && call.args.versionId === 'old' && call.args.name === 'Instalação interna'));
             assert.equal(await page.getByRole('button', { name: 'Instalar Bedrock oficial', exact: true }).count(), 0);
             assert.deepEqual(errors, []);
-            assert.equal(await page.evaluate(mode => window.motionCalls.includes(mode ? 160 : 360), performanceMode), true);
-            if (!performanceMode) assert.equal(await page.evaluate(() => window.motionDetails.some(call => call.frames.some(frame => frame.transform?.includes('32px')) && call.delay > 0)), true);
+            const entries = await page.evaluate(() => window.motionDetails.filter(call => call.frames.some(frame => frame.translate !== undefined)));
+            assert.equal(await page.evaluate(() => window.motionCalls.length), 0, 'Navigation must not fade the entire page');
+            if (performanceMode) assert.equal(entries.length, 0, 'Performance mode skips page entry animations');
+            else {
+                assert.ok(entries.length > 0, 'Normal navigation retains entry motion');
+                assert.ok(entries.every(call => call.duration >= 120 && call.duration <= 180 && !call.delay && !call.pageRoot), 'Entries stay short without staggered delays');
+                assert.ok(entries.every(call => call.frames.every(frame => !frame.transform && !frame.scale)), 'Entry motion must not scale large surfaces');
+            }
             await page.reload();
             await page.waitForFunction(() => document.documentElement.classList.contains('light') && document.documentElement.classList.contains('has-custom-wallpaper'));
             assert.equal(await page.evaluate(() => localStorage.getItem('luxmc_custom_wallpaper')), '/vanilla_banner.png');
