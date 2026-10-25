@@ -1,15 +1,36 @@
 <div align="center">
-  <img src="static/logo.png" alt="Luxmc" width="120" />
+  <img src="static/logo.png" alt="Luxmc" width="80" />
   <h1>Luxmc 4.0 — Do Seu Jeito</h1>
   <p>Seu Minecraft, suas instâncias e sua turma.</p>
   <p><a href="https://luxmc-r92.pages.dev">Site oficial</a> · <a href="https://github.com/predabr/luxmc/releases/latest">Downloads</a> · <a href="SECURITY.md">Segurança</a></p>
 </div>
+
+![Luxmc 4.0: instâncias, modpacks, personalização e amigos em um launcher para desktop](docs/media/readme/hero.svg)
+
+<p align="center">
+  <a href="https://github.com/predabr/luxmc/releases/latest"><img src="https://img.shields.io/badge/vers%C3%A3o-4.0.0-blue?style=flat-square" alt="Versão 4.0.0" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licen%C3%A7a-GPL--3.0--only-informational?style=flat-square" alt="Licença vigente: GPL-3.0-only" /></a>
+  <img src="https://img.shields.io/badge/desktop-Windows%20%2B%20Linux-lightgrey?style=flat-square" alt="Desktop Windows e Linux" />
+</p>
 
 Luxmc reúne versões Java, modpacks, organização de instâncias, personalização e recursos sociais. O backend usa Rust e Tauri 2; a interface usa Svelte 5 e TypeScript. O projeto tem raízes no Linux e instalador nativo para Windows.
 
 **Versão atual: 4.0.0.** As correções da linha 4.0 recebem uma identificação própria de build. O código em `main` pode conter mudanças ainda não incluídas nos instaladores públicos; confira a [última release publicada](https://github.com/predabr/luxmc/releases/latest) antes de baixar.
 
 **Licenciamento:** a [proposta de licença própria não comercial 2.0](docs/licensing/proposed/LUXMC-NONCOMMERCIAL-2.0-DRAFT.md) está publicada para revisão. Ela ainda não substitui a GPL vigente; veja o [status e o plano de adoção](docs/licensing/proposed/README.md).
+
+## Escolha seu próximo mundo
+
+| Para você | No Luxmc |
+| --- | --- |
+| Separar suas aventuras | Instâncias com mods, mundos e configurações próprios; pastas para organizar a biblioteca. |
+| Descobrir conteúdo | Modrinth e CurseForge, importação de pacotes, filtros por Minecraft e loader e histórico de versões. |
+| Ajustar cada modpack | Java, memória, resolução e argumentos por instância; ferramentas de reparo e diagnóstico. |
+| Deixar com a sua cara | Temas, wallpapers locais, skins e prévia do perfil. Plus e Pro ampliam a personalização. |
+| Reunir a turma | Amigos, convites e salas Java por túnel criptografado, com alternativa por endereço direto. |
+| Controlar o movimento | Transições curtas, opções de animação, movimento reduzido e modo de desempenho. |
+
+[Baixar](#instalação) · [Recursos da 4.0](#revisão-40) · [Amigos e aparência](#amigos-e-aparência) · [Desenvolvimento](#desenvolvimento) · [Licença](#licença-e-identidade)
 
 ## Instalação
 
@@ -18,6 +39,21 @@ Luxmc reúne versões Java, modpacks, organização de instâncias, personaliza�
 - **macOS:** consulte os artefatos da release. A disponibilidade de um pacote não equivale a uma validação de todas as funções naquele sistema.
 
 Baixe apenas dos canais oficiais. O atualizador verifica o manifesto assinado e o hash do arquivo antes de executar uma atualização. O instalador Windows ainda não tem assinatura Authenticode e pode ser bloqueado pelo Controle Inteligente. A assinatura de distribuição Ed25519 não substitui a identificação do editor no Windows. Veja [SECURITY.md](SECURITY.md).
+
+## Por dentro do launcher
+
+Capturas da revisão local 4.0, enviadas pelo autor em 25/10/2026. A disponibilidade das mudanças nos downloads acompanha a build publicada.
+
+![Biblioteca do Luxmc 4.0, com modpacks instalados, acesso rápido e painel de amigos](website/assets/captures-4.0/home.png)
+
+<details>
+<summary>Explorar modpacks e reunir a turma</summary>
+
+![Catálogo do Luxmc 4.0 com capas de modpacks, provedores e filtros de versões e loaders](website/assets/captures-4.0/catalog.png)
+
+![Tela de amigos do Luxmc 4.0, com perfis, código de amizade e acesso às salas LAN](website/assets/captures-4.0/friends.png)
+
+</details>
 
 ## Biblioteca e conteúdo
 
@@ -37,11 +73,13 @@ Wallpapers importados são copiados para a biblioteca interna. GIFs no perfil e 
 
 As salas Java têm capacidade de 10 participantes, ou **20 incluindo o anfitrião com Pro confirmado**. Todos devem usar uma revisão atualizada do launcher e versões compatíveis do jogo e dos mods. A capacidade do túnel não garante desempenho para vinte jogadores em qualquer computador: o processamento do mundo continua no PC que o abriu. A descoberta LAN tem alternativa por endereço direto para redes que bloqueiam multicast. A validação entre dois PCs com o modpack do usuário continua necessária.
 
-O site adapta o idioma inicial ao navegador e permite escolher português, inglês ou espanhol. O login Microsoft usa PKCE e retorno vinculado ao navegador, com tentativas independentes por aba. A disponibilidade dos serviços Xbox e Minecraft também é necessária para concluir o acesso. No teste atual, o serviço Minecraft retorna HTTP 403 para a hospedagem Cloudflare; o login completo do site permanece pendente dessa liberação. O acesso ao plano pelo botão “Meu plano e pedidos” do launcher continua sendo uma alternativa autenticada.
+O site adapta o idioma inicial ao navegador e permite escolher português, inglês ou espanhol. O novo acesso Microsoft usa OpenID Connect, PKCE, nonce e validação da assinatura do ID token. Ele autentica a conta Microsoft sem depender da API do Minecraft. No primeiro acesso, a pessoa confirma o vínculo com um perfil Luxmc já autenticado; nomes e e-mails não são usados para juntar perfis. Quem já usa o launcher pode abrir “Meu plano e pedidos”, voltar à página Conta e confirmar o perfil. Os próximos acessos reutilizam esse vínculo. Isso não verifica nem concede uma licença do Minecraft; a autenticação do jogo continua no launcher.
 
 A revisão mais recente encurta as transições de navegação, antecipa o código da tela de Amigos e evita animações sobrepostas na biblioteca. As configurações da instância separam identidade, desempenho, Java/loader, janela, comandos e manutenção. A primeira preparação do Minecraft segue o fluxo normal de abertura; reparos continuam disponíveis quando necessários.
 
-Os favoritos do perfil exibem capas sincronizadas. O NameMC abre em uma janela própria com redução de elementos publicitários. Além dos provedores integrados, FTB, Technic e ATLauncher ficam disponíveis como catálogos externos; seus downloads e atualizações são gerenciados fora do Luxmc.
+Os favoritos do perfil exibem capas sincronizadas. O NameMC abre em uma janela própria com redução de elementos publicitários. O catálogo integrado concentra a busca no Modrinth e no CurseForge.
+
+As correções locais em preparação mostram loaders e versões por arquivo publicado, com histórico paginado do CurseForge, e mantêm as ações das configurações abaixo dos campos. Um port mantido em outro projeto não é tratado como compatibilidade automática. Essas mudanças só chegam ao instalador público depois da publicação de uma nova build.
 
 ## Amigos e aparência
 
@@ -49,7 +87,20 @@ Perfis públicos podem incluir nome de exibição, status, descrição, imagens 
 
 As salas de Minecraft Java usam túneis QUIC criptografados com [iroh](https://docs.rs/iroh/1.2.0/iroh/), com conexão direta ou relay automático, sem instalar EasyTier ou drivers de VPN. O anfitrião abre seu mundo para LAN; o Luxmc anuncia os mundos recebidos nas interfaces locais, e os amigos escolhem o mundo na lista LAN do Minecraft. A sala mostra os perfis dos participantes, permite fechar novas entradas e renovar o convite de 24 horas. A conexão e a aba da sala são mantidas ao navegar. Usem a mesma versão do Minecraft e mods compatíveis. Uma partida vanilla 26.3 foi confirmada pelos participantes. A descoberta de porta em modpacks foi revisada na 3.8; os modpacks relatados ainda precisam de uma nova validação entre os dois PCs.
 
-O site oferece QR Pix com valor e referência por pedido. O dono confere o crédito no banco, o valor exato e a transação antes de liberar o plano. Comprovantes enviados não confirmam pagamentos. Após a aprovação, o recibo Luxmc fica disponível de forma privada; cartão e confirmação automática ainda dependem de um provedor aprovado.
+O site oferece QR Pix com valor e referência por pedido. O dono confere o crédito no banco, o valor exato e a transação antes de liberar o plano. Comprovantes enviados não confirmam pagamentos. A lista de pedidos consulta mudanças a cada cinco segundos enquanto a página está visível, preserva os campos de revisão e mostra novas decisões sem recarregar a página. A rejeição exige um motivo para o comprador; falhas na visualização do comprovante permitem uma nova tentativa. Após a aprovação, o recibo Luxmc fica disponível de forma privada; cartão e confirmação automática ainda dependem de um provedor aprovado.
+
+| Personalização | Free | Plus | Pro |
+| --- | --- | --- | --- |
+| Favoritos no perfil | 8 | 16 | 24 |
+| Paletas | Padrão | 6 | 6 |
+| Molduras | Sem moldura | Halo e contorno duplo | Todas, incluindo Órbita |
+| GIFs no perfil e nas pastas | — | Incluídos | Incluídos |
+| Fundo do cartão de amigos | — | — | Imagem ou GIF |
+| Composição da vitrine | Grade | Grade | Grade, destaque e pôsteres |
+| Auras e acabamento | — | — | Aurora, Beacon e Prisma |
+| Perfis de aparência sincronizados | — | 6 | 20 |
+
+Confira os [benefícios e valores no site](https://luxmc-r92.pages.dev/planos). A disponibilidade segue o plano confirmado pelo serviço. Wallpapers e o gerenciamento principal do Minecraft continuam gratuitos.
 
 ## Bedrock no Windows
 

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="title description">
+  <title id="title">Luxmc 4.0 — Seu Minecraft, do seu jeito</title>
+  <desc id="description">Instâncias, modpacks, personalização e amigos em um launcher para desktop.</desc>
+  <defs>
+    <linearGradient id="surface" x2="1" y2="1"><stop stop-color="rgb(12,17,27)"/><stop offset="1" stop-color="rgb(25,40,65)"/></linearGradient>
+    <linearGradient id="accent" x2="1" y2="1"><stop stop-color="rgb(160,204,255)"/><stop offset="1" stop-color="rgb(69,129,244)"/></linearGradient>
+    <radialGradient id="glow"><stop stop-color="rgb(69,129,244)" stop-opacity=".2"/><stop offset="1" stop-color="rgb(69,129,244)" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1200" height="360" rx="28" fill="url(#surface)"/>
+  <circle cx="980" cy="160" r="280" fill="url(#glow)"/>
+  <g fill="none" stroke="rgb(142,187,255)" stroke-opacity=".12">
+    <path d="M700 0v360M820 0v360M940 0v360M1060 0v360M0 90h1200M0 270h1200"/>
+    <rect x=".5" y=".5" width="1199" height="359" rx="28"/>
+  </g>
+  <g font-family="Inter,Segoe UI,Arial,sans-serif">
+    <text x="56" y="64" fill="rgb(142,187,255)" font-size="14" font-weight="600" letter-spacing="4">LUXMC / DESKTOP / 4.0</text>
+    <text x="52" y="140" fill="rgb(239,244,255)" font-size="62" font-weight="750" letter-spacing="-3">Seu Minecraft.</text>
+    <text x="52" y="207" fill="url(#accent)" font-size="62" font-weight="750" letter-spacing="-3">Do seu jeito.</text>
+    <text x="56" y="256" fill="rgb(169,184,205)" font-size="18">Instâncias, modpacks e sua turma no mesmo lugar.</text>
+    <g fill="rgb(169,184,205)" font-size="12" letter-spacing="2">
+      <text x="56" y="316">RUST + TAURI</text><text x="244" y="316">WINDOWS + LINUX</text>
+    </g>
+  </g>
+  <g transform="translate(845 58)">
+    <path d="M0 38 66 0 132 38 66 76Z" fill="url(#accent)"/>
+    <path d="M0 38 66 76 66 152 0 114Z" fill="rgb(44,94,199)"/>
+    <path d="M66 76 132 38 132 114 66 152Z" fill="rgb(69,129,244)"/>
+    <path d="M-64 144 2 106 68 144 2 182Z" fill="rgb(142,187,255)" fill-opacity=".3" stroke="rgb(142,187,255)" stroke-opacity=".5"/>
+    <path d="M-64 144 2 182 2 258-64 220Z" fill="rgb(44,94,199)" fill-opacity=".25" stroke="rgb(142,187,255)" stroke-opacity=".35"/>
+    <path d="M2 182 68 144 68 220 2 258Z" fill="rgb(69,129,244)" fill-opacity=".25" stroke="rgb(142,187,255)" stroke-opacity=".35"/>
+    <path d="M92 152 158 114 224 152 158 190Z" fill="rgb(142,187,255)" fill-opacity=".15" stroke="rgb(142,187,255)" stroke-opacity=".4"/>
+    <path d="M92 152 158 190 158 266 92 228Z" fill="rgb(44,94,199)" fill-opacity=".15" stroke="rgb(142,187,255)" stroke-opacity=".25"/>
+    <path d="M158 190 224 152 224 228 158 266Z" fill="rgb(69,129,244)" fill-opacity=".15" stroke="rgb(142,187,255)" stroke-opacity=".25"/>
+  </g>
+</svg>

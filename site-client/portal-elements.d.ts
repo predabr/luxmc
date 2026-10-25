@@ -1,4 +1,10 @@
 interface PortalElements {
+    '#microsoftLinkPanel': HTMLElement;
+    '#microsoftLinkIdentity': HTMLElement;
+    '#microsoftLinkHelp': HTMLElement;
+    '#microsoftLinkConfirm': HTMLButtonElement;
+    '#microsoftLinkCancel': HTMLButtonElement;
+    '#microsoftLinkError': HTMLElement;
     '#microsoftLogin': HTMLButtonElement;
     '#microsoftError': HTMLElement;
     '#microsoftSecurity': HTMLElement;

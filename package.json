@@ -119,6 +119,7 @@
     "gifuct-js": "^2.1.2",
     "howler": "^2.2.4",
     "idb-keyval": "^6.3.0",
+    "jose": "6.2.13",
     "lucide-svelte": "0.454.0",
     "marked": "^18.0.12",
     "matter-js": "^0.20.0",

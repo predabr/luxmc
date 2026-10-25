@@ -10,6 +10,8 @@ The first metadata review found permissive licenses and compatible alternative-l
 
 The Java client agent includes ASM under its own license. Its notice is retained at `src-tauri/client-agent/dependencies/ASM-LICENSE.txt` and included in generated JARs by the build script.
 
+The website uses [jose](https://github.com/panva/jose), distributed under the MIT license, to validate Microsoft OpenID Connect identity tokens. Its package retains the upstream license; `pnpm-lock.yaml` identifies the installed version.
+
 ## Game content and artwork
 
 Minecraft names, textures, skins and official game imagery belong to their respective rights holders. Modpack and mod cover art belongs to the relevant project authors. Screenshots from the Complementary gallery are identified in `static/cinema/sources.json`; their attribution is not evidence of a new GPL license grant. These assets must be reviewed under their authors' applicable permissions during provider onboarding.

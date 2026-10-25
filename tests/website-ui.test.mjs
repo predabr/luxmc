@@ -82,6 +82,72 @@ test('a checkout pause after page load refreshes the controls and reports the se
   } finally { window.close(); }
 });
 
+function ownerOrdersFixture({ receiptFailure = false } = {}) {
+  const dom=createDom(read('painel-luxmc.html')),window=dom.window,calls=[],timers=new Map();
+  let timerId=0,receiptAttempts=0;
+  const order={id:'order-a',socialId:'buyer-a',username:'Player',displayName:'Player',plan:'plus',amount:990,bank:'Test bank',pixReference:'REFERENCE',days:30,status:'pending',version:1,createdAt:1800000000,updatedAt:1800000000,note:'',receiptHash:'a'.repeat(64),receiptMime:'image/png',receiptUploadedAt:1800000000};
+  const state={identity:{id:'owner-a',username:'Owner',owner:true},csrfToken:'test-csrf',membership:{plan:'free',expiresAt:null},security:{expiresAt:1900000000},checkout:{enabled:true},orders:[]};
+  const queue={orders:[order],total:1,stats:{pending:1,approved:0,approvedAmount:0},config:{bank:'Test bank',pixKey:'test-key',enabled:true,passwordConfigured:true},audit:[]};
+  const live={revision:'revision-a',queue,receiptAttempts:()=>receiptAttempts};
+  window.HTMLDialogElement.prototype.showModal=function(){this.open=true;};
+  window.HTMLDialogElement.prototype.close=function(){this.open=false;};
+  window.AbortSignal.timeout=()=>new window.AbortController().signal;
+  window.AbortSignal.any=signals=>signals[0];
+  window.URL.createObjectURL=()=> 'blob:https://luxmc.test/receipt';window.URL.revokeObjectURL=()=>{};
+  window.confirm=()=>true;
+  window.setTimeout=(callback,delay)=>{const id=++timerId;timers.set(id,{callback,delay});return id;};
+  window.clearTimeout=id=>timers.delete(id);
+  window.fetch=async(url,options={})=>{
+    const action=url.split('/').pop();calls.push({url,action,body:options.body?JSON.parse(options.body):null});
+    if(url.startsWith('/api/receipts/')){receiptAttempts++;return receiptFailure&&receiptAttempts===1?{ok:false,status:503,json:async()=>({error:'Comprovante temporariamente indisponível.'})}:{ok:true,status:200,blob:async()=>new Blob(['receipt'],{type:'image/png'})};}
+    if(action==='status')return{ok:true,status:200,json:async()=>structuredClone(state)};
+    if(action==='owner_queue')return{ok:true,status:200,json:async()=>structuredClone(queue)};
+    if(action==='owner_updates')return{ok:true,status:200,json:async()=>({revision:live.revision})};
+    if(action==='owner_review') { const body=JSON.parse(options.body); assert.equal(body.decision,'reject');queue.orders=queue.orders.filter(item=>item.id!==body.id);queue.total=queue.orders.length;queue.stats.pending=queue.total;return{ok:true,status:200,json:async()=>({ok:true})}; }
+    throw new Error(`Unexpected action ${action}`);
+  };
+  const tick=async()=>{const entry=[...timers].find(([,timer])=>timer.delay===5000||timer.delay===0);assert.ok(entry,'scheduled live update');timers.delete(entry[0]);entry[1].callback();await settle();await settle();};
+  window.eval(read('commerce.js'));
+  return{dom,window,calls,live,tick};
+}
+
+test('owner live updates preserve an open receipt and review fields when another order arrives', async()=>{
+  const{window,calls,live,tick}=ownerOrdersFixture();
+  try{
+    await settle();await settle();const document=window.document;
+    [...document.querySelectorAll('#order-list button')].find(button=>button.textContent==='Ver comprovante').click();await settle();
+    const form=document.querySelector('[data-payment-review]');assert.ok(form);
+    const note=[...form.querySelectorAll('input')].find(input=>input.placeholder.startsWith('Para rejeitar'));
+    note.value='Estou conferindo';note.dispatchEvent(new window.Event('input',{bubbles:true}));note.focus();
+    const other={...live.queue.orders[0],id:'order-b',username:'Other'};live.queue.orders.unshift(other);live.queue.total=2;live.queue.stats.pending=2;
+    await tick();
+    assert.equal(document.querySelectorAll('[data-order]').length,2);
+    assert.equal(document.querySelector('[data-payment-review]'),form);assert.equal(note.value,'Estou conferindo');assert.equal(document.activeElement,note);
+    assert.equal(live.receiptAttempts(),1);assert.equal(form.querySelector('[data-approve]').disabled,true);
+    const before=calls.filter(call=>call.action==='owner_queue').length;await tick();
+    assert.equal(calls.filter(call=>call.action==='owner_queue').length,before);
+  }finally{window.close();}
+});
+
+test('receipt failures can be retried locally and rejection requires a reason before removing the pending order', async()=>{
+  const{window,calls}=ownerOrdersFixture({receiptFailure:true});
+  try{
+    await settle();await settle();const document=window.document,before=calls.length;
+    [...document.querySelectorAll('#order-list button')].find(button=>button.textContent==='Ver comprovante').click();await settle();
+    assert.equal(calls.length,before+1);assert.match(document.querySelector('.receipt-preview').textContent,/temporariamente indisponível/);
+    [...document.querySelectorAll('#order-list button')].find(button=>button.textContent==='Carregar novamente').click();await settle();
+    assert.ok(document.querySelector('.receipt-image'));
+    const reject=[...document.querySelectorAll('#order-list button')].find(button=>button.textContent==='Rejeitar pedido');reject.click();await settle();
+    assert.match(document.querySelector('[data-payment-review] [role=alert]').textContent,/Informe o motivo/);
+    assert.equal(calls.filter(call=>call.action==='owner_review').length,0);
+    const note=[...document.querySelectorAll('[data-payment-review] input')].find(input=>input.placeholder.startsWith('Para rejeitar'));note.value='Crédito não localizado';reject.click();await settle();await settle();
+    assert.equal(calls.filter(call=>call.action==='owner_review').length,1);
+    assert.equal(calls.find(call=>call.action==='owner_review').body.note,'Crédito não localizado');
+    assert.equal(document.querySelectorAll('[data-order]').length,0);assert.match(document.querySelector('#message').textContent,/Pedido rejeitado/);
+    await new Promise(setImmediate);
+  }finally{window.close();}
+});
+
 test('site navigation shows the authenticated photo and binds the plan link to the connected account', async () => {
   const dom=createDom(read('index.html')),window=dom.window;
   let signedIn=true;const calls=[];
@@ -110,7 +176,7 @@ test("the home page exposes the actual launcher and download without WebGL", () 
     assert.ok(document.querySelector("#heroPrimaryBtn").href);
     assert.equal(
       document.querySelector(".hero-capture img").getAttribute("src"),
-      "assets/captures-3.6/home-window.svg",
+      "assets/captures-4.0/home.png",
     );
     assert.equal(
       document.querySelectorAll("#worldStage,[data-skin-scene],.voxel-fallback")

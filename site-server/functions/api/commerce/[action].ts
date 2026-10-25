@@ -50,7 +50,7 @@ export async function onRequest({ request, env, params, waitUntil }: SiteContext
             await ownerCredentials(request, env, body.password, body.otp);
             return newOwnerSession(request, env, 'Senha confirmada para ações da central');
         }
-        if (action.startsWith('owner_') && action !== 'owner_password') await requireOwnerSession(request, db, me.id, !['owner_queue', 'owner_find', 'owner_touch', 'owner_totp_begin', 'owner_totp_disable'].includes(action));
+        if (action.startsWith('owner_') && action !== 'owner_password') await requireOwnerSession(request, db, me.id, !['owner_queue', 'owner_updates', 'owner_find', 'owner_touch', 'owner_totp_begin', 'owner_totp_disable'].includes(action));
         if (action === 'owner_touch') {
             const session = await requireOwnerSession(request, db, me.id);
             await db.prepare('UPDATE lux_commerce_sessions SET last_activity_at = ? WHERE token_hash = ? AND expires_at > ? AND last_activity_at > ?').bind(now, session.token_hash, now, now - 300).run();
@@ -61,6 +61,12 @@ export async function onRequest({ request, env, params, waitUntil }: SiteContext
             db.prepare('DELETE FROM lux_commerce_sessions WHERE expires_at < ?').bind(now),
             db.prepare("DELETE FROM lux_purchase_receipts WHERE uploaded_at < ? AND order_id IN (SELECT id FROM lux_purchase_orders WHERE status IN ('approved','rejected','cancelled'))").bind(now - 90 * 86400)
         ]));
+        if (action === 'updates' || action === 'owner_updates') {
+            const clause = action === 'owner_updates' ? '' : ' WHERE social_id = ?';
+            const changes = await db.prepare(`SELECT COUNT(*) AS total, COALESCE(SUM(version), 0) AS versions, COALESCE(MAX(updated_at), 0) AS modified, COALESCE(SUM(status = 'approved'), 0) AS approved FROM lux_purchase_orders${clause}`).bind(...(clause ? [me.id] : [])).first();
+            const config = await db.prepare('SELECT enabled, updated_at FROM lux_commerce_config WHERE id = 1').first();
+            return json({ revision: await digest(JSON.stringify([changes, config, await membership(db, me.id)])) });
+        }
         if (action === 'portal_ticket') {
             const ticket = randomToken();
             await db.prepare('INSERT INTO lux_commerce_tickets(token_hash, social_id, expires_at) VALUES (?, ?, ?)').bind(await digest(ticket), me.id, now + 60).run();

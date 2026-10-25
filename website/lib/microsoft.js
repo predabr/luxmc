@@ -13,7 +13,7 @@ function microsoftConfiguration(env) {
     return null;
   }
   if (url.protocol !== "https:" || !["luxmc-r92.pages.dev", "luxmc.top", "www.luxmc.top"].includes(url.hostname) || url.pathname !== "/api/microsoft/callback" || url.search || url.hash || url.port || url.username || url.password) return null;
-  return { clientId: env.MICROSOFT_CLIENT_ID, secret: env.MICROSOFT_CLIENT_SECRET, redirect };
+  return { clientId: env.MICROSOFT_CLIENT_ID.toLowerCase(), secret: env.MICROSOFT_CLIENT_SECRET, redirect };
 }
 async function microsoftJson(url, options) {
   const service = new URL(url).hostname + new URL(url).pathname;

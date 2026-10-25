@@ -36,7 +36,7 @@ function fixture() {
 }
 test('owner panel rejects another account, spoofed role, missing credentials and cross-site requests', async t => {
     const f=fixture(); t.after(()=>f.sqlite.close());
-    for(const action of ['owner_queue','owner_review','owner_grant','owner_config','owner_find']) assert.equal((await f.call(action,alice,{owner:true,targetId:owner,username:'Owner',role:'owner'})).status,403);
+    for(const action of ['owner_queue','owner_updates','owner_review','owner_grant','owner_config','owner_find']) assert.equal((await f.call(action,alice,{owner:true,targetId:owner,username:'Owner',role:'owner'})).status,403);
     assert.equal((await f.call('status','unknown')).status,401);
     assert.equal((await f.call('status',owner,{}, {'Sec-Fetch-Site':'cross-site',Origin:'https://evil.test'})).status,403);
     const ticket=(await f.call('portal_ticket',alice,{owner:true})).body; assert.equal(ticket.path,'/planos');
@@ -109,6 +109,28 @@ test('a replaced receipt invalidates the old review and rejection grants no memb
     const fresh=(await f.call('status')).body.orders[0];assert.equal((await f.call('owner_review',owner,{id:order,version:fresh.version,receiptHash:fresh.receiptHash,decision:'reject',note:'Crédito não localizado'})).status,200);
     assert.equal((await f.call('status')).body.membership.plan,'free');assert.equal((await f.call('status')).body.orders[0].note,'Crédito não localizado');
 });
+test('live revisions are scoped to the buyer and reflect uploads, decisions and plan changes without granting access', async t => {
+    const f=fixture();t.after(()=>f.sqlite.close());
+    const before=(await f.call('updates')).body;
+    assert.deepEqual(Object.keys(before),['revision']);assert.match(before.revision,/^[a-f0-9]{64}$/);
+    const ownerBefore=(await f.call('owner_updates',owner)).body.revision;
+    const other=(await f.call('create',bob,{plan:'plus'})).body.order.id;
+    assert.equal((await f.call('updates')).body.revision,before.revision);
+    assert.notEqual((await f.call('owner_updates',owner)).body.revision,ownerBefore);
+    const order=(await f.call('create',alice,{plan:'pro'})).body.order.id;
+    const created=(await f.call('updates')).body.revision;assert.notEqual(created,before.revision);
+    await f.upload(alice,order);const uploaded=(await f.call('updates')).body.revision;
+    assert.notEqual(uploaded,created);assert.equal((await f.call('status')).body.membership.plan,'free');
+    const pending=(await f.call('status')).body.orders[0];
+    assert.equal((await f.call('owner_review',owner,{id:order,version:pending.version,receiptHash:pending.receiptHash,decision:'reject',note:'Crédito não localizado'})).status,200);
+    assert.notEqual((await f.call('updates')).body.revision,uploaded);
+    assert.equal((await f.call('owner_queue',owner,{status:'pending'})).body.orders.length,0);
+    assert.equal((await f.call('status')).body.membership.plan,'free');
+    assert.equal((await f.call('status',bob)).body.orders[0].id,other);
+    assert.equal((await f.call('owner_updates',owner,{}, {Authorization:`Bearer ${tokens[owner]}`,Cookie:''})).status,428);
+    assert.equal((await f.call('updates','unknown')).status,401);
+});
+
 test('paid preferences use revisions, reject paths and preserve presets after a downgrade', async t => {
     const f=fixture();t.after(()=>f.sqlite.close());
     assert.equal((await f.call('preferences',alice,{revision:0,preferences:{density:'compact'},presets:[]})).status,403);

@@ -1,3 +1,17 @@
+# Revisão em 25/10/2026
+
+O caminho do site foi separado da autenticação do jogo. A revisão usa o fluxo de código OpenID Connect da Microsoft (`openid profile`) com PKCE, state por aba, nonce, assinatura RS256, audiência, emissor, tenant e validade conferidos por `jose`.
+
+O vínculo persistente identifica o sujeito assinado pela Microsoft. Um nome ou e-mail exibido não dá acesso a um perfil Luxmc. No primeiro vínculo, o usuário precisa autenticar o perfil Luxmc e confirmar as duas contas; uma sessão de “Meu plano e pedidos” do launcher pode autenticar o perfil existente. Amigos, plano e ID social são mantidos. Não há criação automática de um segundo perfil nem transferência de assinatura por nickname.
+
+A primeira autenticação pode terminar na tela de confirmação de vínculo; isso é uma etapa explícita do cadastro, não uma falha do Minecraft. Após confirmar, o botão Microsoft entra diretamente. Sem um perfil anterior, é possível criar uma conta Luxmc pelo formulário e então confirmar o vínculo pendente.
+
+Essa revisão não afirma a posse do Minecraft com base no ID token Microsoft. A verificação do jogo permanece no launcher e o fluxo anterior de comprovação Minecraft não é substituído por uma identidade inventada.
+
+Migração necessária: `website/migrations/0019_microsoft_identity.sql`. Validar a entrada real no Entra depois da publicação. Os registros abaixo descrevem o diagnóstico histórico do fluxo anterior.
+
+## Histórico do fluxo anterior
+
 # Login Microsoft no site
 
 Implementação publicada no site em 15/10/2026. A publicação dos instaladores 4.0 é acompanhada separadamente em `docs/validation/release-4.0-polish.md`.

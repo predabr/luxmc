@@ -1,4 +1,19 @@
 const accountTranslations: Record<string, [string, string]> = {
+  "MICROSOFT / IDENTIDADE CONFIRMADA": ["MICROSOFT / IDENTITY CONFIRMED", "MICROSOFT / IDENTIDAD CONFIRMADA"],
+  "Mantenha seu perfil Luxmc.": ["Keep your Luxmc profile.", "Conserva tu perfil Luxmc."],
+  "Uma confirmação conecta esta conta Microsoft ao seu perfil atual, preservando amigos e plano. Seu nome do Minecraft não será alterado.": ["One confirmation connects this Microsoft account to your existing profile, keeping your friends and plan. Your Minecraft name will not change.", "Una confirmación conecta esta cuenta Microsoft a tu perfil actual, conservando amigos y plan. Tu nombre de Minecraft no cambiará."],
+  "Entre na sua conta Luxmc abaixo. Se usa Microsoft no launcher, abra Meu plano e pedidos e volte à página Conta neste navegador. No primeiro acesso ao Luxmc, crie uma conta abaixo.": ["Sign in to your Luxmc account below. If you use Microsoft in the launcher, open My plan and orders, then return to Account in this browser. If you are new to Luxmc, create an account below.", "Entra en tu cuenta Luxmc abajo. Si usas Microsoft en el launcher, abre Mi plan y pedidos y vuelve a Cuenta en este navegador. Si eres nuevo en Luxmc, crea una cuenta abajo."],
+  "Confirmar vínculo": ["Confirm link", "Confirmar vínculo"],
+  "Conta Microsoft: {{account}}": ["Microsoft account: {{account}}", "Cuenta Microsoft: {{account}}"],
+  "Vincular ao perfil {{profile}}": ["Link to profile {{profile}}", "Vincular al perfil {{profile}}"],
+  "Entre no seu perfil para confirmar": ["Sign in to your profile to confirm", "Entra en tu perfil para confirmar"],
+  "Confira as duas contas antes de confirmar. Nos próximos acessos, basta usar Entrar com Microsoft.": ["Check both accounts before confirming. Next time, just use Sign in with Microsoft.", "Comprueba las dos cuentas antes de confirmar. La próxima vez, usa Entrar con Microsoft."],
+  "O acesso acontece na Microsoft; sua senha não é solicitada pelo Luxmc. Na primeira vez, confirme o vínculo com seu perfil para manter amigos e plano.": ["Sign-in happens at Microsoft; Luxmc does not ask for your password. The first time, confirm your profile link to keep your friends and plan.", "El acceso se realiza en Microsoft; Luxmc no solicita tu contraseña. La primera vez, confirma el vínculo con tu perfil para conservar amigos y plan."],
+  "A confirmação da Microsoft expirou. Entre com Microsoft novamente.": ["Microsoft confirmation expired. Sign in with Microsoft again.", "La confirmación de Microsoft caducó. Entra con Microsoft de nuevo."],
+  "A conta Microsoft mudou em outra aba. Recarregue esta página antes de confirmar.": ["The Microsoft account changed in another tab. Reload this page before confirming.", "La cuenta Microsoft cambió en otra pestaña. Recarga esta página antes de confirmar."],
+  "Entre no perfil Luxmc que deseja vincular. No launcher, use Meu plano e pedidos e volte à página Conta.": ["Sign in to the Luxmc profile you want to link. In the launcher, use My plan and orders, then return to Account.", "Entra en el perfil Luxmc que quieres vincular. En el launcher, usa Mi plan y pedidos y vuelve a Cuenta."],
+  "Essa conta Microsoft ou esse perfil Luxmc já possui outro vínculo. Entre na identidade original para continuar.": ["This Microsoft account or Luxmc profile already has another link. Sign in with the original identity to continue.", "Esta cuenta Microsoft o este perfil Luxmc ya tiene otro vínculo. Entra con la identidad original para continuar."],
+  "Não foi possível concluir o acesso Microsoft. Tente novamente.": ["Could not complete Microsoft sign-in. Please try again.", "No se pudo completar el acceso con Microsoft. Inténtalo de nuevo."],
   "© 2026 LuxMC · Minecraft, do seu jeito.": ["© 2026 LuxMC · Minecraft, your way.", "© 2026 LuxMC · Minecraft, a tu manera."],
   "Acesso à conta": ["Account access", "Acceso a la cuenta"],
   "Links legais": ["Legal links", "Enlaces legales"],
@@ -430,10 +445,12 @@ function translateAccountPage() {
         if (source) node.textContent = text.replace(text.trim(), accountText(source));
     }
 }
-window.addEventListener('luxmc-language-changed', translateAccountPage);
+window.addEventListener('luxmc-language-changed', () => { translateAccountPage(); void refreshMicrosoftLink(); });
 const $ = <K extends keyof PortalElements>(selector: K): PortalElements[K] => document.querySelector(selector) as PortalElements[K];
 let mode: "login" | "register" | "recover" = "login";
 let current: any = null;
+let microsoftConfirmation = '';
+let microsoftLinkGeneration = 0;
 let poll: ReturnType<typeof setTimeout> | undefined;
 let generation = 0;
 async function api(action: any, body: any = {}, area: any = "account") {
@@ -464,7 +481,7 @@ async function api(action: any, body: any = {}, area: any = "account") {
         }
         const msg = response.status === 503 && area !== 'microsoft'
             ? accountText("O serviço de conta está temporariamente indisponível. Tente novamente em instantes.")
-            : result.error ||
+            : result.error && accountText(result.error) ||
                 `Erro no servidor (${response.status}). Tente novamente em instantes.`;
         throw Object.assign(new Error(msg), { status: response.status, suggestions: result.suggestions || [] });
     }
@@ -536,6 +553,7 @@ function showAccount(account: any, recoveryCode?: string) {
     clearTimeout(poll);
     const run = ++generation;
     void refreshFriends(run);
+    void refreshMicrosoftLink();
 }
 for (const button of document.querySelectorAll<HTMLElement>("[data-mode]"))
     button.addEventListener("click", () => setMode(button.dataset.mode));
@@ -843,6 +861,45 @@ $("#friendSearch").addEventListener("submit", async (event: any) => {
         message(error.message, true);
     }
 });
+async function refreshMicrosoftLink() {
+    const run = ++microsoftLinkGeneration;
+    try {
+        const status = await api('link_status', {}, 'microsoft');
+        if (run !== microsoftLinkGeneration) return;
+        $('#microsoftLinkPanel').hidden = !status.pending;
+        microsoftConfirmation = status.pending ? status.confirmation : '';
+        if (!status.pending) return;
+        $('#microsoftLinkIdentity').textContent = accountText('Conta Microsoft: {{account}}').replace('{{account}}', status.microsoft);
+        $('#microsoftLinkConfirm').disabled = !status.profile;
+        $('#microsoftLinkConfirm').textContent = status.profile ? accountText('Vincular ao perfil {{profile}}').replace('{{profile}}', status.profile.username) : accountText('Entre no seu perfil para confirmar');
+        $('#microsoftLinkHelp').textContent = accountText(status.profile ? 'Confira as duas contas antes de confirmar. Nos próximos acessos, basta usar Entrar com Microsoft.' : 'Entre na sua conta Luxmc abaixo. Se usa Microsoft no launcher, abra Meu plano e pedidos e volte à página Conta neste navegador. No primeiro acesso ao Luxmc, crie uma conta abaixo.');
+    } catch {}
+}
+$('#microsoftLinkConfirm').addEventListener('click', async () => {
+    const button = $('#microsoftLinkConfirm');
+    const error = $('#microsoftLinkError');
+    if (!microsoftConfirmation || button.disabled) return;
+    button.disabled = true; error.hidden = true;
+    try {
+        await api('link', {confirmation: microsoftConfirmation}, 'microsoft');
+        location.assign('/conta');
+    } catch (failure: any) {
+        error.textContent = failure.message; error.hidden = false;
+        await refreshMicrosoftLink();
+    }
+});
+$('#microsoftLinkCancel').addEventListener('click', async () => {
+    const button = $('#microsoftLinkCancel');
+    button.disabled = true;
+    try {
+        await api('cancel_link', {}, 'microsoft');
+        microsoftLinkGeneration++;
+        microsoftConfirmation = '';
+        $('#microsoftLinkPanel').hidden = true;
+    } catch (failure: any) {
+        $('#microsoftLinkError').textContent = failure.message; $('#microsoftLinkError').hidden = false;
+    } finally { button.disabled = false; }
+});
 $("#microsoftLogin").addEventListener('click', async () => {
     const button = $("#microsoftLogin"), error = $("#microsoftError");
     button.disabled = true; error.hidden = true;
@@ -861,6 +918,8 @@ if (microsoftError) {
     history.replaceState(null, '', '/conta');
 }
 setMode(new URLSearchParams(location.search).get("mode") || "login");
+if (new URLSearchParams(location.search).has('microsoft_link')) history.replaceState(null, '', '/conta');
+void refreshMicrosoftLink();
 api("me")
     .then((result: any) => showAccount(result.account))
     .catch(() => { });
@@ -868,6 +927,7 @@ document.addEventListener("visibilitychange", () => {
     clearTimeout(poll);
     if (!document.hidden && current)
         void refreshFriends(generation);
+    if (!document.hidden) void refreshMicrosoftLink();
 });
 window.addEventListener("pagehide", () => {
     generation++;

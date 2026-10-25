@@ -418,10 +418,13 @@ function renderModCards(mods: any) {
         } catch {}
 
         const downloads = formatNumber(mod.downloads || 0);
-        const categories = (mod.categories || []).slice(0, 3);
-        const versions = mod.versions || [];
+        const declaredCategories: string[] = [...new Set<string>([...(mod.categories || []), ...(mod.display_categories || [])])];
+        const loaders = declaredCategories.filter(category => ['fabric', 'forge', 'neoforge', 'quilt', 'liteloader', 'rift', 'legacy-fabric', 'babric', 'ornithe'].includes(category.toLowerCase()));
+        const categories = declaredCategories.filter(category => !loaders.includes(category)).slice(0, 3);
+        const versions: string[] = [...(mod.versions || [])].sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+        const selectedVersion = (document.getElementById("modGameVersion") as HTMLSelectElement | null)?.value;
         const compatibility = versions.length
-            ? (document.getElementById("modGameVersion") as HTMLSelectElement | null)?.value || versions.at(-1)
+            ? selectedVersion && versions.includes(selectedVersion) ? selectedVersion : versions.find(version => /^\d+(\.\d+)+$/.test(version)) || versions[0]
             : "";
         const downloadUrl = `https://modrinth.com/${["mod", "modpack", "resourcepack", "shader"].includes(currentCategory) ? currentCategory : "mod"}/${encodeURIComponent(slug)}/versions`;
         return `
@@ -437,6 +440,7 @@ function renderModCards(mods: any) {
           </div>
           <p class="project-desc">${escapeHtml(desc)}</p>
           <div class="project-tags">
+            ${loaders.map(loader => `<span class="project-tag">${escapeHtml(loader)}</span>`).join("")}
             ${categories.map((c: any) => `<span class="project-tag">${escapeHtml(c)}</span>`).join("")}
             ${compatibility ? `<span class="project-tag">MC ${escapeHtml(compatibility)}</span>` : ""}
           </div>
@@ -457,6 +461,15 @@ function renderModCards(mods: any) {
     })
         .join("");
     container.querySelectorAll<HTMLImageElement>(".project-icon, .project-cover img").forEach(image => {
+        const fitArtwork = () => {
+            const cover = image.closest('.project-cover');
+            if (cover && image.naturalWidth > 0 && image.naturalHeight > 0 && image.naturalWidth / image.naturalHeight <= 1.2) {
+                cover.classList.remove('has-artwork');
+                cover.classList.add('has-icon');
+            }
+        };
+        image.addEventListener('load', fitArtwork, { once: true });
+        if (image.complete) fitArtwork();
         image.addEventListener("error", () => {
             image.src = "assets/logo.png";
             const cover = image.closest(".project-cover");
