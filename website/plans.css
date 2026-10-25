@@ -1,3 +1,4 @@
+body.plans-page { overflow-x:clip; }
 body.plans-page .plans-navigation { display: flex; gap: 24px; justify-content: space-between; }
 body.plans-page .plans-shell { max-width: 1240px; padding-top: 76px; }
 body.plans-page .plans-hero { width: 100vw; margin-left: calc(50% - 50vw); padding: 64px 0 40px; background: rgb(var(--paper)); color: rgb(var(--ink)); border-bottom: 1px solid rgb(var(--ink) / .12); }
@@ -9,7 +10,7 @@ body.plans-page .plans-hero { width: 100vw; margin-left: calc(50% - 50vw); paddi
 .plans-explore { display: inline-flex; align-items: center; gap: 26px; border-radius: 12px; background: rgb(var(--ink)); color: rgb(var(--paper)); padding: 15px 20px; margin-top: 15px; font-size: 13px; font-weight: 600; transition: background .2s; }
 .plans-explore:hover { background: rgb(var(--brand-600)); }
 .plans-capture { align-self: center; margin: 0; padding: 10px; border: 1px solid rgb(var(--ink) / .16); border-radius: 22px; background: rgb(var(--bg)); box-shadow: 0 22px 60px rgb(var(--ink) / .13); }
-.plans-capture img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; object-position: top; border-radius: 13px; }
+.plans-capture img { display:block; width:100%; height:auto; aspect-ratio:auto; object-fit:contain; object-position:top; border-radius:13px; }
 .plans-capture figcaption { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 15px 7px 5px; color: rgb(var(--fg-muted)); font-family: Lux Mono, monospace; font-size: 9px; }
 .plans-poster .hero-facts { grid-column: 1 / -1; margin: 0; padding-top: 14px; border-top: 1px solid rgb(var(--ink) / .13); color: rgb(var(--paper-muted)); }
 .plans-poster .hero-facts span { border-color: rgb(var(--ink) / .16); }
