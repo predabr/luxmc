@@ -69,7 +69,7 @@ A versão pública permanece **4.0.0**. Cada compilação tem uma revisão próp
 
 O catálogo prepara ícones em segundo plano com concorrência limitada. Arquivos auxiliares e pastas de metadados não aparecem como mods; os shaders extraídos continuam acessíveis. A atualização de modpacks separa consulta, revisão das mudanças e aplicação com backup dos mundos. Duplicatas reconhecidas em pacotes são guardadas em `.luxmc/removed-duplicates`, com registro da versão mantida.
 
-Wallpapers importados são copiados para a biblioteca interna. GIFs no perfil e nas pastas exigem Plus ou Pro; wallpapers continuam gratuitos. Pro também inclui fundo com imagem ou GIF nos cartões de amigos, acabamento Prisma, vitrine panorâmica ou pôsteres e auras Aurora e Beacon.
+Wallpapers importados são copiados para a biblioteca interna. GIFs no perfil e nas pastas exigem Plus ou Pro; wallpapers continuam gratuitos. Pro também inclui fundo com imagem ou GIF nos cartões de amigos, contorno colorido, vitrine panorâmica ou pôsteres e brilho animado no perfil.
 
 As salas Java têm capacidade de 10 participantes, ou **20 incluindo o anfitrião com Pro confirmado**. Todos devem usar uma revisão atualizada do launcher e versões compatíveis do jogo e dos mods. A capacidade do túnel não garante desempenho para vinte jogadores em qualquer computador: o processamento do mundo continua no PC que o abriu. A descoberta LAN tem alternativa por endereço direto para redes que bloqueiam multicast. A validação entre dois PCs com o modpack do usuário continua necessária.
 
@@ -93,11 +93,11 @@ O site oferece QR Pix com valor e referência por pedido. O dono confere o créd
 | --- | --- | --- | --- |
 | Favoritos no perfil | 8 | 16 | 24 |
 | Paletas | Padrão | 6 | 6 |
-| Molduras | Sem moldura | Halo e contorno duplo | Todas, incluindo Órbita |
+| Bordas do avatar | Padrão | Simples ou duplas | Inclui contorno animado |
 | GIFs no perfil e nas pastas | — | Incluídos | Incluídos |
 | Fundo do cartão de amigos | — | — | Imagem ou GIF |
 | Composição da vitrine | Grade | Grade | Grade, destaque e pôsteres |
-| Auras e acabamento | — | — | Aurora, Beacon e Prisma |
+| Efeitos do perfil | — | — | Brilho na capa, contorno e luzes animados |
 | Perfis de aparência sincronizados | — | 6 | 20 |
 
 Confira os [benefícios e valores no site](https://luxmc-r92.pages.dev/planos). A disponibilidade segue o plano confirmado pelo serviço. Wallpapers e o gerenciamento principal do Minecraft continuam gratuitos.
