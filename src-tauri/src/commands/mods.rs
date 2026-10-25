@@ -12,6 +12,25 @@ use crate::db::schema::mods::ModRow;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
+fn external_catalog_url(provider: &str) -> AppResult<&'static str> {
+    match provider {
+        "ftb" => Ok("https://www.feed-the-beast.com/modpacks"),
+        "technic" => Ok("https://www.technicpack.net/modpacks"),
+        "atlauncher" => Ok("https://atlauncher.com/packs"),
+        _ => Err(AppError::InvalidInput("Catálogo externo inválido".into())),
+    }
+}
+
+#[tauri::command]
+pub fn mods_open_catalog(window: tauri::WebviewWindow, provider: String) -> AppResult<()> {
+    if window.label() != "main" { return Err(AppError::InvalidInput("Abra o catálogo pelo launcher".into())); }
+    mods_open_catalog_core(&provider)
+}
+
+pub fn mods_open_catalog_core(provider: &str) -> AppResult<()> {
+    crate::commands::instances::open_url_safe(external_catalog_url(provider)?)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModInstallRequest {
@@ -694,6 +713,7 @@ fn ensure_content_idle(game_dir: &str) -> AppResult<()> {
 }
 
 fn loader_matches(loaders: &[String], loader: &str) -> bool {
+    let loader = match loader { "legacyfabric" | "babric" => "fabric", value => value };
     loaders.iter().any(|value| value == loader || (loader == "quilt" && value == "fabric"))
 }
 
@@ -706,6 +726,7 @@ mod compatibility_tests {
         let version = crate::core::mods::ModVersionDetail { id: "pinned".into(), project_id: "project".into(), name: "Dependency".into(), version_number: "1".into(), game_versions: vec!["1.20.1".into()], loaders: vec!["fabric".into()], files: vec![], dependencies: vec![] };
         assert!(validate_mod_version(&version, "1.20.1", "fabric").is_ok());
         assert!(validate_mod_version(&version, "1.20.1", "quilt").is_ok());
+        for loader in ["legacyfabric", "babric"] { assert!(validate_mod_version(&version, "1.20.1", loader).is_ok()); }
         for loader in ["vanilla", "forge", "neoforge"] { assert!(validate_mod_version(&version, "1.20.1", loader).is_err()); }
         assert!(validate_mod_version(&version, "1.20.2", "fabric").is_err());
     }
@@ -785,7 +806,7 @@ pub async fn mods_check_updates_core(
     let client = ModrinthClient::new(state.http.clone());
     let loader = profile.loader.as_str();
     let loaders: Vec<&str> = match loader {
-        "fabric" => vec!["fabric"],
+        "fabric" | "legacyfabric" | "babric" => vec!["fabric"],
         "forge" => vec!["forge"],
         "neoforge" => vec!["neoforge"],
         "quilt" => vec!["quilt"],

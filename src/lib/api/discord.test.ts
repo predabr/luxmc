@@ -1,0 +1,35 @@
+import { beforeEach, expect, it, vi } from 'vitest';
+const mocks = vi.hoisted(() => ({ invoke:vi.fn(), value:{discordRpc:true} }));
+vi.mock('./client', () => ({api:{invoke:mocks.invoke}}));
+vi.mock('$lib/stores/settings.svelte', () => ({settings:{value:mocks.value}}));
+beforeEach(() => { vi.resetModules(); vi.clearAllMocks(); mocks.value.discordRpc = true; mocks.invoke.mockResolvedValue(true); });
+it('sends only the newest queued activity', async () => {
+    const rpc = await import('./discord');
+    let finish!: (value:boolean) => void;
+    mocks.invoke.mockImplementationOnce(() => new Promise<boolean>(resolve => { finish = resolve; }));
+    const first = rpc.discordSetActivity('first');
+    await vi.waitFor(() => expect(mocks.invoke).toHaveBeenCalledOnce());
+    const old = rpc.discordSetActivity('old game');
+    const latest = rpc.discordSetActivity('latest game');
+    finish(true);
+    expect(await first).toBe(true);
+    expect(await old).toBe(false);
+    expect(await latest).toBe(true);
+    expect(mocks.invoke).toHaveBeenCalledTimes(2);
+    expect(mocks.invoke.mock.calls[1][1].details).toBe('latest game');
+});
+it('clearing invalidates queued activities and runs after the in-flight request', async () => {
+    const rpc = await import('./discord');
+    let finish!: (value:boolean) => void;
+    mocks.invoke.mockImplementationOnce(() => new Promise<boolean>(resolve => { finish = resolve; }));
+    const first = rpc.discordSetActivity('playing');
+    await vi.waitFor(() => expect(mocks.invoke).toHaveBeenCalledOnce());
+    const pending = rpc.discordSetActivity('stale');
+    const clear = rpc.discordClearActivity();
+    finish(true);
+    await Promise.all([first,pending,clear]);
+    expect(mocks.invoke.mock.calls.map(call => call[0])).toEqual(['discord_set_activity','discord_clear_activity']);
+    mocks.value.discordRpc = false;
+    expect(await rpc.discordSetActivity('disabled')).toBe(false);
+    expect(mocks.invoke).toHaveBeenCalledTimes(2);
+});

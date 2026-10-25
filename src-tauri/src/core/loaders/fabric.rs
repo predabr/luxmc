@@ -7,6 +7,8 @@ const FABRIC_META: &str = "https://meta.fabricmc.net/v2";
 pub struct FabricLibrary {
     pub name: String,
     pub url: Option<String>,
+    #[serde(default)]
+    pub natives: Option<std::collections::HashMap<String, String>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -31,7 +33,11 @@ pub async fn fetch_versions(
     http: &reqwest::Client,
     mc_version: &str,
 ) -> AppResult<Vec<LoaderVersion>> {
-    let url = format!("{}/versions/loader/{}", FABRIC_META, mc_version);
+    fetch_versions_from(http, mc_version, FABRIC_META).await
+}
+
+pub(super) async fn fetch_versions_from(http: &reqwest::Client, mc_version: &str, meta: &str) -> AppResult<Vec<LoaderVersion>> {
+    let url = format!("{meta}/versions/loader/{mc_version}");
     let resp: Vec<serde_json::Value> = http
         .get(&url)
         .send()
@@ -70,19 +76,23 @@ pub async fn prepare_fabric(
     mc_version: &str,
     loader_version: Option<&str>,
 ) -> AppResult<PreparedLoader> {
+    prepare_from_meta(http, libraries_dir, mc_version, loader_version, FABRIC_META).await
+}
+
+pub(super) async fn prepare_from_meta(http: &reqwest::Client, libraries_dir: &std::path::Path, mc_version: &str, loader_version: Option<&str>, meta: &str) -> AppResult<PreparedLoader> {
     let chosen_version = if let Some(v) = loader_version {
         if !v.trim().is_empty() {
             v.trim().to_string()
         } else {
-            get_latest_loader_version(http, mc_version).await?
+            get_latest_loader_version(http, mc_version, meta).await?
         }
     } else {
-        get_latest_loader_version(http, mc_version).await?
+        get_latest_loader_version(http, mc_version, meta).await?
     };
 
     let profile_url = format!(
         "{}/versions/loader/{}/{}/profile/json",
-        FABRIC_META, mc_version, chosen_version
+        meta, mc_version, chosen_version
     );
 
     let cache_key = format!("{:016x}.json", xxhash_rust::xxh3::xxh3_64(profile_url.as_bytes()));
@@ -107,12 +117,15 @@ pub async fn prepare_fabric(
 
     use futures_util::{StreamExt, TryStreamExt};
     let mut seen = std::collections::HashSet::new();
-    let libraries = profile.libraries.into_iter().filter(|lib| seen.insert(lib.name.clone())).collect::<Vec<_>>();
-    let classpath_entries = futures_util::stream::iter(libraries).map(|lib| {
+    let os = crate::core::launcher::platform_mojang_name(crate::core::launcher::current_platform());
+    let libraries = profile.libraries.into_iter().filter(|lib| seen.insert(lib.name.clone()) && lib.natives.as_ref().is_none_or(|natives| natives.contains_key(os))).collect::<Vec<_>>();
+    let artifacts = futures_util::stream::iter(libraries).map(|lib| {
         let http = http.clone();
         let libraries_dir = libraries_dir.to_path_buf();
         async move {
-        let rel_path = crate::core::launcher::lib_path_from_name(&std::path::PathBuf::new(), &lib.name);
+        let classifier = lib.natives.as_ref().and_then(|natives| natives.get(os)).map(|value| value.replace("${arch}", if cfg!(target_arch = "x86") { "32" } else { "64" }));
+        let coordinate = classifier.as_ref().map(|classifier| format!("{}:{classifier}", lib.name)).unwrap_or_else(|| lib.name.clone());
+        let rel_path = crate::core::launcher::lib_path_from_name(&std::path::PathBuf::new(), &coordinate);
         if rel_path.components().any(|part| !matches!(part, std::path::Component::Normal(_))) {
             return Err(crate::error::AppError::InvalidInput("Caminho Maven inválido".into()));
         }
@@ -124,9 +137,12 @@ pub async fn prepare_fabric(
             let central = format!("https://repo1.maven.org/maven2/{relative}");
             super::ensure_maven_jar(&http, &dest, &central).await?;
         }
-        Ok::<_, crate::error::AppError>(dest)
+        Ok::<_, crate::error::AppError>((dest, classifier.is_some()))
     }}).buffered(6).try_collect::<Vec<_>>().await?;
 
+    let (native, regular): (Vec<_>, Vec<_>) = artifacts.into_iter().partition(|(_, native)| *native);
+    let native_archives = native.into_iter().map(|(path, _)| path).collect();
+    let classpath_entries = regular.into_iter().map(|(path, _)| path).collect();
     let mut jvm_args = Vec::new();
     if let Some(args) = profile.arguments {
         for arg in args.jvm {
@@ -165,6 +181,7 @@ pub async fn prepare_fabric(
     }
 
     Ok(PreparedLoader {
+        native_archives,
         main_class: profile.main_class,
         classpath_entries,
         jvm_args,
@@ -172,14 +189,14 @@ pub async fn prepare_fabric(
     })
 }
 
-async fn get_latest_loader_version(http: &reqwest::Client, mc_version: &str) -> AppResult<String> {
-    let versions = fetch_versions(http, mc_version).await?;
+async fn get_latest_loader_version(http: &reqwest::Client, mc_version: &str, meta: &str) -> AppResult<String> {
+    let versions = fetch_versions_from(http, mc_version, meta).await?;
     let chosen = versions
         .iter()
         .find(|v| v.stable)
         .or_else(|| versions.first())
         .map(|v| v.id.clone())
-        .unwrap_or_else(|| "0.16.10".to_string());
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("Nenhuma versão de loader compatível com Minecraft {mc_version}")))?;
     Ok(chosen)
 }
 

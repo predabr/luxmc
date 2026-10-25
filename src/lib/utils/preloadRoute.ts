@@ -1,8 +1,8 @@
-import { preloadData } from "$app/navigation";
+import { preloadCode } from "$app/navigation";
 
 const TTL_MS = 30_000;
 const MAX_TRACKED = 64;
-const HOVER_DEBOUNCE_MS = 260;
+const HOVER_DEBOUNCE_MS = 60;
 const IDLE_TIMEOUT_MS = 400;
 
 const seen = new Map<string, number>();
@@ -34,13 +34,12 @@ function flush(url: string, defer = true) {
 	if (at !== undefined && now - at < TTL_MS) return;
 	if (seen.size >= MAX_TRACKED) seen.clear();
 	seen.set(url, now);
+	const load = () => { void preloadCode(new URL(url, window.location.href).pathname).catch(() => seen.delete(url)); };
 	if (!defer) {
-		void preloadData(url);
+		load();
 		return;
 	}
-	schedule(() => {
-		void preloadData(url);
-	});
+	schedule(load);
 }
 
 export function preloadRoute(url: string, immediate = false) {

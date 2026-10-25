@@ -162,11 +162,18 @@ fn extract_installer_maven_files(installer_bytes: &[u8], libraries_dir: &Path) -
                     return Err(AppError::InvalidInput("Unsafe path in Forge installer".into()));
                 }
                 let dest = libraries_dir.join(relative);
+                let mut bytes = Vec::new();
+                file.read_to_end(&mut bytes)?;
+                if std::fs::read(&dest).is_ok_and(|existing| existing == bytes) { continue; }
                 if let Some(parent) = dest.parent() {
                     std::fs::create_dir_all(parent)?;
                 }
-                let mut outfile = std::fs::File::create(&dest)?;
-                std::io::copy(&mut file, &mut outfile)?;
+                let temporary = dest.with_extension(format!("{}.part", uuid::Uuid::new_v4()));
+                std::fs::write(&temporary, &bytes)?;
+                if let Err(error) = std::fs::rename(&temporary, &dest) {
+                    let _ = std::fs::remove_file(&temporary);
+                    return Err(error.into());
+                }
             }
         }
     }
@@ -322,7 +329,11 @@ pub async fn prepare_forge(
     }
 
     let installer_bytes = tokio::fs::read(&installer_dest).await?;
-    extract_installer_maven_files(&installer_bytes, libraries_dir)?;
+    let extraction_root = libraries_dir.to_path_buf();
+    let installer_bytes = tokio::task::spawn_blocking(move || -> AppResult<Vec<u8>> {
+        extract_installer_maven_files(&installer_bytes, &extraction_root)?;
+        Ok(installer_bytes)
+    }).await.map_err(|error| AppError::Internal(error.to_string()))??;
 
     let version_json_str = if let Some(ref p) = installed_json_path {
         tokio::fs::read_to_string(p).await.unwrap_or_else(|_| {
@@ -569,6 +580,7 @@ pub async fn prepare_forge(
     }
 
     Ok(PreparedLoader {
+        native_archives: Vec::new(),
         main_class: version_data.main_class,
         classpath_entries,
         jvm_args,
@@ -587,6 +599,25 @@ async fn get_latest_loader_version(http: &reqwest::Client, mc_version: &str) -> 
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn installer_extraction_preserves_verified_files_and_repairs_modified_files() {
+        use std::io::Write;
+        let root = tempfile::tempdir().unwrap();
+        let mut archive = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        archive.start_file("maven/example/library.jar", zip::write::FileOptions::default()).unwrap();
+        archive.write_all(b"correct-library").unwrap();
+        let bytes = archive.finish().unwrap().into_inner();
+        super::extract_installer_maven_files(&bytes, root.path()).unwrap();
+        let file = root.path().join("example/library.jar");
+        let before = std::fs::metadata(&file).unwrap().modified().unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(30));
+        super::extract_installer_maven_files(&bytes, root.path()).unwrap();
+        assert_eq!(std::fs::metadata(&file).unwrap().modified().unwrap(), before);
+        std::fs::write(&file, b"damaged-library").unwrap();
+        super::extract_installer_maven_files(&bytes, root.path()).unwrap();
+        assert_eq!(std::fs::read(&file).unwrap(), b"correct-library");
+    }
+
     #[test]
     fn reads_compact_maven_metadata_without_other_versions() {
         let xml = "<versions><version>1.20.1-47.4.20</version><version>1.21.4-54.1.0</version></versions>";

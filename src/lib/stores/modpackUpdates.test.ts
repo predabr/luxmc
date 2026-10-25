@@ -17,6 +17,22 @@ beforeEach(() => {
 });
 
 describe('persistent modpack updates', () => {
+    it('refreshes after installation without an old request deleting the newer pending check', async () => {
+        const { modpackUpdates: updates } = await import('./modpackUpdates.svelte');
+        let oldFinish!: (value: ModpackUpdateInfo) => void;
+        let newFinish!: (value: ModpackUpdateInfo) => void;
+        mocks.check.mockImplementationOnce(() => new Promise<ModpackUpdateInfo>(resolve => {oldFinish=resolve;}));
+        const old = updates.check('pack-a');
+        updates.installed('pack-a','modrinth','project','v2','2');
+        mocks.check.mockImplementationOnce(() => new Promise<ModpackUpdateInfo>(resolve => {newFinish=resolve;}));
+        const fresh = updates.check('pack-a',true);
+        oldFinish(available); await old;
+        const shared = updates.check('pack-a',true);
+        expect(mocks.check).toHaveBeenCalledTimes(2);
+        newFinish({...available,currentVersionId:'v2',versionId:'v2'});
+        await Promise.all([fresh,shared]);
+        expect(updates.forProfile('pack-a')?.info?.hasUpdate).toBe(false);
+    });
     it('deduplicates checks and keeps the full project reference when no update exists', async () => {
         const { modpackUpdates: updates } = await import('./modpackUpdates.svelte');
         mocks.check.mockResolvedValue({ ...available, hasUpdate: false });

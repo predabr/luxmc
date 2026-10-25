@@ -160,11 +160,24 @@ pub(crate) fn select_pack_duplicate_versions(root: &Path, pinned: &HashSet<Strin
     select_pack_duplicate_versions_for_loader(root,pinned,preferred,"");
 }
 
-fn pack_filename_version(name: &str) -> Option<(String, semver::Version)> {
+fn stable_pack_version(value: &str) -> Option<Vec<u64>> {
+    let value = value.trim();
+    let mut parts = if value.split('.').all(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit())) {
+        if value.len() > 128 || value.split('.').count() > 8 { return None; }
+        value.split('.').map(str::parse::<u64>).collect::<Result<Vec<_>, _>>().ok()?
+    } else {
+        let version = semver::Version::parse(value).ok()?;
+        if !version.pre.is_empty() { return None; }
+        vec![version.major, version.minor, version.patch]
+    };
+    while parts.len() > 1 && parts.last() == Some(&0) { parts.pop(); }
+    Some(parts)
+}
+
+fn pack_filename_version(name: &str) -> Option<(String, Vec<u64>)> {
     let (prefix, version) = name.strip_suffix(".jar")?.rsplit_once('-')?;
     if !version.contains('.') || !version.split('.').all(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit())) { return None; }
-    let version = match version.split('.').count() { 2 => format!("{version}.0"), 3 => version.to_owned(), _ => return None };
-    Some((prefix.to_owned(), semver::Version::parse(&version).ok()?))
+    Some((prefix.to_owned(), stable_pack_version(version)?))
 }
 
 pub(crate) fn select_pack_duplicate_versions_for_loader(root: &Path, pinned: &HashSet<String>, preferred: &mut HashSet<String>, loader: &str) {
@@ -178,14 +191,7 @@ pub(crate) fn select_pack_duplicate_versions_for_loader(root: &Path, pinned: &Ha
         if !preferred.contains(name) { continue; }
         if metadata.ids.len() != 1 { continue; }
         let id = metadata.ids.iter().next().unwrap();
-        let Some(version) = metadata.versions.get(id).and_then(|version| {
-            let value = version.trim();
-            let value = if value.split('.').all(|part|!part.is_empty() && part.bytes().all(|byte|byte.is_ascii_digit())) {
-                match value.split('.').count() { 1 => format!("{value}.0.0"), 2 => format!("{value}.0"), _ => value.to_owned() }
-            } else { value.to_owned() };
-            semver::Version::parse(&value).ok()
-        }) else { continue; };
-        if !version.pre.is_empty() { continue; }
+        let Some(version) = metadata.versions.get(id).and_then(|version| stable_pack_version(version)) else { continue; };
         groups.entry((metadata.ids, metadata.loaders)).or_default().push((version, name));
     }
     for files in groups.values_mut() {
@@ -705,20 +711,48 @@ mod tests {
     }
 
     #[test]
+    fn pack_repair_orders_four_part_versions_and_preserves_unpinned_archives() {
+        use std::io::Write;
+        let root = tempfile::tempdir().unwrap();
+        std::fs::create_dir(root.path().join("mods")).unwrap();
+        let names = ["BetterAdvancements-1.19.2-0.2.2.142.jar", "BetterAdvancements-1.19.2-0.3.0.148.jar"];
+        for (name, version) in names.iter().zip(["0.2.2.142", "0.3.0.148"]) {
+            let mut archive = zip::ZipWriter::new(std::fs::File::create(root.path().join("mods").join(name)).unwrap());
+            archive.start_file("META-INF/mods.toml", zip::write::FileOptions::default()).unwrap();
+            archive.write_all(format!("[[mods]]\nmodId='betteradvancements'\nversion='{version}'\n").as_bytes()).unwrap();
+            archive.finish().unwrap();
+        }
+        let pinned = names.into_iter().map(str::to_owned).collect();
+        let mut preferred = std::collections::HashSet::new();
+        super::select_pack_duplicate_versions_for_loader(root.path(), &pinned, &mut preferred, "forge");
+        assert!(preferred.is_empty());
+        assert_eq!(super::repair_duplicates(root.path(), &preferred).unwrap(), 0);
+        preferred = pinned.clone();
+        super::select_pack_duplicate_versions_for_loader(root.path(), &pinned, &mut preferred, "forge");
+        assert_eq!(super::repair_duplicates(root.path(), &preferred).unwrap(), 1);
+        assert!(root.path().join("mods").join(names[1]).is_file());
+        assert!(super::audit(root.path(), false).unwrap().errors.is_empty());
+        assert!(super::stable_pack_version("0.3.0.148-beta").is_none());
+        assert!(super::stable_pack_version("0.3.0.18446744073709551616").is_none());
+        assert!(super::stable_pack_version("0.3.0.148") > super::stable_pack_version("0.3.0.99"));
+        assert_eq!(super::stable_pack_version("1.0.0.0"), super::stable_pack_version("1"));
+    }
+
+    #[test]
     #[ignore = "Reads explicitly selected installed pack archives into an isolated copy"]
     fn real_horror_override_duplicates_are_backed_up_without_reappearing() {
         let source = std::path::PathBuf::from(std::env::var_os("LUXMC_HORROR_MODS").expect("Select the pack mods directory"));
         let root = tempfile::tempdir().unwrap();
         std::fs::create_dir(root.path().join("mods")).unwrap();
-        let names = ["CuckooClock-forge-1.19.2-1.8.jar", "CuckooClock-forge-1.19.2-2.3.jar", "EyesInTheDark-forge-1.19.2-1.0.jar", "EyesInTheDark-forge-1.19.2-1.6.jar", "ShyGuy-forge-1.19.2-2.1.jar", "ShyGuy-forge-1.19.2-3.5.jar"];
+        let names = ["CuckooClock-forge-1.19.2-1.8.jar", "CuckooClock-forge-1.19.2-2.3.jar", "EyesInTheDark-forge-1.19.2-1.0.jar", "EyesInTheDark-forge-1.19.2-1.6.jar", "ShyGuy-forge-1.19.2-2.1.jar", "ShyGuy-forge-1.19.2-3.5.jar", "BetterAdvancements-1.19.2-0.2.2.142.jar", "BetterAdvancements-1.19.2-0.3.0.148.jar"];
         for name in names { std::fs::copy(source.join(name), root.path().join("mods").join(name)).unwrap(); }
         let pinned: std::collections::HashSet<String> = names.into_iter().map(str::to_owned).collect();
         let mut preferred = pinned.clone();
         super::select_pack_duplicate_versions_for_loader(root.path(), &pinned, &mut preferred, "forge");
-        assert_eq!(preferred.len(), 3);
-        assert_eq!(super::repair_duplicates(root.path(), &preferred).unwrap(), 3);
-        for name in [names[1], names[3], names[5]] { assert!(root.path().join("mods").join(name).is_file()); }
-        assert_eq!(std::fs::read_dir(root.path().join("mods")).unwrap().count(), 3);
+        assert_eq!(preferred.len(), 4);
+        assert_eq!(super::repair_duplicates(root.path(), &preferred).unwrap(), 4);
+        for name in [names[1], names[3], names[5], names[7]] { assert!(root.path().join("mods").join(name).is_file()); }
+        assert_eq!(std::fs::read_dir(root.path().join("mods")).unwrap().count(), 4);
     }
 
     #[test]

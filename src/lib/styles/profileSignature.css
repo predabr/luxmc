@@ -29,3 +29,8 @@ html.no-anim .profile-signature *, html.no-anim .profile-signature *::before, ht
 @media (prefers-reduced-motion: reduce) { html:not(.force-ui-motion) .profile-signature *, html:not(.force-ui-motion) .profile-signature *::before, html:not(.force-ui-motion) .profile-signature *::after { animation: none !important; } }
 
 html.resource-busy .profile-signature *::before, html.resource-busy .profile-signature *::after, body.motion-paused .profile-signature *::before, body.motion-paused .profile-signature *::after { animation-play-state: paused !important; }
+
+.profile-signature[data-profile-ambient-effect="aurora"] [data-profile-avatar]::before { display:block; border:0; inset:-8px; background:radial-gradient(ellipse at 20% 20%,color-mix(in srgb,var(--profile-accent),transparent 48%),transparent 65%),radial-gradient(ellipse at 80% 80%,color-mix(in srgb,var(--profile-accent),transparent 60%),transparent 65%); animation:lux-profile-aurora 6s ease-in-out infinite; }
+.profile-signature[data-profile-ambient-effect="beacon"] [data-profile-avatar]::before { display:block; inset:-7px; opacity:.4; box-shadow:0 0 0 5px color-mix(in srgb,var(--profile-accent),transparent 90%),0 0 0 11px color-mix(in srgb,var(--profile-accent),transparent 95%); animation:lux-profile-beacon 4.5s ease-in-out infinite; }
+@keyframes lux-profile-aurora { 0%,100% { opacity:.4; transform:rotate(-12deg) scale(.98); } 50% { opacity:.85; transform:rotate(12deg) scale(1.08); } }
+@keyframes lux-profile-beacon { 0%,100% { opacity:.3; transform:scale(1); } 50% { opacity:.7; transform:scale(1.05); } }

@@ -137,9 +137,10 @@ pub async fn reconcile_profile(
     }
 
     let count = tracked.len() as i64;
-    sqlx::query("UPDATE profiles SET mod_count = ? WHERE id = ?")
+    sqlx::query("UPDATE profiles SET mod_count = ? WHERE id = ? AND mod_count != ?")
         .bind(count)
         .bind(profile_id)
+        .bind(count)
         .execute(db.pool())
         .await?;
 

@@ -11,6 +11,7 @@ export function catalogCompatibility(
     if (contentType !== "Mod") return null;
     if (profile.loader === "vanilla") return uiText("ui.b8ff192088b83be5");
     const loaders = item.categories.map(category => category.toLowerCase()).filter(category => ["fabric", "forge", "neoforge", "quilt"].includes(category));
-    if (loaders.length && !loaders.includes(profile.loader.toLowerCase())) return uiText("ui.b97c43453ff94b4e");
+    const loader = ["legacyfabric", "babric"].includes(profile.loader.toLowerCase()) ? "fabric" : profile.loader.toLowerCase();
+    if (loaders.length && !loaders.includes(loader)) return uiText("ui.b97c43453ff94b4e");
     return null;
 }

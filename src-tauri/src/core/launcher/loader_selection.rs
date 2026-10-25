@@ -5,7 +5,7 @@ use crate::error::{AppError, AppResult};
 
 fn parse_loader_id(raw_id: &str) -> Option<(String, String)> {
     let lower = raw_id.to_ascii_lowercase();
-    for loader in ["neoforged", "neoforge", "fabric", "quilt", "forge"] {
+    for loader in ["legacyfabric", "babric", "neoforged", "neoforge", "fabric", "quilt", "forge"] {
         if let Some(rest) = lower.strip_prefix(loader) {
             let rest = rest.strip_prefix("-loader").unwrap_or(rest);
             let rest = rest.strip_prefix('-').unwrap_or(rest);
@@ -27,6 +27,8 @@ fn declared(value: &serde_json::Value) -> Option<(String, String)> {
         }
     }
     for (key, loader) in [
+        ("legacyfabric-loader", "legacyfabric"), ("legacyfabric", "legacyfabric"),
+        ("babric-loader", "babric"), ("babric", "babric"),
         ("fabric-loader", "fabric"), ("fabric", "fabric"),
         ("forge", "forge"), ("minecraft-forge", "forge"),
         ("neoforge", "neoforge"), ("neo-forge", "neoforge"), ("neoforged", "neoforge"),

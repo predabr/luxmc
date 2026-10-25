@@ -329,7 +329,13 @@
 		return options;
 	});
 
-	let settingsModalSyncedFor = $state<string | null>(null);
+	let instanceSettingsSection = $state<'general' | 'performance' | 'runtime' | 'window' | 'advanced' | 'maintenance'>('general');
+    const instanceSettingsSections = [
+        { id: 'general', icon: Box }, { id: 'performance', icon: Gauge },
+        { id: 'runtime', icon: Cpu }, { id: 'window', icon: Image },
+        { id: 'advanced', icon: Code }, { id: 'maintenance', icon: Wrench }
+    ] as const;
+    let settingsModalSyncedFor = $state<string | null>(null);
 	$effect(() => {
 		const open = settingsVisible;
 		const profileId = activeProfile?.id ?? null;
@@ -390,7 +396,8 @@
 			instanceJvmArgs = instanceJvmArgs.split(/\s+/).filter(value => value && !/^-Xm[sx]/.test(value)).concat(`-Xms${instanceMinRamMb}M`, `-Xmx${instanceRamMb}M`).join(" ");
 
 			const bannerValue = instanceBanner.trim();
-			if (bannerValue && !isSafeBannerUrl(bannerValue)) {
+            const bannerChanged = bannerValue !== (profile.banner || "").trim();
+			if (bannerChanged && bannerValue && !isSafeBannerUrl(bannerValue)) {
 				toast(uiText("ui.78acfb25f932a189"), "error");
 				return;
 			}
@@ -430,7 +437,7 @@
                     preLaunchHook: changes.preLaunchHook || null,
                     postExitHook: changes.postExitHook || null
                 });
-				profiles.setBanner(profile.id, bannerValue);
+                if (bannerChanged) profiles.setBanner(profile.id, bannerValue);
                 toast(uiText("ui.3f84cec002ac344d"), "success");
 			} catch (e) {
 				toast(uiText("ui.6900afcd83738036") + String(e), "error");
@@ -1600,7 +1607,7 @@
 					showModConflictModal = true;
 					return;
 				}
-				if (!readiness.ready && readiness.repairable) {
+				if (!readiness.ready && readiness.repairable && !readiness.preparationRequired) {
 					appState.launchingProfileId = targetProfileId;
 					appState.isLaunching = true;
 					appState.launchStatusText = uiText("ui.b6d484d52a57df94");
@@ -1622,7 +1629,7 @@
 					}
 					appState.isLaunching = false;
 				}
-				if (!readiness.ready) {
+				if (!readiness.ready && !readiness.preparationRequired) {
 					toast(uiText("ui.bb62da2d79a47c08", {arg0: (readiness.blockers[0] || uiText("ui.9e8298233a54f645"))}), "error");
 					return;
 				}
@@ -2017,7 +2024,7 @@
 							<div class="text-right font-medium pr-2">{uiText("instances.actions")}</div>
 						</div>
 
-						<VirtualList items={filteredMods} getKey={(mod) => mod.name} itemHeight={76} fixedHeight overscan={2} height="600px" class="rounded-b-2xl border-x border-b border-fg/5 bg-bg-elevated/40">
+						<VirtualList items={filteredMods} getKey={(mod) => mod.name} itemHeight={92} fixedHeight overscan={3} height="600px" class="instance-mod-list">
 							{#snippet children(mod: FileTreeEntry, _index: number)}
 								{@const isDisabled = mod.name.endsWith('.disabled')}
 								{@const info = modRowInfo.get(mod.name)}
@@ -2026,7 +2033,7 @@
 								{@const isFrozen = frozenModSet.has(mod.name.replace(/\.disabled$/, ''))}
 								{@const isSelected = selectedModSet.has(mod.name)}
 								{@const modUpdate = info?.update ?? null}
-								<div class="instance-mod-row h-full items-center gap-4 px-4 py-3 hover:bg-fg/[0.03] border-b border-fg/5 transition-colors group {isDisabled ? 'opacity-50' : ''}">
+								<div data-selected={isSelected} class="instance-mod-row h-full items-center gap-4 px-4 py-3 hover:bg-fg/[0.03] border-b border-fg/5 transition-colors group {isDisabled ? 'opacity-50' : ''}">
 									<!-- Checkbox & Project Info -->
 									<div class="flex items-center gap-3.5 min-w-0">
 										<input
@@ -2036,7 +2043,7 @@
 											onchange={() => toggleModSelection(mod.name)}
 											class="w-4 h-4 rounded border border-fg/20 bg-bg-subtle accent-emerald-500 cursor-pointer shrink-0"
 										/>
-										<div use:loadContentIcon={{entry: mod, folder: "mods"}} class="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shrink-0 bg-bg-subtle border border-fg/10 relative shadow-sm {isDisabled ? 'grayscale opacity-60' : ''}">
+										<div use:loadContentIcon={{entry: mod, folder: "mods"}} class="mod-cover w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shrink-0 bg-bg-subtle border border-fg/10 relative shadow-sm {isDisabled ? 'grayscale opacity-60' : ''}">
 											<div class="absolute inset-0 bg-bg-subtle text-fg-muted flex items-center justify-center select-none">
 												<span class="text-xs font-black tracking-tight drop-shadow-sm">{badge.initials}</span>
 											</div>
@@ -2051,7 +2058,7 @@
 										</div>
 										<div class="min-w-0">
 											<div class="flex items-center gap-2">
-												<h5 class="text-xs font-bold text-fg truncate max-w-[280px] group-hover:text-emerald-400 transition-colors" title={displayName}>
+												<h5 class="mod-title text-fg truncate transition-colors" title={displayName}>
 													{displayName}
 												</h5>
 												{#if isFrozen}<span title={uiText("ui.b37959a62adebf5c")}><Snowflake class="w-3.5 h-3.5 text-cyan-400 shrink-0" /></span>{/if}
@@ -2063,7 +2070,7 @@
 											</div>
 											<div class="flex items-center gap-1.5 mt-0.5 text-[11px] text-fg/40">
 												<span class="w-1.5 h-1.5 rounded-full bg-fg/30"></span>
-												<span class="truncate max-w-[200px]">{info?.author ?? ''}</span>
+												<span class="mod-detail truncate">{uiText(isDisabled ? "modList.disabled" : "modList.enabled")} · {mod.size < 1048576 ? `${Math.ceil(mod.size / 1024)} KB` : `${(mod.size / 1048576).toFixed(2)} MB`}</span>
 											</div>
 										</div>
 									</div>
@@ -2574,18 +2581,25 @@
 
                 </div>
             </header>
-			<div inert={savingInstanceSettings} class="space-y-6">
+			<div inert={savingInstanceSettings} class="instance-settings-layout">
+                <nav class="instance-settings-navigation" aria-label={uiText("instanceSettingsNav.navigation")}>
+                    {#each instanceSettingsSections as section}
+                        <button type="button" aria-pressed={instanceSettingsSection === section.id} class={button({ variant: instanceSettingsSection === section.id ? 'primary' : 'ghost', class: 'justify-start' })} onclick={() => instanceSettingsSection = section.id}>
+                            <section.icon class="h-4 w-4" />{uiText(`instanceSettingsNav.${section.id}`)}
+                        </button>
+                    {/each}
+                </nav>
 
-				<div class="min-w-0 flex-1 space-y-6">
-
-					<section id="instance-settings-geral" class="instance-settings-group">
+				<div class="instance-settings-content min-w-0 space-y-4">
+                    <p class="text-sm text-fg-muted">{uiText(`instanceSettingsNav.${instanceSettingsSection}Help`)}</p>
+					<section id="instance-settings-geral" hidden={instanceSettingsSection !== 'general'} class="instance-settings-group">
 						<div class="space-y-6">
 							<div>
 								<div class="flex items-center gap-2">
 									<Box class="w-4 h-4 text-emerald-400" />
 									<h3 class="text-xs font-bold text-fg uppercase tracking-wider">{uiText("settings.general")}</h3>
 								</div>
-								<p class="text-[11px] text-fg/40 mt-0.5">{uiText("ui.d5de5a5144fadbfa")}</p>
+
 							</div>
 
 							<div class="space-y-3">
@@ -2602,48 +2616,17 @@
 								</div>
 							</div>
 
-							<label class="block space-y-2 text-xs text-fg-muted">
-                                <span>{uiText("ui.94318b08bcae561f")}</span>
-                                <input type="url" aria-label={uiText("ui.94318b08bcae561f")} bind:value={instanceBanner} placeholder="https://…/banner.webp" class="w-full rounded-xl border border-border bg-bg-elevated px-4 py-3 text-fg focus:border-brand-500" />
-                            </label>
-                            <div class="space-y-3 pt-2">
-								<div>
-									<span class="text-xs font-bold text-fg/80 block">{uiText("ui.064fc30a68b2488a")}</span>
-									<p class="text-[11px] text-fg/40 mt-0.5">{uiText("ui.a22fca1bf720bf8b")}</p>
-								</div>
+							<details class="rounded-xl border border-border p-4">
+                                <summary class="cursor-pointer text-sm text-fg">{uiText("ui.94318b08bcae561f")}</summary>
+                                <label class="mt-3 block space-y-2 text-xs text-fg-muted">
+                                    <span>{uiText("instanceSettingsNav.bannerHelp")}</span>
+                                    <input type="url" aria-label={uiText("ui.94318b08bcae561f")} bind:value={instanceBanner} placeholder="https://…/banner.webp" class="w-full rounded-xl border border-border bg-bg-elevated px-4 py-3 text-fg focus:border-brand-500" />
+                                </label>
+                            </details>
 
-								<button
-									type="button"
-									class={button({ variant: "secondary", class: "w-full h-auto justify-start gap-4 whitespace-normal p-4 text-left group border-amber-500/25" })}
-									onclick={handleRepairModpack}
-                                    disabled={isRepairingModpack}
-								>
-									<div class="h-10 w-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0 text-amber-400 group-hover:scale-110 transition-transform">
-										<Sparkles class="w-5 h-5" />
-									</div>
-									<div>
-										<h4 class="text-xs font-bold text-amber-400">{uiText("ui.598a4670601ddf97")}</h4>
-										<p class="text-[11px] text-fg/40 mt-0.5">{uiText("ui.fb2ba1a357ce9b2d")}</p>
-									</div>
-								</button>
-
-								<button
-									type="button"
-									class={button({ variant: "danger", class: "w-full h-auto justify-start gap-4 whitespace-normal p-4 text-left group" })}
-									onclick={deleteCurrentInstance} disabled={deletingInstance || appState.isGameRunning}
-								>
-									<div class="h-10 w-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center shrink-0 text-rose-400 group-hover:scale-110 transition-transform">
-										<Trash2 class="w-5 h-5" />
-									</div>
-									<div>
-										<h4 class="text-xs font-bold text-rose-400">{uiText("ui.79ef883cba2c401e")}</h4>
-										<p class="text-[11px] text-fg/40 mt-0.5">{uiText("ui.58df83b9244fd69a")}</p>
-									</div>
-								</button>
-							</div>
 						</div>
 
-					</section><section id="instance-settings-instalacao" class="instance-settings-group">
+					</section><section id="instance-settings-instalacao" hidden={instanceSettingsSection !== 'runtime'} class="instance-settings-group">
 						<div class="space-y-6">
 							<div>
 								<h3 class="text-xs font-bold text-fg uppercase tracking-wider">{uiText("ui.c30103f0b0461371")}</h3>
@@ -2653,7 +2636,7 @@
 							<div class="space-y-3">
 								<span class="text-xs font-bold text-fg/70 block">{uiText("ui.afd4e4e867ce4d76")}</span>
 								<div class="grid grid-cols-2 gap-3">
-									{#each ["fabric", "forge", "neoforge", "quilt", "vanilla"] as loader}
+									{#each ["fabric", "forge", "neoforge", "quilt", "legacyfabric", "babric", "vanilla"] as loader}
 										<button
 											type="button"
 											aria-pressed={instanceLoaderType === loader}
@@ -2673,7 +2656,7 @@
 							</div>
 						</div>
 
-					</section><section id="instance-settings-otimizacao" class="instance-settings-group">
+					</section><section id="instance-settings-otimizacao" hidden={instanceSettingsSection !== 'performance'} class="instance-settings-group">
 						<div class="space-y-5">
 							<div>
 								<div class="flex items-center gap-2">
@@ -2683,7 +2666,16 @@
 								<p class="text-[11px] text-fg/40 mt-0.5">{uiText("ui.ae23252a007d7244")}</p>
 							</div>
 
-							<div class="bg-bg-elevated border border-fg/5 rounded-2xl p-4 space-y-3">
+							<div class="rounded-2xl border border-border bg-bg-subtle p-4 space-y-4">
+                            <h3 class="text-sm font-semibold text-fg">{uiText("ui.d6558f3825d66efd")}</h3>
+                            <label for="instance-ram-min" class="flex justify-between text-xs text-fg-muted"><span>{uiText("ui.40b336d098b84bde")}</span><span>{(instanceMinRamMb / 1024).toFixed(1)} GB</span></label>
+                            <input id="instance-ram-min" type="range" min="512" max={instanceRamMb} step="256" bind:value={instanceMinRamMb} class="w-full accent-brand-500" />
+                            <label for="instance-ram-max" class="flex justify-between text-xs text-fg-muted"><span>{uiText("ui.6c14c547e5a5577b")}</span><span>{(instanceRamMb / 1024).toFixed(1)} GB</span></label>
+                            <input id="instance-ram-max" type="range" min="1024" max={Math.max(1024, Math.floor(systemRamMb / 256) * 256)} step="256" bind:value={instanceRamMb} class="w-full accent-brand-500" />
+                            <p class="text-xs text-fg-muted">{uiText("ui.26d3b594b40df6af")}</p>
+                        </div>
+
+                            <div class="bg-bg-elevated border border-fg/5 rounded-2xl p-4 space-y-3">
 								<div class="flex items-center justify-between">
 									<span class="text-xs font-bold text-fg/90 flex items-center gap-2">
 										<Cpu class="w-3.5 h-3.5 text-brand-500" /> {uiText("ui.4c49e2c6fdf378cf")}
@@ -2782,7 +2774,7 @@
 								{#if instanceUseGamescope}<div class="grid grid-cols-2 gap-2"><input type="number" bind:value={instanceGamescopeWidth} placeholder={uiText("ui.09b171027051a68c")} class="rounded-xl border border-fg/10 bg-bg-overlay/30 px-3 py-2 text-xs text-fg outline-none" /><input type="number" bind:value={instanceGamescopeHeight} placeholder={uiText("ui.3031040a64870128")} class="rounded-xl border border-fg/10 bg-bg-overlay/30 px-3 py-2 text-xs text-fg outline-none" /></div><label class="flex items-center gap-2 text-xs text-fg/70"><input type="checkbox" bind:checked={instanceGamescopeFsr} class="accent-brand-500" /> {uiText("ui.c5ca752901a0f010")}</label>{/if}
 							{/if}
 </div>
-					</section><section id="instance-settings-janela" class="instance-settings-group">
+					</section><section id="instance-settings-janela" hidden={instanceSettingsSection !== 'window'} class="instance-settings-group">
 						<div class="space-y-6">
 							<div>
 								<h3 class="text-xs font-bold text-fg uppercase tracking-wider">{uiText("ui.56342ebec923727e")}</h3>
@@ -2816,7 +2808,7 @@
 							</div>
 						</div>
 
-					</section><section id="instance-settings-java" class="instance-settings-group">
+					</section><section id="instance-settings-java" hidden={instanceSettingsSection !== 'runtime'} class="instance-settings-group">
 						<div class="space-y-6">
 							<div>
 								<h3 class="text-xs font-bold text-fg uppercase tracking-wider">{uiText("settings.javaMemory")}</h3>
@@ -2843,15 +2835,7 @@
 								</p>
 							</div>
 
-							<div class="rounded-2xl border border-border bg-bg-subtle p-4 space-y-4">
-                            <h3 class="text-sm font-semibold text-fg">{uiText("ui.d6558f3825d66efd")}</h3>
-                            <label for="instance-ram-min" class="flex justify-between text-xs text-fg-muted"><span>{uiText("ui.40b336d098b84bde")}</span><span>{(instanceMinRamMb / 1024).toFixed(1)} GB</span></label>
-                            <input id="instance-ram-min" type="range" min="512" max={instanceRamMb} step="256" bind:value={instanceMinRamMb} class="w-full accent-brand-500" />
-                            <label for="instance-ram-max" class="flex justify-between text-xs text-fg-muted"><span>{uiText("ui.6c14c547e5a5577b")}</span><span>{(instanceRamMb / 1024).toFixed(1)} GB</span></label>
-                            <input id="instance-ram-max" type="range" min="1024" max={Math.max(1024, Math.floor(systemRamMb / 256) * 256)} step="256" bind:value={instanceRamMb} class="w-full accent-brand-500" />
-                            <p class="text-xs text-fg-muted">{uiText("ui.26d3b594b40df6af")}</p>
-                        </div>
-                        <div class="rounded-2xl border border-border bg-bg-subtle p-4 space-y-3">
+							                        <div class="rounded-2xl border border-border bg-bg-subtle p-4 space-y-3">
                             <label for="instance-java" class="block text-sm font-semibold text-fg">{uiText("ui.6980b7f402766d81")}</label>
                             <select id="instance-java" bind:value={instanceJavaPath} class="w-full rounded-xl border border-border bg-bg-elevated px-3 py-3 text-xs text-fg"><option value="">{uiText("ui.1cd6b3e855b28ecc")}</option>{#each javaRuntimes as runtime}{#if runtime.path}<option value={runtime.path}>Java {runtime.major} · {runtime.versionString || runtime.path}</option>{/if}{/each}{#if instanceJavaPath && !javaRuntimes.some(runtime => runtime.path === instanceJavaPath)}<option value={instanceJavaPath}>{instanceJavaPath}</option>{/if}</select>
                             <button type="button" class={button({ variant: "secondary", size: "sm" })} onclick={detectJava} disabled={scanningJava}><RefreshCw class="h-4 w-4 {scanningJava ? 'animate-spin' : ''}" />{scanningJava ? 'Detectando…' : uiText("ui.e78537280b2f6241")}</button>
@@ -3036,7 +3020,7 @@
 							</div>
 						</div>
 
-					</section><section id="instance-settings-hooks" class="instance-settings-group">
+					</section><section id="instance-settings-hooks" hidden={instanceSettingsSection !== 'advanced'} class="instance-settings-group">
 						<div class="space-y-6">
 							<div>
 								<h3 class="text-xs font-bold text-fg uppercase tracking-wider">{uiText("ui.b9dac8db6dc5de93")}</h3>
@@ -3055,10 +3039,49 @@
 						</div>
                     </section>
 
+                    <section id="instance-settings-maintenance" hidden={instanceSettingsSection !== 'maintenance'} class="instance-settings-group">
+                        <h3 class="text-sm font-semibold text-fg">{uiText("instanceSettingsNav.maintenance")}</h3>
+                            <div class="space-y-3 pt-2">
+								<div>
+									<span class="text-xs font-bold text-fg/80 block">{uiText("ui.064fc30a68b2488a")}</span>
+									<p class="text-[11px] text-fg/40 mt-0.5">{uiText("ui.a22fca1bf720bf8b")}</p>
+								</div>
+
+								<button
+									type="button"
+									class={button({ variant: "secondary", class: "w-full h-auto justify-start gap-4 whitespace-normal p-4 text-left group border-amber-500/25" })}
+									onclick={handleRepairModpack}
+                                    disabled={isRepairingModpack}
+								>
+									<div class="h-10 w-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0 text-amber-400 group-hover:scale-110 transition-transform">
+										<Sparkles class="w-5 h-5" />
+									</div>
+									<div>
+										<h4 class="text-xs font-bold text-amber-400">{uiText("ui.598a4670601ddf97")}</h4>
+										<p class="text-[11px] text-fg/40 mt-0.5">{uiText("ui.fb2ba1a357ce9b2d")}</p>
+									</div>
+								</button>
+
+								<button
+									type="button"
+									class={button({ variant: "danger", class: "w-full h-auto justify-start gap-4 whitespace-normal p-4 text-left group" })}
+									onclick={deleteCurrentInstance} disabled={deletingInstance || appState.isGameRunning}
+								>
+									<div class="h-10 w-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center shrink-0 text-rose-400 group-hover:scale-110 transition-transform">
+										<Trash2 class="w-5 h-5" />
+									</div>
+									<div>
+										<h4 class="text-xs font-bold text-rose-400">{uiText("ui.79ef883cba2c401e")}</h4>
+										<p class="text-[11px] text-fg/40 mt-0.5">{uiText("ui.58df83b9244fd69a")}</p>
+									</div>
+								</button>
+							</div>
+                    </section>
+
 				</div>
 			</div>
 
-			<div class="flex items-center justify-end gap-3 pt-4 border-t border-fg/5">
+			<div class="instance-settings-save flex items-center justify-end gap-3 rounded-2xl border border-border bg-bg-elevated p-3">
 				<button
 					type="button"
 					class={button({ variant: "secondary" })}

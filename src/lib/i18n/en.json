@@ -1,4 +1,8 @@
 {
+  "externalCatalog": {"title": "More catalogues", "help": "Open the official website. Downloads and updates from these catalogues are managed outside Luxmc.", "failed": "Could not open the catalogue."},
+  "modList": {"enabled": "Enabled", "disabled": "Disabled"},
+  "showcaseCatalogue": {"type": "Find a favourite in the catalogue", "results": "Favourite search results", "unavailable": "The catalogue is unavailable. You can still add the name only."},
+  "instanceSettingsNav": {"navigation": "Instance settings categories", "general": "Identity", "performance": "Performance", "runtime": "Java and loader", "window": "Game window", "advanced": "Advanced commands", "maintenance": "Maintenance", "generalHelp": "Customize the name and appearance of this instance.", "performanceHelp": "Adjust memory and optimizations for this modpack.", "runtimeHelp": "Configure the mod loader and compatible Java. Change only when needed.", "windowHelp": "Choose how the Minecraft window opens.", "advancedHelp": "Configure commands to run before and after the game.", "maintenanceHelp": "Repair files or remove the instance. Deletion requires confirmation.", "bannerHelp": "Cover image URL. Leave empty to use the default cover.", "preparingRuntime": "Preparing Java and mod loader...", "validatingArguments": "Validating JVM arguments...", "startingGame": "Starting Minecraft...", "waitingWindow": "Waiting for the Minecraft window..."},
   "introMotion": {"caption": "Your next world is waiting."},
   "roomConnection": {"shared": "Shared world", "copyAddress": "Copy address", "copied": "Address copied. In Minecraft, open Multiplayer → Direct Connection and paste the address.", "connecting": "Preparing connection", "directHelp": "If the world does not appear under local network games, copy the address and use Multiplayer → Direct Connection. Keep both launchers open."},
   "membershipPanel": {"activeUntil": "Active until {{date}} · {{collections}} collections · {{presets}} appearance presets", "free": "Your complete launcher. Expand your profile with Plus or Pro.", "favourites": "profile favourites", "palettes": "profile palettes", "plus": "Six profile palettes, Halo and Double Outline frames. Friends can see your style.", "opening": "Opening…", "portal": "My plan and orders", "owner": "Owner centre · approve plans", "refresh": "Refresh my plan", "synced": "Synced appearance presets", "presetName": "Appearance preset name", "presetPlaceholder": "My appearance preset", "savePreset": "Save appearance preset", "delete": "Delete {{name}}", "roomCapacity": "Invite up to {{count}} people, including you. Anyone in the room can share their world."},
@@ -3534,6 +3538,11 @@
     "elapsed": "Elapsed: {{time}}"
   },
   "planProfile": {
+    "showcaseLayout": "Showcase layout",
+    "showcaseLayoutHint": "Covers for everyone. Pro unlocks a featured favourite and posters. Your first favourite takes the spotlight.",
+    "showcaseLayout_grid": "Cover grid",
+    "showcaseLayout_spotlight": "Featured favourite · Pro",
+    "showcaseLayout_poster": "Posters · Pro",
     "frameDetail": "Avatar finish",
     "frameDetailHint": "A Pro exclusive geometric outline, combined with your frame.",
     "frameDetail_none": "No finish",
@@ -3561,6 +3570,11 @@
     "frame_halo": "Halo",
     "frame_double": "Double outline",
     "frame_orbit": "Orbit",
+    "ambientEffect": "Avatar aura",
+    "ambientEffectHint": "Soft aurora or luminous rings. Choosing an aura disables the previous effect.",
+    "ambientEffect_none": "No aura",
+    "ambientEffect_aurora": "Aurora",
+    "ambientEffect_beacon": "Beacon",
     "effect_none": "No effect",
     "effect_shimmer": "Cover shimmer",
     "effect_pulse": "Avatar pulse",

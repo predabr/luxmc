@@ -8,6 +8,10 @@ import type {
 const searchCache = new Map<string, { expires: number; items: ModSearchResultItem[] }>();
 const pendingSearches = new Map<string, Promise<ModSearchResultItem[]>>();
 
+export async function modsOpenCatalog(provider: 'ftb' | 'technic' | 'atlauncher'): Promise<void> {
+    return api.invoke('mods_open_catalog', { provider });
+}
+
 export async function modsSearch(
 	query: string,
 	mcVersion: string,

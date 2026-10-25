@@ -9,6 +9,12 @@ describe("catalog compatibility", () => {
         expect(catalogCompatibility(mod, { mcVersion: "1.20.1", loader: "fabric" }, "Mod")).toBeTruthy();
         expect(catalogCompatibility(mod, { mcVersion: "1.21.1", loader: "fabric" }, "Mod")).toBeNull();
     });
+    it("keeps Fabric-compatible legacy loader mods tied to their Minecraft version", () => {
+        const legacy = {versions:['1.8.9'],categories:['fabric']};
+        expect(catalogCompatibility(legacy,{mcVersion:'1.8.9',loader:'legacyfabric'},'Mod')).toBeNull();
+        expect(catalogCompatibility(legacy,{mcVersion:'1.21.1',loader:'legacyfabric'},'Mod')).toBeTruthy();
+        expect(catalogCompatibility({...legacy,categories:['forge']},{mcVersion:'1.8.9',loader:'legacyfabric'},'Mod')).toBeTruthy();
+    });
     it("does not impose mod loaders on resource packs or shaders", () => {
         expect(catalogCompatibility(mod, { mcVersion: "1.21.1", loader: "vanilla" }, "Resource Pack")).toBeNull();
         expect(catalogCompatibility(mod, { mcVersion: "1.21.1", loader: "forge" }, "Shader")).toBeNull();

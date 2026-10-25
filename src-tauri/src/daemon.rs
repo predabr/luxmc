@@ -587,6 +587,11 @@ async fn dispatch_command(
             let res = crate::commands::mods::mods_search_core(&state, query, game_version, limit, offset, content_type, sort_by, loader, category, source).await.map_err(|e| e.to_string())?;
             Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
         },
+        "mods_open_catalog" => {
+            let provider = args.get("provider").and_then(|value| value.as_str()).unwrap_or_default();
+            crate::commands::mods::mods_open_catalog_core(provider).map_err(|error| error.to_string())?;
+            Ok(serde_json::Value::Null)
+        }
         "mods_versions" => {
             let project_id = args.get("projectId").or_else(|| args.get("project_id")).and_then(|v| v.as_str()).unwrap_or("").to_string();
             let mc_version = args.get("mcVersion").or_else(|| args.get("mc_version")).and_then(|v| v.as_str()).unwrap_or("1.20.1").to_string();
@@ -1053,7 +1058,7 @@ async fn dispatch_command(
             let in_game = args.get("inGame").and_then(|v| v.as_bool());
             let client_id = args.get("clientId").and_then(|v| v.as_str()).map(|s| s.to_string());
             let buttons: Option<Vec<crate::commands::discord::DiscordButton>> = args.get("buttons").and_then(|v| serde_json::from_value(v.clone()).ok());
-            let _ = crate::commands::discord::discord_set_activity(
+            let accepted = crate::commands::discord::discord_set_activity(
                 details,
                 act_state,
                 large_text,
@@ -1064,8 +1069,8 @@ async fn dispatch_command(
                 in_game,
                 client_id,
                 buttons,
-            ).await;
-            Ok(Value::Bool(true))
+            ).await.map_err(|error| error.to_string())?;
+            Ok(Value::Bool(accepted))
         },
         "discord_clear_activity" => {
             let _ = crate::commands::discord::discord_clear_activity().await;

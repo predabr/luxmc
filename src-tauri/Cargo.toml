@@ -86,6 +86,8 @@ cgroups-rs = "0.3"
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"
 same-file = "1.0.6"
+webview2-com = "0.38.2"
+windows = { version = "0.61", features = ["Win32_System_Com"] }
 
 [profile.release]
 codegen-units = 1

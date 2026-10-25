@@ -6,6 +6,42 @@ use crate::error::{AppError, AppResult};
 
 const PICKER_LABEL: &str = "namemc-picker";
 
+fn advertising_url(value: &str) -> bool {
+    let Ok(url) = url::Url::parse(value) else { return false; };
+    let Some(host) = url.host_str() else { return false; };
+    ["doubleclick.net", "googlesyndication.com", "googleadservices.com", "amazon-adsystem.com", "nitropay.com", "pubmatic.com", "rubiconproject.com", "adform.net"].iter().any(|domain| host == *domain || host.ends_with(&format!(".{domain}")))
+}
+
+#[cfg(windows)]
+fn prepare_clean_picker(window: &tauri::WebviewWindow) -> AppResult<()> {
+    window.with_webview(|native| unsafe {
+        use windows::core::{w, PWSTR};
+        use webview2_com::{CoTaskMemPWSTR, WebResourceRequestedEventHandler, Microsoft::Web::WebView2::Win32::COREWEBVIEW2_WEB_RESOURCE_CONTEXT_ALL};
+        let setup = || -> windows::core::Result<()> {
+            let view = native.controller().CoreWebView2()?;
+            let environment = native.environment();
+            view.AddWebResourceRequestedFilter(w!("*"), COREWEBVIEW2_WEB_RESOURCE_CONTEXT_ALL)?;
+            let handler = WebResourceRequestedEventHandler::create(Box::new(move |_, event| {
+                if let Some(event) = event {
+                    let request = event.Request()?;
+                    let mut uri = PWSTR::null();
+                    request.Uri(&mut uri)?;
+                    let uri = CoTaskMemPWSTR::from(uri);
+                    if advertising_url(&uri.to_string()) {
+                        let response = environment.CreateWebResourceResponse(None::<&windows::Win32::System::Com::IStream>, 204, w!("No Content"), w!("Cache-Control: no-store\r\n"))?;
+                        event.SetResponse(&response)?;
+                    }
+                }
+                Ok(())
+            }));
+            let mut token = 0;
+            view.add_WebResourceRequested(&handler, &mut token)?;
+            Ok(())
+        };
+        if let Err(error) = setup() { tracing::warn!(%error, "NameMC request filter unavailable"); }
+    }).map_err(|error| AppError::Internal(error.to_string()))
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NameMcSkin {
@@ -54,6 +90,8 @@ pub async fn namemc_open_picker(window: tauri::WebviewWindow) -> AppResult<()> {
     require_main_window(&window)?;
     let app = window.app_handle().clone();
     if let Some(window) = app.get_webview_window(PICKER_LABEL) {
+        window.navigate(url::Url::parse("https://namemc.com/minecraft-skins").map_err(|error| AppError::Internal(error.to_string()))?)
+            .map_err(|error| AppError::Internal(error.to_string()))?;
         window.show().map_err(|error| AppError::Internal(error.to_string()))?;
         window.set_focus().map_err(|error| AppError::Internal(error.to_string()))?;
         return Ok(());
@@ -67,7 +105,8 @@ pub async fn namemc_open_picker(window: tauri::WebviewWindow) -> AppResult<()> {
         .inner_size(1100.0, 780.0)
         .min_inner_size(760.0, 540.0)
         .center()
-        .on_navigation(move |target| capture_skin_selection(&navigation_app, target))
+        .initialization_script(include_str!("namemc-clean.js"))
+        .on_navigation(move |target| target.as_str() == "about:blank" || capture_skin_selection(&navigation_app, target))
         .on_new_window(move |target, _| {
             capture_skin_selection(&popup_app, &target);
             tauri::webview::NewWindowResponse::Deny
@@ -77,7 +116,11 @@ pub async fn namemc_open_picker(window: tauri::WebviewWindow) -> AppResult<()> {
     } else {
         builder
     };
-    builder.build().map_err(|error| AppError::Internal(error.to_string()))?;
+    let picker = builder.build().map_err(|error| AppError::Internal(error.to_string()))?;
+    #[cfg(windows)]
+    prepare_clean_picker(&picker)?;
+    #[cfg(not(windows))]
+    let _ = picker;
     Ok(())
 }
 
@@ -149,6 +192,12 @@ fn validate_skin_png(bytes: &[u8]) -> AppResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn advertising_filter_keeps_skins_and_challenges_and_matches_only_advertising_hosts() {
+        for value in ["https://securepubads.g.doubleclick.net/ads", "https://pagead2.googlesyndication.com/script.js", "https://a.nitropay.com/slot"] { assert!(advertising_url(value)); }
+        for value in ["https://namemc.com/minecraft-skins", "https://s.namemc.com/i/skin.png", "https://challenges.cloudflare.com/turnstile/v0/api.js", "https://doubleclick.net.evil.test/ad", "https://namemc.com/?next=doubleclick.net"] { assert!(!advertising_url(value)); }
+    }
 
     #[test]
     fn accepts_only_namemc_skin_links() {

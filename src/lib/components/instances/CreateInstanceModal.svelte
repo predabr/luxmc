@@ -136,7 +136,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		{ id: 'fabric', name: 'Fabric' },
 		{ id: 'neoforge', name: 'NeoForge' },
 		{ id: 'forge', name: 'Forge' },
-		{ id: 'quilt', name: 'Quilt' }
+		{ id: 'quilt', name: 'Quilt' },
+        { id: 'legacyfabric', name: 'Legacy Fabric' },
+        { id: 'babric', name: 'Babric' }
 	];
 
 	$effect(() => {

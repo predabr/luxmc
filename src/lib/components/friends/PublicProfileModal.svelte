@@ -10,13 +10,14 @@
     import { X, Pencil, Save, LoaderCircle, Star, Eye, Check, Undo2, AlertTriangle } from 'lucide-svelte';
     import { goto } from '$app/navigation';
     import PackCollections from './PackCollections.svelte';
+    import ProfileFavourites from './ProfileFavourites.svelte';
     import ProfileEditor from './ProfileEditor.svelte';
     import ProfileSignature from '$lib/components/ui/ProfileSignature.svelte';
     import { defaultProfileStyle } from '$lib/utils/profileStyle';
 
-    const emptyDraft = (): PublicProfileDraft => ({ displayName:'', status:'', description:'', banner:'', portrait:'', packs:[], collections:[], profileStyle:{...defaultProfileStyle} });
+    const emptyDraft = (): PublicProfileDraft => ({ displayName:'', status:'', description:'', banner:'', portrait:'', packs:[], packArtwork:[], collections:[], profileStyle:{...defaultProfileStyle} });
     function draftOf(value: PublicProfile): PublicProfileDraft {
-        return { profileStyle:{...value.profileStyle}, displayName:value.displayName, status:value.status, description:value.description, banner:value.banner, portrait:value.portrait, packs:[...value.packs], collections:value.collections.map(collection => ({...collection, entries:collection.entries.map(entry => ({...entry}))})) };
+        return { profileStyle:{...value.profileStyle}, displayName:value.displayName, status:value.status, description:value.description, banner:value.banner, portrait:value.portrait, packs:[...value.packs], packArtwork:value.packArtwork.map(item => ({...item})), collections:value.collections.map(collection => ({...collection, entries:collection.entries.map(entry => ({...entry}))})) };
     }
     let profile = $state<PublicProfile | null>(null);
     let draft = $state<PublicProfileDraft>(emptyDraft());
@@ -24,7 +25,7 @@
     let section = $state<'identity' | 'appearance' | 'showcase'>('identity');
     let error = $state(''), saved = $state(false), confirmClose = $state(false), destination = $state('');
     let generation = 0;
-    const dirty = $derived(Boolean(profile && (draft.displayName.trim() !== profile.displayName || draft.status.trim() !== profile.status || draft.description.trim() !== profile.description || draft.banner !== profile.banner || draft.portrait !== profile.portrait || JSON.stringify(draft.packs) !== JSON.stringify(profile.packs) || JSON.stringify(draft.collections) !== JSON.stringify(profile.collections) || JSON.stringify(draft.profileStyle) !== JSON.stringify(profile.profileStyle))));
+    const dirty = $derived(Boolean(profile && (draft.displayName.trim() !== profile.displayName || draft.status.trim() !== profile.status || draft.description.trim() !== profile.description || draft.banner !== profile.banner || draft.portrait !== profile.portrait || JSON.stringify(draft.packs) !== JSON.stringify(profile.packs) || JSON.stringify(draft.packArtwork) !== JSON.stringify(profile.packArtwork) || JSON.stringify(draft.collections) !== JSON.stringify(profile.collections) || JSON.stringify(draft.profileStyle) !== JSON.stringify(profile.profileStyle))));
     const fullEditor = $derived(editing && !preview);
     const locked = $derived(busy || processingImage);
     $effect(() => {
@@ -97,7 +98,7 @@
                         {#if saved}<p role="status" class="flex items-start gap-2 rounded-xl border border-success/25 bg-success/10 p-3 text-xs leading-5"><Check class="mt-0.5 h-4 w-4 shrink-0 text-success" />{t('profileStudio.saved')}</p>{/if}
                         {#if draft.status}<p data-profile-status class="rounded-2xl border border-brand-400/20 bg-brand-400/10 px-4 py-3 text-sm">{draft.status}</p>{/if}
                         {#if draft.description}<section class="rounded-2xl border border-border bg-bg-subtle/70 p-4"><h3 class="text-xs font-semibold uppercase tracking-wider text-fg-muted">{t('publicProfile.about')}</h3><p class="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed">{draft.description}</p></section>{/if}
-                        {#if draft.packs.length}<section class="rounded-2xl border border-border bg-bg-subtle/70 p-4"><h3 class="text-xs font-semibold uppercase tracking-wider text-fg-muted">{t('publicProfile.packs')}</h3><div class="mt-3 flex flex-wrap gap-2">{#each draft.packs as pack}<button type="button" title={t('workshop.recommend')} class={button({variant:'secondary',size:'sm'})} onclick={() => {if (!editing) {publicProfile.close();void goto(`/mods?type=modpack&search=${encodeURIComponent(pack)}`);}}} disabled={editing}><Star class="h-3.5 w-3.5 text-brand-400" />{pack}</button>{/each}</div></section>{/if}
+                        {#if draft.packs.length}<section class="rounded-2xl border border-border bg-bg-subtle/70 p-4"><h3 class="text-xs font-semibold uppercase tracking-wider text-fg-muted">{t('publicProfile.packs')}</h3><div class="mt-3"><ProfileFavourites names={draft.packs} artwork={draft.packArtwork} layout={draft.profileStyle.showcaseLayout || 'grid'} disabled={editing} onselect={(name,kind) => {publicProfile.close();void goto(`/mods?type=${kind}&search=${encodeURIComponent(name)}`);}} /></div></section>{/if}
                         {#if draft.collections.length}<PackCollections value={draft.collections} disabled={editing} />{/if}
                         {#if publicProfile.own && !editing}<button type="button" class={button({variant:'secondary',block:true})} disabled={busy} onclick={() => {editing=true;preview=false;saved=false;section='identity';}}><Pencil class="h-4 w-4" />{t('publicProfile.edit')}</button>{/if}
                     {/if}

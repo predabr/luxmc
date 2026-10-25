@@ -9,6 +9,24 @@ export interface PlayerProfile {
     banner: string;
     portrait: string;
     packs: string[];
+    packArtwork?: PackArtwork[];
+}
+export interface PackArtwork { name: string; title: string; icon: string; kind?: 'mod' | 'modpack' }
+export function packArtwork(value: unknown, names: string[]): PackArtwork[] | null {
+    if (!Array.isArray(value) || value.length > 24) return null;
+    const used = new Set<string>();
+    const result: PackArtwork[] = [];
+    for (const item of value) {
+        if (!item || typeof item !== 'object' || typeof item.name !== 'string' || !names.includes(item.name) || used.has(item.name) || typeof item.title !== 'string' || !item.title.trim() || item.title.length > 80 || typeof item.icon !== 'string' || item.icon.length > 2048) return null;
+        try {
+            const url = new URL(item.icon);
+            if (url.protocol !== 'https:' || url.username || url.password || url.port || !['cdn.modrinth.com','media.forgecdn.net','mediafilez.forgecdn.net','edge.forgecdn.net'].includes(url.hostname)) return null;
+        } catch { return null; }
+        if (item.kind !== undefined && !['mod','modpack'].includes(item.kind)) return null;
+        used.add(item.name);
+        result.push({name:item.name,title:item.title.trim(),icon:item.icon,...(item.kind ? {kind:item.kind} : {})});
+    }
+    return result;
 }
 export interface PackEntry { source:'modrinth'|'curseforge'; projectId:string; versionId:string; name:string }
 export interface PackCollection { id:string; title:string; description:string; entries:PackEntry[] }
@@ -49,5 +67,7 @@ export function validatePublicProfile(value: unknown, maximum = 6, favourites = 
     if (typeof body.description !== 'string' || body.description.length > 400 || !profileImage(body.banner) || !profileImage(body.portrait)) return null;
     if (!Array.isArray(body.packs) || body.packs.length > favourites || body.packs.some(pack => typeof pack !== 'string' || !pack.trim() || pack.length > 80)) return null;
     const packs = body.packs as string[];
-    return {profileStyle,collections:shared,displayName:typeof body.displayName === 'string' ? body.displayName.trim():'',status:typeof body.status === 'string' ? body.status.trim():'',description:body.description.trim(),banner:body.banner,portrait:body.portrait,packs:[...new Set(packs.map(pack => pack.trim()))]};
+    const artwork = body.packArtwork === undefined ? undefined : packArtwork(body.packArtwork, packs);
+    if (artwork === null) return null;
+    return {...(artwork !== undefined ? {packArtwork:artwork} : {}),profileStyle,collections:shared,displayName:typeof body.displayName === 'string' ? body.displayName.trim():'',status:typeof body.status === 'string' ? body.status.trim():'',description:body.description.trim(),banner:body.banner,portrait:body.portrait,packs:[...new Set(packs.map(pack => pack.trim()))]};
 }

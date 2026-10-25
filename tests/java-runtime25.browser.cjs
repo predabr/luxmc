@@ -12,6 +12,7 @@ const assert=require('node:assert/strict');
         });
         await page.goto('http://127.0.0.1:1420/instances/demo-fo');
         await page.getByRole('tab',{name:'Configurações',exact:true}).click();
+        await page.getByRole('navigation',{name:'Categorias das configurações da instância'}).getByRole('button',{name:'Java e loader',exact:true}).click();
         const java=page.locator('#instance-java');
         await java.locator('option').filter({hasText:'Java 25'}).waitFor({state:'attached'});
         await java.selectOption('C:/fixture/java/25/bin/java.exe');

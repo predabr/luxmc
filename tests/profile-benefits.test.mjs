@@ -13,6 +13,27 @@ const tokens = { [alice]: 'b'.repeat(64), [bob]: 'c'.repeat(64) };
 const proStyle = { accent:'lilac', frame:'orbit', effect:'shimmer', layout:'centered' };
 const empty = { description:'', banner:'', portrait:'', packs:[], collections:[] };
 
+test('Pro avatar auras survive older clients and expire without breaking legacy effect values', async t => {
+    const f = fixture(t);
+    for (const ambientEffect of ['aurora','beacon']) {
+        f.plan(alice,'pro');
+        const style={...proStyle,effect:'none',ambientEffect};
+        assert.equal((await f.call('social','profile_save',alice,{...empty,profileStyle:style})).status,200);
+        const legacy={...style};delete legacy.ambientEffect;
+        assert.equal((await f.call('social','profile_save',alice,{...empty,description:'Legacy client',profileStyle:legacy})).status,200);
+        let profile=(await f.call('social','profile_get',alice,{})).body.profile;
+        assert.equal(profile.profileStyle.effect,'none');
+        assert.equal(profile.profileStyle.ambientEffect,ambientEffect);
+        f.plan(alice,'plus');
+        profile=(await f.call('social','profile_get',alice,{})).body.profile;
+        assert.equal(profile.profileStyle.ambientEffect,'none');
+        assert.equal(profile.savedProfileStyle.ambientEffect,ambientEffect);
+        assert.equal((await f.call('social','profile_save',alice,{...empty,profileStyle:style})).status,403);
+        f.plan(alice,'pro');
+        assert.equal((await f.call('social','profile_get',alice,{})).body.profile.profileStyle.ambientEffect,ambientEffect);
+    }
+});
+
 test('optimized animated WebP follows the same plan and expiry rules as GIF', async t => {
     const f = fixture(t);
     const header = Buffer.alloc(30);
@@ -172,4 +193,38 @@ test('a concurrent removal cannot recreate community data through the plan page'
     };
     assert.equal((await f.call('commerce','profile_style',alice,{profileStyle:proStyle})).status,404);
     assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM social_public_profiles WHERE user_id = ?').get(alice).count,0);
+});
+
+
+test('showcase covers survive legacy saves and reject untrusted artwork URLs', async t => {
+    const f = fixture(t);
+    const artwork = [{name:'The Pixelmon Modpack',title:'The Pixelmon Modpack',icon:'https://media.forgecdn.net/avatars/pixelmon.png'}];
+    const draft = {...empty,packs:['The Pixelmon Modpack'],packArtwork:artwork};
+    assert.equal((await f.call('social','profile_save',alice,draft)).status,200);
+    assert.deepEqual((await f.call('social','profile_get',alice,{})).body.profile.packArtwork,artwork);
+    assert.equal((await f.call('social','profile_save',alice,{...empty,packs:draft.packs,description:'Legacy edit'})).status,200);
+    assert.deepEqual((await f.call('social','profile_get',alice,{})).body.profile.packArtwork,artwork);
+    for (const icon of ['file:///C:/private.png','https://user@cdn.modrinth.com/icon.png','https://cdn.modrinth.com.evil.test/icon.png']) {
+        assert.equal((await f.call('social','profile_save',alice,{...draft,packArtwork:[{...artwork[0],icon}]})).status,400);
+    }
+    assert.equal((await f.call('social','profile_save',alice,empty)).status,200);
+    assert.deepEqual((await f.call('social','profile_get',alice,{})).body.profile.packArtwork,[]);
+});
+
+test('Pro showcase formats expire safely and return after renewal', async t => {
+    const f = fixture(t);
+    for (const showcaseLayout of ['spotlight','poster']) {
+        const style = {...defaultProfileStyle,showcaseLayout};
+        f.plan(alice,'plus');
+        assert.equal((await f.call('social','profile_save',alice,{...empty,profileStyle:style})).status,403);
+        f.plan(alice,'pro');
+        assert.equal((await f.call('social','profile_save',alice,{...empty,profileStyle:style})).status,200);
+        assert.equal((await f.call('social','profile_get',alice,{})).body.profile.profileStyle.showcaseLayout,showcaseLayout);
+        f.plan(alice,'pro',1);
+        const expired = (await f.call('social','profile_get',alice,{})).body.profile;
+        assert.equal(expired.profileStyle.showcaseLayout,'grid');
+        assert.equal((await f.call('social','profile_save',alice,{...empty,profileStyle:expired.profileStyle})).status,200);
+        f.plan(alice,'pro');
+        assert.equal((await f.call('social','profile_get',alice,{})).body.profile.profileStyle.showcaseLayout,showcaseLayout);
+    }
 });

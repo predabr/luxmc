@@ -105,7 +105,8 @@ impl DownloadManager {
         tracing::info!(target: "download", "{}", message);
     }
 
-    pub async fn download_version(&self, detail: &VersionDetail) -> AppResult<()> {
+    pub fn download_version<'a>(&'a self, detail: &'a VersionDetail) -> futures_util::future::BoxFuture<'a, AppResult<()>> {
+        Box::pin(async move {
         Self::emit_log(
             self,
             &format!("Starting download for version {}", detail.id),
@@ -158,6 +159,12 @@ impl DownloadManager {
         };
         tokio::try_join!(assets, self.download_libraries(&detail.libraries))?;
 
+        let manifest_path = self.versions_dir().join(&detail.id).join(format!("{}.json", detail.id));
+        let manifest = serde_json::to_vec(detail)?;
+        if tokio::fs::read(&manifest_path).await.ok().as_deref() != Some(manifest.as_slice()) {
+            crate::core::mods::pack_download::atomic_write(&manifest_path, &manifest).await?;
+        }
+
         Self::emit_log(self, "Download complete");
         Self::emit_progress(
             self,
@@ -173,6 +180,7 @@ impl DownloadManager {
         );
 
         Ok(())
+        })
     }
 
     async fn download_client_with_retry(
@@ -675,6 +683,29 @@ impl DownloadManager {
         }
     }
 
+    pub(crate) async fn natives_ready(&self, detail: &VersionDetail) -> AppResult<bool> {
+        let libraries = self.libraries_dir();
+        let os = crate::core::launcher::platform_mojang_name(crate::core::launcher::current_platform());
+        for library in &detail.libraries {
+            if !crate::core::launcher::is_library_allowed(library) { continue; }
+            if let Some(downloads) = &library.downloads {
+                if let Some(artifact) = &downloads.artifact {
+                    if library.name.contains(&format!("natives-{os}")) && !valid_cached_file(&lib_path_from_name(&libraries, &library.name), artifact.size, &artifact.sha1).await? { return Ok(false); }
+                }
+                if let Some(classifiers) = &downloads.classifiers {
+                    for (classifier, artifact) in classifiers {
+                        let matches_os = classifier.starts_with(&format!("natives-{os}")) || os == "osx" && classifier.starts_with("natives-macos");
+                        if matches_os && crate::core::launcher::is_native_classifier_allowed(classifier) && !valid_cached_file(&lib_path_from_name(&libraries, &format!("{}:{classifier}", library.name)), artifact.size, &artifact.sha1).await? { return Ok(false); }
+                    }
+                }
+            } else if let Some(classifier) = library.natives.as_ref().and_then(|natives| natives.get(os)) {
+                let classifier = classifier.replace("${arch}", if cfg!(target_arch = "x86") { "32" } else { "64" });
+                if !valid_cached_file(&lib_path_from_name(&libraries, &format!("{}:{classifier}", library.name)), 0, "").await? { return Ok(false); }
+            }
+        }
+        Ok(true)
+    }
+
     pub async fn validate_version(&self, detail: &VersionDetail) -> AppResult<()> {
         if let Some(ref downloads) = detail.downloads {
             let client_path = self
@@ -784,6 +815,22 @@ async fn download_file_retry(
     path: &PathBuf,
     label: &str,
 ) -> AppResult<()> {
+    static LOCKS: std::sync::LazyLock<Mutex<std::collections::HashMap<PathBuf, std::sync::Weak<tokio::sync::Mutex<()>>>>> = std::sync::LazyLock::new(|| Mutex::new(std::collections::HashMap::new()));
+    let lock = {
+        let mut locks = LOCKS.lock().map_err(|_| AppError::Internal("Download lock unavailable".into()))?;
+        locks.retain(|_, lock| lock.strong_count() > 0);
+        let entry = locks.entry(path.clone()).or_default();
+        match entry.upgrade() {
+            Some(lock) => lock,
+            None => {
+                let lock = Arc::new(tokio::sync::Mutex::new(()));
+                *entry = Arc::downgrade(&lock);
+                lock
+            }
+        }
+    };
+    let _guard = lock.lock().await;
+    if valid_cached_file(path, entry.size, &entry.sha1).await? { return Ok(()); }
     let mut last_err = None;
 
     let temporary = partial_path(path, &entry.url);
@@ -1051,6 +1098,73 @@ mod tests {
         assert!(manager.validate_version(&detail).await.is_err());
         tokio::fs::write(&file, b"good").await.unwrap();
         assert!(manager.validate_version(&detail).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn repair_preserves_the_manifest_for_readiness_and_offline_launches() {
+        let root = tempfile::tempdir().unwrap();
+        let manager = DownloadManager::new(reqwest::Client::new(), root.path().to_owned());
+        let detail: VersionDetail = serde_json::from_value(serde_json::json!({
+            "id":"fixture", "type":"release", "libraries":[],
+            "downloads":{"client":{"url":"https://example.invalid/client.jar","size":4,"sha1":format!("{:x}", Sha1::digest(b"good"))}}
+        })).unwrap();
+        let directory = manager.versions_dir().join("fixture");
+        tokio::fs::create_dir_all(&directory).await.unwrap();
+        tokio::fs::write(directory.join("fixture.jar"), b"good").await.unwrap();
+        manager.download_version(&detail).await.unwrap();
+        let manifest = directory.join("fixture.json");
+        let saved: VersionDetail = serde_json::from_slice(&tokio::fs::read(&manifest).await.unwrap()).unwrap();
+        assert_eq!(saved.id, detail.id);
+        manager.validate_version(&saved).await.unwrap();
+        assert!(manager.natives_ready(&saved).await.unwrap());
+        let modified = tokio::fs::metadata(&manifest).await.unwrap().modified().unwrap();
+        manager.download_version(&detail).await.unwrap();
+        assert_eq!(tokio::fs::metadata(&manifest).await.unwrap().modified().unwrap(), modified);
+    }
+
+    #[tokio::test]
+    async fn downloaded_natives_are_ready_before_extraction_and_missing_archives_are_not() {
+        let root = tempfile::tempdir().unwrap();
+        let manager = DownloadManager::new(reqwest::Client::new(), root.path().to_owned());
+        let os = crate::core::launcher::platform_mojang_name(crate::core::launcher::current_platform());
+        let classifier = format!("natives-{os}");
+        let library_name = "example:natives:1.0";
+        let detail: VersionDetail = serde_json::from_value(serde_json::json!({
+            "id":"fixture", "type":"release", "libraries":[{"name":library_name,"downloads":{"classifiers":{(classifier.clone()):{"url":"https://example.com/natives.jar","size":4,"sha1":format!("{:x}", Sha1::digest(b"good"))}}}}]
+        })).unwrap();
+        assert!(!manager.natives_ready(&detail).await.unwrap());
+        let file = lib_path_from_name(&manager.libraries_dir(), &format!("{library_name}:{classifier}"));
+        tokio::fs::create_dir_all(file.parent().unwrap()).await.unwrap();
+        tokio::fs::write(&file, b"good").await.unwrap();
+        assert!(manager.natives_ready(&detail).await.unwrap());
+        assert!(!manager.versions_dir().join("fixture/natives").exists());
+        tokio::fs::write(&file, b"").await.unwrap();
+        assert!(!manager.natives_ready(&detail).await.unwrap());
+        let detail: VersionDetail = serde_json::from_value(serde_json::json!({"id":"fixture","type":"release","libraries":[]})).unwrap();
+        assert!(manager.natives_ready(&detail).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn concurrent_requests_for_the_same_destination_share_one_verified_download() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let (mut connection, _) = listener.accept().await.unwrap();
+            let mut request = [0; 2048];
+            let _ = connection.read(&mut request).await.unwrap();
+            tokio::time::sleep(std::time::Duration::from_millis(40)).await;
+            connection.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\ngood").await.unwrap();
+        });
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("library.jar");
+        let manager = DownloadManager::new(reqwest::Client::new(), root.path().to_owned());
+        let entry = DownloadEntry { url: format!("http://{address}/library.jar"), size: 4, sha1: format!("{:x}", Sha1::digest(b"good")) };
+        let (first, second) = tokio::join!(download_file_retry(&manager, &entry, &path, "first"), download_file_retry(&manager, &entry, &path, "second"));
+        first.unwrap();
+        second.unwrap();
+        server.await.unwrap();
+        assert_eq!(tokio::fs::read(&path).await.unwrap(), b"good");
+        assert!(!partial_path(&path, &entry.url).exists());
     }
 
     #[tokio::test]

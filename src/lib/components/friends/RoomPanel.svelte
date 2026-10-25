@@ -21,9 +21,11 @@
     let ready = $state(false);
     let lost = $state(false);
     let hadSession = false;
+    let operation = 0;
     let disposed = false;
     let timer: ReturnType<typeof setTimeout>;
     const duration = $derived(settings.value.animations === false || settings.value.performanceMode || (settings.value.respectReducedMotion !== false && typeof window !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches) ? 0 : 260);
+    const roomCapacity = $derived(membershipState.current?.plan === 'pro' && (membershipState.current.expiresAt ?? 0) > Date.now() / 1000 ? 20 : 10);
     const worlds = $derived(status?.worlds ?? []);
     $effect(() => { if (deepLinks.lan) { invitation = deepLinks.lan; deepLinks.lan = null; } });
     function visible(member: TunnelMember): TunnelMember & {profileStyle?:ProfileStyle;role?:'owner'|'member';tags?:string[]} {
@@ -36,11 +38,13 @@
         friendsNavigation.tab = 'p2p';
         async function refresh() {
             if (busy) { if (!disposed) timer = setTimeout(refresh,1000); return; }
+            const revision = operation;
             try {
                 const next = await tunnelStatus();
                 if (disposed) return;
+                if (revision !== operation || busy) { timer = setTimeout(refresh, 1000); return; }
                 status = next; lost = hadSession && !next; hadSession ||= !!next; ready = true;
-            } catch (failure) { if (!disposed) error = String(failure); }
+            } catch (failure) { if (!disposed && revision === operation && !busy) error = String(failure); }
             if (!disposed) timer = setTimeout(refresh, document.hidden ? 6000 : 2000);
         }
         void refresh();
@@ -48,6 +52,7 @@
     });
     async function run(action: () => Promise<unknown>) {
         if (busy) return;
+        operation++;
         busy = true; error = '';
         try { await action(); const next = await tunnelStatus(); if (!disposed) { status = next; hadSession = !!next; lost = false; } }
         catch (failure) { if (!disposed) error = String(failure); }
@@ -80,7 +85,7 @@
     {:else if !status}
         {#if lost}<div role="status" class="rounded-2xl border border-warning/30 bg-warning/10 p-4 text-sm text-fg">A conexão foi interrompida. {#if canReconnectTunnel()}<button class={button({variant:'secondary',size:'sm',class:'ml-2'})} onclick={() => run(reconnectTunnel)}>Reconectar</button>{/if}</div>{/if}
         <div class="grid gap-5 md:grid-cols-2" in:fly={{y:14,duration}}>
-            <article class="space-y-5 rounded-3xl border border-brand-400/25 bg-bg-elevated luxmc-card p-6"><div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500/10 text-brand-400"><Plus class="h-6 w-6" /></div><div><h2 class="text-xl font-semibold text-fg">Criar sala</h2><p class="mt-2 text-sm leading-6 text-fg-muted">{uiText('membershipPanel.roomCapacity', {count: membershipState.current?.plan === 'pro' ? 20 : 10})}</p></div><button class={button({variant:'primary',class:'w-full'})} onclick={() => run(() => hostWorld())}><Plus class="h-4 w-4" />Criar minha sala</button></article>
+            <article class="space-y-5 rounded-3xl border border-brand-400/25 bg-bg-elevated luxmc-card p-6"><div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500/10 text-brand-400"><Plus class="h-6 w-6" /></div><div><h2 class="text-xl font-semibold text-fg">Criar sala</h2><p class="mt-2 text-sm leading-6 text-fg-muted">{uiText('membershipPanel.roomCapacity', {count: roomCapacity})}</p></div><button class={button({variant:'primary',class:'w-full'})} onclick={() => run(() => hostWorld())}><Plus class="h-4 w-4" />Criar minha sala</button></article>
             <article class="space-y-5 rounded-3xl border border-border bg-bg-elevated luxmc-card p-6"><div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-fg/5 text-fg"><ArrowRight class="h-6 w-6" /></div><div><h2 class="text-xl font-semibold text-fg">Entrar na sala</h2><p class="mt-2 text-sm leading-6 text-fg-muted">Cole o convite que seu amigo enviou. Os mundos aparecem no jogo automaticamente.</p></div><label class="block"><span class="sr-only">Convite da sala</span><input bind:value={invitation} placeholder="Cole o convite aqui" class="w-full rounded-xl border border-border bg-bg px-4 py-3 text-sm text-fg outline-none focus:border-brand-400" /></label><button class={button({variant:'primary',class:'w-full'})} disabled={!invitation.trim()} onclick={() => run(() => joinTunnel(invitation.trim()))}>Entrar na sala<ArrowRight class="h-4 w-4" /></button></article>
         </div>
     {:else}

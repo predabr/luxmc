@@ -614,6 +614,7 @@ pub async fn run() {
             commands::launch::stop_game,
             commands::loaders::loaders_versions,
             commands::mods::mods_search,
+            commands::mods::mods_open_catalog,
             commands::mods::mods_search_typed,
             commands::mods::mods_versions,
             commands::mods::mods_version_history,

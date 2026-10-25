@@ -15,6 +15,7 @@ pub struct InstanceReadiness {
     pub blockers: Vec<String>,
     pub warnings: Vec<String>,
     pub repairable: bool,
+    pub preparation_required: bool,
     pub conflicts: crate::core::doctor::PreLaunchCheckResult,
 }
 
@@ -46,8 +47,10 @@ pub async fn doctor_instance_readiness(profileId: String) -> AppResult<InstanceR
         .await?
         .ok_or_else(|| AppError::NotFound(format!("Instância {profileId} não encontrada")))?;
     crate::commands::instances::repair_instance_duplicates(&row).await?;
-    let health = crate::commands::instances::instance_health_check(profileId.clone()).await?;
-    let conflicts = doctor_check_instance_conflicts(profileId).await?;
+    let (health, conflicts) = tokio::try_join!(
+        crate::commands::instances::instance_health_check(profileId.clone()),
+        doctor_check_instance_conflicts(profileId)
+    )?;
     let required_java = crate::core::minecraft::detect_java_major_from_version_id(&row.mc_version);
     let total_ram_mb = crate::core::optimizer::get_total_memory_mb();
     let recommended_ram_mb = recommended_ram_mb(row.mod_count, total_ram_mb);
@@ -78,7 +81,7 @@ pub async fn doctor_instance_readiness(profileId: String) -> AppResult<InstanceR
         blockers.push("Há conflitos ou duplicatas de mods que impedem a inicialização segura.".into());
         repairable = false;
     }
-    if !matches!(row.loader.to_ascii_lowercase().as_str(), "vanilla" | "fabric" | "forge" | "neoforge" | "quilt" | "optifine") {
+    if !matches!(row.loader.to_ascii_lowercase().as_str(), "vanilla" | "fabric" | "legacyfabric" | "babric" | "forge" | "neoforge" | "quilt" | "optifine") {
         blockers.push("O loader configurado para a instância não é suportado.".into());
         repairable = false;
     }
@@ -106,6 +109,7 @@ pub async fn doctor_instance_readiness(profileId: String) -> AppResult<InstanceR
     Ok(InstanceReadiness {
         ready: blockers.is_empty(),
         repairable: repairable && !blockers.is_empty(),
+        preparation_required: repairable && (!health.client_jar || !health.natives),
         required_java,
         allocated_ram_mb,
         recommended_ram_mb,

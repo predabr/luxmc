@@ -106,6 +106,24 @@ struct DiscordConn {
 
 static DISCORD_CONN: Mutex<Option<DiscordConn>> = Mutex::new(None);
 
+fn activity_text(value: &str, maximum: usize) -> String {
+    let mut text = String::new();
+    for character in value.trim().chars() {
+        let character = if character.is_control() { ' ' } else { character };
+        if text.len() + character.len_utf8() > maximum { break; }
+        text.push(character);
+    }
+    if text.len() < 2 { "Luxmc".into() } else { text }
+}
+
+fn activity_buttons(buttons: Vec<DiscordButton>) -> Vec<DiscordButton> {
+    buttons.into_iter().filter_map(|button| {
+        let url = url::Url::parse(&button.url).ok()?;
+        if url.scheme() != "https" || !url.username().is_empty() || url.password().is_some() || button.url.len() > 512 || button.label.trim().is_empty() { return None; }
+        Some(DiscordButton {label:activity_text(&button.label, 32), url:button.url})
+    }).take(2).collect()
+}
+
 fn send_frame(stream: &mut IpcStream, opcode: u32, payload: &str) -> std::io::Result<()> {
     let len = payload.len() as u32;
     let mut header = [0u8; 8];
@@ -257,6 +275,7 @@ pub async fn discord_set_activity(
 
         let target_id = clientId
             .or(custom_env_id)
+            .filter(|value| (17..=20).contains(&value.len()) && value.bytes().all(|byte| byte.is_ascii_digit()))
             .unwrap_or_else(|| MINECRAFT_CLIENT_ID.to_string());
 
         let mut guard = DISCORD_CONN.lock().unwrap_or_else(|e| e.into_inner());
@@ -328,20 +347,21 @@ pub async fn discord_set_activity(
         });
 
         let mut activity_obj = serde_json::json!({
-            "details": det,
-            "state": st,
+            "details": activity_text(&det, 128),
+            "state": activity_text(&st, 128),
             "timestamps": { "start": now },
             "assets": {
                 "large_image": img,
-                "large_text": txt,
+                "large_text": activity_text(&txt, 128),
                 "small_image": s_img,
-                "small_text": s_txt
+                "small_text": activity_text(&s_txt, 128)
             }
         });
 
         if let Some(btns) = buttons {
             if !btns.is_empty() {
-                activity_obj["buttons"] = serde_json::json!(btns.into_iter().filter(|button| button.url.starts_with("https://")).take(2).collect::<Vec<_>>());
+                let buttons = activity_buttons(btns);
+                if !buttons.is_empty() { activity_obj["buttons"] = serde_json::json!(buttons); }
             }
         } else {
             activity_obj["buttons"] = serde_json::json!([
@@ -401,4 +421,24 @@ pub async fn discord_clear_activity() -> AppResult<()> {
     })
     .await
     .map_err(|error| crate::error::AppError::Internal(error.to_string()))?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn presence_text_is_bounded_without_splitting_unicode_and_buttons_are_validated() {
+        let text = activity_text(&"🎮".repeat(100), 128);
+        assert_eq!(text.len(), 128);
+        assert_eq!(text.chars().count(), 32);
+        assert_eq!(activity_text("Playing\nMinecraft",128), "Playing Minecraft");
+        let buttons = activity_buttons(vec![
+            DiscordButton {label:"Invalid".into(),url:"https://user:secret@example.com".into()},
+            DiscordButton {label:"Download".into(),url:"https://luxmc-r92.pages.dev".into()},
+            DiscordButton {label:"Project".into(),url:"https://modrinth.com".into()},
+            DiscordButton {label:"Extra".into(),url:"https://example.com".into()},
+        ]);
+        assert_eq!(buttons.len(),2);
+        assert_eq!(buttons[0].label,"Download");
+    }
 }

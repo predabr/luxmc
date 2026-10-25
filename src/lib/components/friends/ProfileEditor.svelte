@@ -1,5 +1,7 @@
 <script lang="ts">
     import { onDestroy } from 'svelte';
+    import { modsSearch } from '$lib/api/mods';
+    import type { ModSearchResultItem } from '$lib/api/types';
     import type { PublicProfile, PublicProfileDraft } from '$lib/api/social';
     import { profiles } from '$lib/stores/profiles.svelte';
     import { membershipState } from '$lib/stores/membership.svelte';
@@ -11,6 +13,8 @@
     import AccountBadges from '$lib/components/ui/AccountBadges.svelte';
     import MinecraftAvatar from '$lib/components/ui/MinecraftAvatar.svelte';
     import PackCollections from './PackCollections.svelte';
+    import ProfileFavourites from './ProfileFavourites.svelte';
+    import { distinctFavourites, favouriteKey, favouriteArtwork, safeFavouriteIcon } from '$lib/utils/profileFavourites';
     import ProfileImageEditor from './ProfileImageEditor.svelte';
     import ProfileStyleEditor from './ProfileStyleEditor.svelte';
     import ProfileSignature from '$lib/components/ui/ProfileSignature.svelte';
@@ -21,6 +25,32 @@
         draft: PublicProfileDraft; profile: PublicProfile; busy?: boolean; canManageTags?: boolean; processingImage?: boolean; pendingImage?: boolean; section?: 'identity' | 'appearance' | 'showcase'; onpreview: () => void; onmanageTags: () => void;
     } = $props();
     let favouriteName = $state(''), error = $state('');
+    let favouriteType = $state<'mod'|'modpack'>('modpack');
+    let catalogue = $state<ModSearchResultItem[]>([]);
+    let catalogueBusy = $state(false);
+    let catalogueError = $state(false);
+    $effect(() => {
+        const query = favouriteName.trim();
+        const kind = favouriteType;
+        catalogue = []; catalogueError = false; catalogueBusy = false;
+        if (section !== 'showcase' || query.length < 3 || locked) return;
+        let current = true;
+        const timer = setTimeout(() => {
+            catalogueBusy = true;
+            void modsSearch(query, '', 6, 0, kind, 'relevance', undefined, undefined, 'all').then(items => {
+                if (current) catalogue = items;
+            }).catch(() => { if (current) catalogueError = true; }).finally(() => { if (current) catalogueBusy = false; });
+        }, 500);
+        return () => { current = false; clearTimeout(timer); };
+    });
+    function chooseFavourite(item: ModSearchResultItem) {
+        if (locked || draft.packs.length >= favourites) return;
+        const name = item.title.trim().slice(0,80);
+        if (!name) return;
+        if (!draft.packs.includes(name)) draft.packs = [...draft.packs,name];
+        if (item.iconUrl && safeFavouriteIcon(item.iconUrl)) draft.packArtwork = [...draft.packArtwork.filter(entry => entry.name !== name),{name,title:name,icon:item.iconUrl,kind:favouriteType}];
+        favouriteName = '';
+    }
     let crop = $state<{ image: ImageBitmap; kind: 'portrait' | 'banner' } | null>(null);
     let generation = 0;
     const locked = $derived(busy || processingImage);
@@ -29,6 +59,13 @@
     const maximum = $derived(plan === 'pro' ? 24 : plan === 'plus' ? 12 : 6);
     const installed = $derived(profiles.list.filter((profile, index, list) => list.findIndex(item => item.name === profile.name) === index));
     const tabs = $derived([{ id: 'identity', icon: UserRound, label: t('profileStudio.identity') }, { id: 'appearance', icon: Palette, label: t('profileStudio.appearance') }, { id: 'showcase', icon: LayoutGrid, label: t('profileStudio.showcase') }] as const);
+    $effect(() => {
+        const entries = distinctFavourites(draft.packs, draft.packArtwork, installed);
+        const names = entries.map(item => item.title);
+        const artwork = entries.filter(item => safeFavouriteIcon(item.icon)).map(item => ({...item, name:item.title}));
+        if (JSON.stringify(names) !== JSON.stringify(draft.packs)) draft.packs = names;
+        if (JSON.stringify(artwork) !== JSON.stringify(draft.packArtwork)) draft.packArtwork = artwork;
+    });
     function tabKey(event: KeyboardEvent) {
         const index = tabs.findIndex(tab => tab.id === section);
         const target = event.key === 'ArrowRight' ? (index + 1) % tabs.length : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : -1;
@@ -80,9 +117,10 @@
         else if (draft.packs.length < favourites) draft.packs = [...draft.packs, name];
     }
     function addFavourite() {
-        const name = favouriteName.trim();
+        const typed = favouriteName.trim();
+        const name = installed.find(instance => favouriteKey(instance.name) === favouriteKey(typed))?.name || typed;
         if (!name || name.length > 80 || draft.packs.length >= favourites || locked) return;
-        if (!draft.packs.includes(name)) draft.packs = [...draft.packs, name];
+        if (!draft.packs.some(pack => favouriteKey(pack) === favouriteKey(name))) draft.packs = [...draft.packs, name];
         favouriteName = '';
     }
     function reorder(index: number, direction: number) {
@@ -138,8 +176,12 @@
                 <div><h3 class="text-lg font-semibold">{t('profileStudio.showcaseTitle')}</h3><p class="mt-1 text-xs leading-5 text-fg-muted">{t('profileStudio.showcaseHelp')}</p></div>
                 <p class="text-xs leading-5 text-fg-muted">{t('planProfile.moreFavourites',{count:favourites})}</p>
                 <div class="flex items-center justify-between"><h4 class="flex items-center gap-2 text-xs font-semibold"><Star class="h-4 w-4 text-brand-400" />{t('publicProfile.packs')}</h4><span class="text-xs tabular-nums text-fg-muted">{draft.packs.length}/{favourites}</span></div>
-                {#if draft.packs.length}<ol class="space-y-2">{#each draft.packs as name, index (name)}<li class="flex items-center gap-2 rounded-xl border border-border bg-bg-subtle/40 p-2.5"><span class="w-5 shrink-0 text-center text-[10px] tabular-nums text-fg-subtle">{index + 1}</span><span class="min-w-0 flex-1 truncate text-xs font-medium" title={name}>{name}</span><button type="button" disabled={locked || index === 0} aria-label={t('profileStudio.moveUp',{name})} class={button({variant:'ghost',size:'icon',class:'h-8 w-8'})} onclick={() => reorder(index,-1)}><ArrowUp class="h-3.5 w-3.5" /></button><button type="button" disabled={locked || index === draft.packs.length - 1} aria-label={t('profileStudio.moveDown',{name})} class={button({variant:'ghost',size:'icon',class:'h-8 w-8'})} onclick={() => reorder(index,1)}><ArrowDown class="h-3.5 w-3.5" /></button><button type="button" disabled={locked} aria-label={`${t('common.remove')}: ${name}`} class={button({variant:'ghostDanger',size:'icon',class:'h-8 w-8'})} onclick={() => toggleFavourite(name)}><X class="h-3.5 w-3.5" /></button></li>{/each}</ol>{:else}<p class="rounded-xl border border-dashed border-border p-4 text-xs leading-5 text-fg-muted">{t('profileStudio.favouritesEmpty')}</p>{/if}
+                {#if draft.packs.length}<ol class="space-y-2">{#each draft.packs as name, index (name)}<li class="flex items-center gap-2 rounded-xl border border-border bg-bg-subtle/40 p-2.5"><span class="w-5 shrink-0 text-center text-[10px] tabular-nums text-fg-subtle">{index + 1}</span><img src={favouriteArtwork(name, draft.packArtwork, installed).icon} alt="" loading="lazy" class="h-10 w-10 shrink-0 rounded-lg object-contain" onerror={fallbackImage} /><span class="min-w-0 flex-1 truncate text-xs font-medium" title={name}>{favouriteArtwork(name, draft.packArtwork, installed).title}</span><button type="button" disabled={locked || index === 0} aria-label={t('profileStudio.moveUp',{name})} class={button({variant:'ghost',size:'icon',class:'h-8 w-8'})} onclick={() => reorder(index,-1)}><ArrowUp class="h-3.5 w-3.5" /></button><button type="button" disabled={locked || index === draft.packs.length - 1} aria-label={t('profileStudio.moveDown',{name})} class={button({variant:'ghost',size:'icon',class:'h-8 w-8'})} onclick={() => reorder(index,1)}><ArrowDown class="h-3.5 w-3.5" /></button><button type="button" disabled={locked} aria-label={`${t('common.remove')}: ${name}`} class={button({variant:'ghostDanger',size:'icon',class:'h-8 w-8'})} onclick={() => toggleFavourite(name)}><X class="h-3.5 w-3.5" /></button></li>{/each}</ol>{:else}<p class="rounded-xl border border-dashed border-border p-4 text-xs leading-5 text-fg-muted">{t('profileStudio.favouritesEmpty')}</p>{/if}
+                <label class="editor-field"><span>{t('showcaseCatalogue.type')}</span><select bind:value={favouriteType} disabled={locked} class="mt-2 w-full rounded-xl border border-border bg-bg-elevated p-3 text-xs"><option value="modpack">Modpack</option><option value="mod">Mod</option></select></label>
                 <form class="flex items-end gap-2" onsubmit={event => {event.preventDefault();addFavourite();}}><label class="editor-field min-w-0 flex-1"><span>{t('publicProfile.addFavourite')}</span><input disabled={locked || draft.packs.length >= favourites} bind:value={favouriteName} maxlength="80" placeholder={t('profileStudio.favouritePlaceholder')} /></label><button type="submit" disabled={locked || !favouriteName.trim() || draft.packs.length >= favourites || draft.packs.includes(favouriteName.trim())} class={button({variant:'secondary'})}>{t('common.add')}</button></form>
+                {#if catalogueBusy}<p role="status" class="flex gap-2 text-xs text-fg-muted"><LoaderCircle class="h-4 w-4 animate-spin" />{t('common.loading')}</p>{/if}
+                {#if catalogueError}<p class="text-xs text-fg-muted">{t('showcaseCatalogue.unavailable')}</p>{/if}
+                {#if catalogue.length}<section aria-label={t('showcaseCatalogue.results')} class="grid gap-2 sm:grid-cols-2">{#each catalogue as item (`${item.source}:${item.sourceId}`)}<button type="button" class="library-pick" disabled={locked || draft.packs.length >= favourites} onclick={() => chooseFavourite(item)}><img src={item.iconUrl || '/grass_block.png'} alt="" class="h-10 w-10 rounded-lg object-contain" onerror={fallbackImage} /><span class="min-w-0 flex-1 text-left"><span class="block truncate text-xs font-medium">{item.title}</span><span class="block text-[10px] text-fg-muted">{item.source === 'curseforge' ? 'CurseForge' : 'Modrinth'}</span></span><Star class="h-4 w-4 shrink-0" /></button>{/each}</section>{/if}
                 {#if installed.length}<section class="space-y-3"><h4 class="text-xs font-semibold">{t('profileStudio.fromLibrary')}</h4><div class="grid gap-2 sm:grid-cols-2">{#each installed as instance (instance.id)}<button type="button" class="library-pick" disabled={locked || (!draft.packs.includes(instance.name) && draft.packs.length >= favourites)} aria-pressed={draft.packs.includes(instance.name)} onclick={() => toggleFavourite(instance.name)}><img src={instance.icon || '/grass_block.png'} alt="" class="h-8 w-8 shrink-0 rounded-lg object-cover" onerror={fallbackImage} /><span class="min-w-0 flex-1 text-left"><span class="block truncate text-xs font-medium">{instance.name}</span><span class="mt-1 block text-[10px] text-fg-muted">{instance.mcVersion}</span></span>{#if draft.packs.includes(instance.name)}<Check class="h-4 w-4 shrink-0 text-brand-400" />{/if}</button>{/each}</div></section>{/if}
                 <PackCollections bind:value={draft.collections} editing disabled={locked} {maximum} />
             {/if}
@@ -149,7 +191,7 @@
         <div class="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-fg-muted"><Eye class="h-3.5 w-3.5" />{t('profileStudio.livePreview')}</div>
         <ProfileSignature signature={draft.profileStyle}><article class="overflow-hidden rounded-2xl border border-border bg-bg-subtle/35">
             <div data-profile-banner class="relative h-28 overflow-hidden bg-gradient-to-br from-brand-500/25 via-bg-subtle to-bg-elevated">{#if draft.banner}<img src={draft.banner} alt="" class="h-full w-full object-cover" />{/if}<div class="absolute inset-0 bg-gradient-to-t from-bg-elevated to-transparent"></div></div>
-            <div data-profile-preview class="relative space-y-3 px-4 pb-5"><div data-profile-avatar class="-mt-8 h-16 w-16 rounded-2xl border-4 border-bg-elevated bg-bg-subtle">{#if draft.portrait}<img src={draft.portrait} alt="" class="h-full w-full rounded-xl object-cover" />{:else}<MinecraftAvatar username={profile.username} avatarUrl={profile.avatarUrl} class="h-full w-full" />{/if}</div><div><h4 data-profile-name class="break-words text-base font-semibold">{draft.displayName.trim() || profile.username}</h4><p class="mt-1 truncate text-[11px] text-fg-muted">@{profile.username}</p></div><AccountBadges role={profile.role} tags={profile.tags} plan={profile.membership?.plan} />{#if draft.status.trim()}<p data-profile-status class="rounded-lg border border-brand-400/20 bg-brand-500/10 p-2.5 text-xs leading-5">{draft.status}</p>{/if}{#if draft.description.trim()}<p class="line-clamp-6 whitespace-pre-wrap break-words text-xs leading-5 text-fg-muted">{draft.description}</p>{/if}{#if draft.packs.length}<div class="border-t border-border pt-3"><p class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-fg-muted">{t('publicProfile.packs')}</p><div class="flex flex-wrap gap-1.5">{#each draft.packs.slice(0,3) as name}<span class="max-w-full truncate rounded-lg border border-border bg-bg-elevated px-2 py-1 text-[10px]">{name}</span>{/each}{#if draft.packs.length > 3}<span class="text-[10px] text-fg-muted">+{draft.packs.length - 3}</span>{/if}</div></div>{/if}{#if draft.collections.length}<p class="text-[11px] text-fg-muted">{t('profileStudio.collectionCount',{count:draft.collections.length})}</p>{/if}</div>
+            <div data-profile-preview class="relative space-y-3 px-4 pb-5"><div data-profile-avatar class="-mt-8 h-16 w-16 rounded-2xl border-4 border-bg-elevated bg-bg-subtle">{#if draft.portrait}<img src={draft.portrait} alt="" class="h-full w-full rounded-xl object-cover" />{:else}<MinecraftAvatar username={profile.username} avatarUrl={profile.avatarUrl} class="h-full w-full" />{/if}</div><div><h4 data-profile-name class="break-words text-base font-semibold">{draft.displayName.trim() || profile.username}</h4><p class="mt-1 truncate text-[11px] text-fg-muted">@{profile.username}</p></div><AccountBadges role={profile.role} tags={profile.tags} plan={profile.membership?.plan} />{#if draft.status.trim()}<p data-profile-status class="rounded-lg border border-brand-400/20 bg-brand-500/10 p-2.5 text-xs leading-5">{draft.status}</p>{/if}{#if draft.description.trim()}<p class="line-clamp-6 whitespace-pre-wrap break-words text-xs leading-5 text-fg-muted">{draft.description}</p>{/if}{#if draft.packs.length}<div class="border-t border-border pt-3"><p class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-fg-muted">{t('publicProfile.packs')}</p><div><ProfileFavourites names={draft.packs.slice(0,3)} artwork={draft.packArtwork} compact />{#if draft.packs.length > 3}<span class="text-[10px] text-fg-muted">+{draft.packs.length - 3}</span>{/if}</div></div>{/if}{#if draft.collections.length}<p class="text-[11px] text-fg-muted">{t('profileStudio.collectionCount',{count:draft.collections.length})}</p>{/if}</div>
         </article></ProfileSignature>
         <p class="my-3 text-xs leading-5 text-fg-muted">{t('profileStudio.previewHelp')}</p>
         <button type="button" class={button({variant:'secondary',size:'sm',block:true})} disabled={locked || pendingImage} onclick={onpreview}><Eye class="h-3.5 w-3.5" />{t('profileStudio.fullPreview')}</button>

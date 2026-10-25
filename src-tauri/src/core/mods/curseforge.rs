@@ -242,7 +242,7 @@ pub async fn search_mods(
 
     let loader_param = match loader.map(|s| s.to_lowercase()).as_deref() {
         Some("forge") => "&modLoaderType=1",
-        Some("fabric") => "&modLoaderType=4",
+        Some("fabric" | "legacyfabric" | "babric") => "&modLoaderType=4",
         Some("quilt") => "&modLoaderType=5",
         Some("neoforge") => "&modLoaderType=6",
         _ => "",

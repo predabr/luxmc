@@ -1,6 +1,6 @@
 <div align="center">
   <img src="static/logo.png" alt="Luxmc" width="120" />
-  <h1>Luxmc 3.9.1 — Do Seu Jeito</h1>
+  <h1>Luxmc 4.0 — Do Seu Jeito</h1>
   <p>Seu Minecraft, suas instâncias e sua turma.</p>
   <p><a href="https://luxmc-r92.pages.dev">Site oficial</a> · <a href="https://github.com/predabr/luxmc/releases/latest">Downloads</a> · <a href="SECURITY.md">Segurança</a></p>
 </div>
@@ -13,7 +13,7 @@ Luxmc reúne versões Java, modpacks, organização de instâncias, personaliza�
 - **Linux:** escolha AppImage, DEB, RPM ou pacote Arch nas [releases](https://github.com/predabr/luxmc/releases/latest). Use o formato correspondente à sua distribuição.
 - **macOS:** consulte os artefatos da release. A disponibilidade de um pacote não equivale a uma validação de todas as funções naquele sistema.
 
-Baixe apenas dos canais oficiais. O atualizador verifica o manifesto assinado e o hash do arquivo antes de executar uma atualização. O instalador Windows 3.9 ainda não tem assinatura Authenticode e pode ser bloqueado pelo Controle Inteligente. A assinatura de distribuição Ed25519 não substitui a identificação do editor no Windows. Veja [SECURITY.md](SECURITY.md).
+Baixe apenas dos canais oficiais. O atualizador verifica o manifesto assinado e o hash do arquivo antes de executar uma atualização. O instalador Windows ainda não tem assinatura Authenticode e pode ser bloqueado pelo Controle Inteligente. A assinatura de distribuição Ed25519 não substitui a identificação do editor no Windows. Veja [SECURITY.md](SECURITY.md).
 
 ## Biblioteca e conteúdo
 
@@ -21,7 +21,7 @@ Cada instância Java conserva seus mods, mundos e configurações em sua própri
 
 O catálogo integra Modrinth e CurseForge, com filtros à direita, imagens fornecidas pelo projeto e opções de quantidade de resultados e capas compactas. Importe `.mrpack` e pacotes CurseForge, confira versões e changelogs e instale o conteúdo na instância escolhida. Downloads conferem hashes quando o provedor os disponibiliza. Reparos preservam arquivos desativados pelo usuário. A disponibilidade dos arquivos depende dos provedores e das permissões de distribuição de cada autor.
 
-Vanilla, Fabric, Forge, NeoForge e Quilt têm fluxos próprios de preparação. Java, memória, resolução e argumentos podem ser definidos por instância. Logs, diagnósticos, backups e histórico ajudam a investigar problemas; não existe garantia de que qualquer combinação de mods funcione.
+Vanilla, Fabric, Forge, NeoForge, Quilt, Legacy Fabric e Babric têm fluxos de preparação. A disponibilidade depende da versão do Minecraft suportada por cada loader. Java, memória, resolução e argumentos podem ser definidos por instância. Logs, diagnósticos, backups e histórico ajudam a investigar problemas; não existe garantia de que qualquer combinação de mods funcione.
 
 ## Revisão 4.0
 
@@ -29,11 +29,15 @@ A versão pública permanece **4.0.0**. Cada compilação tem uma revisão próp
 
 O catálogo prepara ícones em segundo plano com concorrência limitada. Arquivos auxiliares e pastas de metadados não aparecem como mods; os shaders extraídos continuam acessíveis. A atualização de modpacks separa consulta, revisão das mudanças e aplicação com backup dos mundos. Duplicatas reconhecidas em pacotes são guardadas em `.luxmc/removed-duplicates`, com registro da versão mantida.
 
-Wallpapers importados são copiados para a biblioteca interna. GIFs no perfil e nas pastas exigem Plus ou Pro; wallpapers continuam gratuitos. Pro também inclui fundo com imagem ou GIF nos cartões de amigos e acabamento Prisma.
+Wallpapers importados são copiados para a biblioteca interna. GIFs no perfil e nas pastas exigem Plus ou Pro; wallpapers continuam gratuitos. Pro também inclui fundo com imagem ou GIF nos cartões de amigos, acabamento Prisma, vitrine panorâmica ou pôsteres e auras Aurora e Beacon.
 
 As salas Java têm capacidade de 10 participantes, ou **20 incluindo o anfitrião com Pro confirmado**. Todos devem usar uma revisão atualizada do launcher e versões compatíveis do jogo e dos mods. A capacidade do túnel não garante desempenho para vinte jogadores em qualquer computador: o processamento do mundo continua no PC que o abriu. A descoberta LAN tem alternativa por endereço direto para redes que bloqueiam multicast. A validação entre dois PCs com o modpack do usuário continua necessária.
 
 O site adapta o idioma inicial ao navegador e permite escolher português, inglês ou espanhol. O login Microsoft usa PKCE e retorno vinculado ao navegador, com tentativas independentes por aba. A disponibilidade dos serviços Xbox e Minecraft também é necessária para concluir o acesso. No teste atual, o serviço Minecraft retorna HTTP 403 para a hospedagem Cloudflare; o login completo do site permanece pendente dessa liberação. O acesso ao plano pelo botão “Meu plano e pedidos” do launcher continua sendo uma alternativa autenticada.
+
+A revisão mais recente encurta as transições de navegação, antecipa o código da tela de Amigos e evita animações sobrepostas na biblioteca. As configurações da instância separam identidade, desempenho, Java/loader, janela, comandos e manutenção. A primeira preparação do Minecraft segue o fluxo normal de abertura; reparos continuam disponíveis quando necessários.
+
+Os favoritos do perfil exibem capas sincronizadas. O NameMC abre em uma janela própria com redução de elementos publicitários. Além dos provedores integrados, FTB, Technic e ATLauncher ficam disponíveis como catálogos externos; seus downloads e atualizações são gerenciados fora do Luxmc.
 
 ## Amigos e aparência
 
@@ -53,7 +57,7 @@ Versões GDK usam Gaming Services. O Luxmc prepara esse componente oficial quand
 
 ## Interface
 
-Temas, wallpaper e ajustes visuais são configuráveis. As telas e abas têm transições curtas; movimento reduzido e efeitos desativados são respeitados. Ativar animações explicitamente permite usá-las com movimento reduzido no Windows; o modo de desempenho usa uma transição breve de opacidade. O fundo e o tema recuperam a gravação mais recente das preferências.
+Temas, wallpaper e ajustes visuais são configuráveis. As telas e abas têm transições curtas; movimento reduzido e efeitos desativados são respeitados. Ativar animações explicitamente permite usá-las com movimento reduzido no Windows; o modo de desempenho dispensa animações de entrada. O fundo e o tema recuperam a gravação mais recente das preferências.
 
 A [versão 3.9 — Sua Marca, Seu Mundo](docs/releases/v3.9.0.md) traz um editor de perfil com prévia, imagens e GIFs, estilos conforme o plano e favoritos ampliados. Plus oferece seis paletas, Halo, Contorno duplo e 16 favoritos. Pro acrescenta Órbita, Brilho, Pulso, composição centralizada e 24 favoritos. Free conserva sua personalização básica. A preparação de instâncias lê somente os metadados necessários na auditoria de instalação e prepara Java e loader em paralelo, mantendo a análise do Shield antes de abrir o jogo. Navegação e indicadores de progresso receberam transições adicionais.
 

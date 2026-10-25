@@ -48,6 +48,7 @@ export interface PreLaunchCheckResult {
 export interface InstanceReadiness {
 	ready: boolean;
 	repairable: boolean;
+	preparationRequired?: boolean;
 	requiredJava: number;
 	allocatedRamMb: number;
 	recommendedRamMb: number;

@@ -384,6 +384,7 @@ pub async fn prepare_neoforge(
     }
 
     Ok(PreparedLoader {
+        native_archives: Vec::new(),
         main_class: version_data.main_class,
         classpath_entries,
         jvm_args,

@@ -16,6 +16,13 @@ test('plans switch between three languages without changing prices, identities o
             assert.equal(window.document.querySelector('[data-language-select]').value,locale);
             assert.deepEqual([...window.document.querySelectorAll('[data-plan]')].map(node=>node.dataset.plan),before);
             assert.ok(window.document.querySelector('[data-tier=plus] .price').textContent.includes('9,90'));
+            for (const key of ['plans.gif', 'plans.showcase', 'plans.proLan', 'plans.wallpapers', 'plans.lanNote']) {
+                const node=window.document.querySelector(`[data-i18n="${key}"]`);
+                assert.equal(node.textContent,window.LuxI18n.t(key));
+                assert.ok(node.textContent.length>20);
+            }
+            assert.equal(window.document.querySelectorAll('[data-tier=plus] [data-i18n="plans.showcase"]').length,0);
+            assert.ok(window.document.querySelector('[data-tier=pro] [data-i18n="plans.proLan"]').textContent.includes('20'));
             for (const node of window.document.querySelectorAll('[data-i18n]')) assert.notEqual(window.LuxI18n.t(node.dataset.i18n),node.dataset.i18n);
         }
     } finally {dom.window.close();}

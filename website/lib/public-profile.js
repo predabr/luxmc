@@ -1,4 +1,22 @@
 import { parseProfileStyle } from "./profile-style.js";
+function packArtwork(value, names) {
+  if (!Array.isArray(value) || value.length > 24) return null;
+  const used = /* @__PURE__ */ new Set();
+  const result = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object" || typeof item.name !== "string" || !names.includes(item.name) || used.has(item.name) || typeof item.title !== "string" || !item.title.trim() || item.title.length > 80 || typeof item.icon !== "string" || item.icon.length > 2048) return null;
+    try {
+      const url = new URL(item.icon);
+      if (url.protocol !== "https:" || url.username || url.password || url.port || !["cdn.modrinth.com", "media.forgecdn.net", "mediafilez.forgecdn.net", "edge.forgecdn.net"].includes(url.hostname)) return null;
+    } catch {
+      return null;
+    }
+    if (item.kind !== void 0 && !["mod", "modpack"].includes(item.kind)) return null;
+    used.add(item.name);
+    result.push({ name: item.name, title: item.title.trim(), icon: item.icon, ...item.kind ? { kind: item.kind } : {} });
+  }
+  return result;
+}
 function collections(value, maximum = 6) {
   if (value === void 0) return [];
   if (!Array.isArray(value) || value.length > maximum) return null;
@@ -38,10 +56,13 @@ function validatePublicProfile(value, maximum = 6, favourites = 8) {
   if (typeof body.description !== "string" || body.description.length > 400 || !profileImage(body.banner) || !profileImage(body.portrait)) return null;
   if (!Array.isArray(body.packs) || body.packs.length > favourites || body.packs.some((pack) => typeof pack !== "string" || !pack.trim() || pack.length > 80)) return null;
   const packs = body.packs;
-  return { profileStyle, collections: shared, displayName: typeof body.displayName === "string" ? body.displayName.trim() : "", status: typeof body.status === "string" ? body.status.trim() : "", description: body.description.trim(), banner: body.banner, portrait: body.portrait, packs: [...new Set(packs.map((pack) => pack.trim()))] };
+  const artwork = body.packArtwork === void 0 ? void 0 : packArtwork(body.packArtwork, packs);
+  if (artwork === null) return null;
+  return { ...artwork !== void 0 ? { packArtwork: artwork } : {}, profileStyle, collections: shared, displayName: typeof body.displayName === "string" ? body.displayName.trim() : "", status: typeof body.status === "string" ? body.status.trim() : "", description: body.description.trim(), banner: body.banner, portrait: body.portrait, packs: [...new Set(packs.map((pack) => pack.trim()))] };
 }
 export {
   collections,
+  packArtwork,
   profileImage,
   validatePublicProfile
 };

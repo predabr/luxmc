@@ -154,7 +154,7 @@ impl ModrinthClient {
         facet_groups.push(format!(r#"["project_type:{}"]"#, project_type));
 
         if let Some(l) = loader {
-            let l_clean = l.trim().to_lowercase();
+            let l_clean = match l.trim().to_lowercase().as_str() { "legacyfabric" | "babric" => "fabric".to_owned(), value => value.to_owned() };
             if !l_clean.is_empty() && l_clean != "all" && l_clean != "qualquer" && l_clean != "qualquer loader" {
                 facet_groups.push(format!(r#"["categories:{}"]"#, l_clean));
             } else if project_type == "mod" {
@@ -309,7 +309,7 @@ impl ModrinthClient {
 
         let mut candidate_urls = Vec::new();
         let gv_json = format!("[\"{}\"]", clean_ver);
-        let loader_clean = loader.map(|l| l.trim().to_lowercase()).filter(|l| !l.is_empty());
+        let loader_clean = loader.map(|l| match l.trim().to_lowercase().as_str() { "legacyfabric" | "babric" => "fabric".to_owned(), value => value.to_owned() }).filter(|l| !l.is_empty());
         let loader_json = loader_clean.as_ref().map(|l| format!("[\"{}\"]", l));
 
         if has_ver {

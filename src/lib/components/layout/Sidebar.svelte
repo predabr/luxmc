@@ -28,6 +28,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { appState } from "$lib/stores/app.svelte";
 	import { getIconSrc } from "$lib/utils/icons";
     import { prefetchInstanceContent } from '$lib/utils/contentPrefetch';
+    import { preloadRoute } from '$lib/utils/preloadRoute';
 
 	let { notificationCount = 0 }: { notificationCount?: number } = $props();
 	const { t } = useTranslation();
@@ -85,6 +86,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			<div class="relative group w-full flex justify-center">
 				<a
 					href={item.href}
+                    onpointerenter={() => preloadRoute(item.href)}
+                    onfocus={() => preloadRoute(item.href)}
+                    onpointerdown={() => preloadRoute(item.href, true)}
 					onclick={(e) => {
 						e.preventDefault();
 						goto(item.href);

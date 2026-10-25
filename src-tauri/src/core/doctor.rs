@@ -278,7 +278,7 @@ pub fn mod_compatibility_warnings(
         return warnings;
     }
     let instance_version = mc_version.trim().to_ascii_lowercase();
-    let instance_loader = loader.trim().to_ascii_lowercase();
+    let instance_loader = match loader.trim().to_ascii_lowercase().as_str() { "legacyfabric" | "babric" => "fabric".to_owned(), value => value.to_owned() };
 
     let incompatible: &[&str] = match instance_loader.as_str() {
         "forge" => &["fabric", "quilt", "neoforge"],

@@ -1542,20 +1542,19 @@ pub async fn instance_health_check(
         .join("versions")
         .join(&row.mc_version)
         .join(format!("{}.jar", row.mc_version));
-    let client_jar_ok = client_jar.exists();
+    let client_jar_ok = tokio::fs::metadata(&client_jar).await.is_ok_and(|metadata| metadata.is_file() && metadata.len() > 0);
 
-    let natives_dir = data_dir
-        .join("versions")
-        .join(&row.mc_version)
-        .join("natives");
-    let natives_ok = natives_dir.exists()
-        || {
-            let libs_dir = data_dir.join("libraries");
-            let version = row.mc_version.clone();
-            tokio::task::spawn_blocking(move || has_natives_library(&libs_dir, &version))
-                .await
-                .map_err(|error| crate::error::AppError::Internal(error.to_string()))?
-        };
+    let version_path = data_dir.join("versions").join(&row.mc_version).join(format!("{}.json", row.mc_version));
+    let natives_ok = match tokio::fs::read(&version_path).await {
+        Ok(bytes) => match serde_json::from_slice::<crate::core::minecraft::VersionDetail>(&bytes) {
+            Ok(detail) if detail.id == row.mc_version => {
+                let manager = crate::core::downloader::DownloadManager::new(reqwest::Client::new(), data_dir.to_path_buf());
+                manager.natives_ready(&detail).await?
+            }
+            _ => false,
+        },
+        Err(_) => false,
+    };
 
     let mut mods_error: Option<String> = None;
     let mods_dir = std::path::Path::new(&row.game_dir).join("mods");
@@ -1573,7 +1572,7 @@ pub async fn instance_health_check(
         issues.push(format!("O arquivo principal do Minecraft {} não foi encontrado.", row.mc_version));
     }
     if !natives_ok {
-        issues.push(format!("As bibliotecas nativas do Minecraft {} não foram extraídas.", row.mc_version));
+        issues.push(format!("As bibliotecas nativas do Minecraft {} não foram baixadas ou estão incompletas.", row.mc_version));
     }
     if let Some(error) = mods_error {
         issues.push(error);
@@ -1584,16 +1583,6 @@ pub async fn instance_health_check(
         natives: natives_ok,
         mods_ok,
         issues,
-    })
-}
-
-fn has_natives_library(libs_dir: &std::path::Path, mc_version: &str) -> bool {
-    let Ok(entries) = std::fs::read_dir(libs_dir) else {
-        return false;
-    };
-    entries.filter_map(|entry| entry.ok()).any(|entry| {
-        let name = entry.file_name().to_string_lossy().to_lowercase();
-        name.contains("natives") && name.contains(mc_version)
     })
 }
 
@@ -1705,15 +1694,23 @@ pub async fn instance_file_tree(
     let mut entries = tokio::task::spawn_blocking(move || {
         raw_entries.sort_by_cached_key(|entry| entry.0.to_lowercase());
         let mut inline_budget = 1024 * 1024usize;
+        let mut eager_budget = if is_content { 12usize } else { 0 };
         raw_entries.into_iter().map(|(name, path, is_dir, metadata, _)| {
             let key = crate::commands::mods::content_icon_key(&path, &metadata);
             let cached = cached_icons.get(&key);
-            let icon = cached.filter(|value| !value.starts_with("missing:") && !value.is_empty()).filter(|value| {
+            let mut icon = cached.filter(|value| !value.starts_with("missing:") && !value.is_empty()).filter(|value| {
                 if !value.starts_with("data:") { return true; }
                 if value.len() > inline_budget { return false; }
                 inline_budget -= value.len(); true
             }).cloned();
-            let icon_resolved = cached.is_some_and(|value| crate::commands::content_icons::cache_is_resolved(value) && (!value.starts_with("data:") || icon.is_some()));
+            if icon.is_none() && eager_budget > 0 && !is_dir {
+                eager_budget -= 1;
+                if let Some(extracted) = crate::commands::mods::extract_mod_icon_from_jar(&path).filter(|icon| icon.len() <= inline_budget) {
+                    inline_budget -= extracted.len();
+                    icon = Some(extracted);
+                }
+            }
+            let icon_resolved = icon.is_some() || cached.is_some_and(|value| crate::commands::content_icons::cache_is_resolved(value) && (!value.starts_with("data:") || icon.is_some()));
             FileTreeEntry { name, path: path.to_string_lossy().to_string(), is_dir, size: if is_dir && !is_content { compute_dir_size(&path) } else { metadata.len() }, icon, icon_key: Some(key), icon_resolved }
         }).collect::<Vec<_>>()
     }).await.map_err(|error| AppError::Internal(error.to_string()))?;
@@ -3672,7 +3669,7 @@ pub async fn instance_mod_add(
     }
     if has_metadata {
         let compatible = match row.loader.as_str() {
-            "fabric" => fabric,
+            "fabric" | "legacyfabric" | "babric" => fabric,
             "quilt" => quilt || fabric,
             "forge" => forge,
             "neoforge" => neoforge || forge,

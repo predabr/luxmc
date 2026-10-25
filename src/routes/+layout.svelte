@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { safeFavouriteIcon } from "$lib/utils/profileFavourites";
 import { prefetchInstanceContent } from '$lib/utils/contentPrefetch';
     $effect(() => {
         const id = profiles.activeId;
@@ -124,18 +125,18 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     function updateDiscordActivity(activity: Exclude<Parameters<typeof discordSetActivity>[0], string | undefined>) {
         latestDiscordActivity = activity;
         const privateMode = settings.value.hideDiscordDetails || settings.value.streamerMode;
-        return discordSetActivity({ ...activity, ...(privateMode ? { details: activity.inGame ? "Jogando Minecraft" : "No Luxmc", state: "Luxmc Launcher", largeText: "Minecraft via Luxmc" } : {}), clientId: settings.value.discordClientId || undefined });
+        return discordSetActivity({ ...activity, ...(privateMode ? { details: activity.inGame ? "Jogando Minecraft" : "No Luxmc", state: "Luxmc Launcher", largeText: "Minecraft via Luxmc", largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png" } : {}), clientId: settings.value.discordClientId || undefined });
     }
 	const launcherStartTime = Math.floor(Date.now() / 1000);
 	const LAUNCH_STAGE_LABELS: Record<string, string> = $derived({
 		preparing: uiText("ui.21e7c4817452bf68"),
-		checkingJava: "Verificando a runtime do Java...",
+		checkingJava: uiText("instanceSettingsNav.preparingRuntime"),
 		resolvingClasspath: uiText("ui.4a2bda9086a2b484"),
 		extractingNatives: uiText("ui.7aaa8c5b3528ffea"),
 		resolvingArgs: uiText("ui.45eb67dd71456de2"),
-		validatingArgs: "Validando argumentos da JVM...",
-		spawning: "Iniciando o Minecraft...",
-        waitingForWindow: "Aguardando a janela do Minecraft...",
+		validatingArgs: uiText("instanceSettingsNav.validatingArguments"),
+		spawning: uiText("instanceSettingsNav.startingGame"),
+        waitingForWindow: uiText("instanceSettingsNav.waitingWindow"),
 		running: uiText("ui.10096bc49ab1ac37"),
 		failed: uiText("ui.48a319d9cbd85a5a")
 	});
@@ -214,7 +215,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		});
 		void profiles.refresh();
 
-		const warmRoutes = ["/", "/instances", "/mods", "/skins", "/news", "/settings", "/screenshots"];
+		const warmRoutes = ["/friends", "/instances", "/mods", "/skins", "/settings", "/news", "/screenshots", "/"];
 		let warmIndex = 0;
 		const warmTimer = setInterval(() => {
 			if (!initialized || document.hidden || appState.isLaunching || appState.isGameRunning || appState.isScrolling) return;
@@ -519,7 +520,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				details,
 				state,
 				largeText: `${pName} (${verId})`,
-				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
+				largeImage: profile?.icon && safeFavouriteIcon(profile.icon) ? profile.icon : "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 				smallImage: "grass",
 				smallText: `Luxmc · ${loader}`,
 				startTime: gameStartTime || launcherStartTime,

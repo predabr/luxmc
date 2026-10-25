@@ -44,16 +44,17 @@ async function check(profileId: string, force = false): Promise<void> {
     if (pending) return pending;
     const revision = entry.revision;
     entry.checking = true;
-    const request = (async () => {
+    let request!: Promise<void>;
+    request = (async () => {
         try {
             const info = await modpackCheckUpdate(profileId);
             if (entry.revision !== revision) return;
-            entry.info = info;
+            entry.info = info.currentVersionId && info.versionId === info.currentVersionId ? {...info, hasUpdate:false} : info;
             entry.diff = null;
             entry.checkedAt = Date.now();
         } finally {
             if (entry.revision === revision) entry.checking = false;
-            checks.delete(profileId);
+            if (checks.get(profileId) === request) checks.delete(profileId);
         }
     })();
     checks.set(profileId, request);
@@ -67,6 +68,7 @@ async function apply(profileId: string, versionId: string, source: string, proje
     }
     const entry = entryFor(profileId);
     entry.revision += 1;
+    checks.delete(profileId);
     entry.checking = false;
     contentActivity.updateProfileId = profileId;
     const operation = $state<Task>({ profileId, name: profiles.list.find(profile => profile.id === profileId)?.name || projectId, version, busy: true, percent: 2, text: t('ui.b35e32e9887ce30f'), error: '', complete: false });
@@ -109,6 +111,7 @@ export const modpackUpdates = {
     installed(profileId: string, source: string, projectId: string, versionId: string, version: string) {
         const entry = entryFor(profileId);
         entry.revision++;
+        checks.delete(profileId);
         entry.info = { hasUpdate: false, currentVersion: version, currentVersionId: versionId, latestVersion: version, changelog: null, source, projectId, versionId };
         entry.diff = null;
         entry.checking = false;

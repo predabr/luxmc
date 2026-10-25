@@ -156,6 +156,7 @@ pub async fn prepare_quilt(
     }
 
     Ok(PreparedLoader {
+        native_archives: Vec::new(),
         main_class: profile.main_class,
         classpath_entries,
         jvm_args,

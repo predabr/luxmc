@@ -7,6 +7,7 @@ mod startup;
 pub mod session;
 #[cfg(any(target_os = "windows", test))]
 mod native_cache;
+mod loader_natives;
 pub mod launch_state;
 use std::path::PathBuf;
 use std::process::Stdio;
@@ -459,7 +460,7 @@ impl GameLauncher {
         self.emit_log(&format!("Host platform: {:?}", current_platform()));
 
         let (loader, loader_version) = loader_selection::resolve(&game_dir, &profile.loader, profile.loader_version.as_deref())?;
-        if !matches!(loader.as_str(), "vanilla" | "fabric" | "forge" | "neoforge" | "quilt") {
+        if !matches!(loader.as_str(), "vanilla" | "fabric" | "legacyfabric" | "babric" | "forge" | "neoforge" | "quilt") {
             return Err(crate::error::AppError::InvalidState(format!(
                 "Loader desconhecido '{}' na instancia. Ajuste o loader nas configuracoes da instancia.",
                 loader
@@ -477,7 +478,7 @@ impl GameLauncher {
         let runtime_started = std::time::Instant::now();
         let runtime = self.java.resolve_java(major, profile.java_path.as_deref());
         let loader_preparation = async {
-            if !matches!(loader.as_str(), "fabric" | "quilt" | "neoforge" | "forge") {
+            if !matches!(loader.as_str(), "fabric" | "legacyfabric" | "babric" | "quilt" | "neoforge" | "forge") {
                 return Ok(None);
             }
             if loader == "fabric" {
@@ -506,13 +507,15 @@ impl GameLauncher {
             .unwrap_or("net.minecraft.client.main.Main")
             .to_string();
 
+        let mut loader_native_archives = Vec::new();
         let mut extra_jvm_args = Vec::new();
         let mut extra_game_args = Vec::new();
 
         let clean_mc_ver = profile.clean_mc_version();
-        if loader == "fabric" || loader == "quilt" || loader == "neoforge" || loader == "forge" {
+        if loader == "fabric" || loader == "legacyfabric" || loader == "babric" || loader == "quilt" || loader == "neoforge" || loader == "forge" {
             if let Some(prep) = prepared_loader {
                 self.emit_log(&format!("{} loader ready: mainClass = {}", loader, prep.main_class));
+                loader_native_archives = prep.native_archives;
                 main_class = prep.main_class;
                 let mut new_cp = prep.classpath_entries;
                 new_cp.extend(classpath);
@@ -601,6 +604,10 @@ impl GameLauncher {
         self.emit_stage(LaunchStage::ExtractingNatives);
         let natives_started = std::time::Instant::now();
         let natives_dir = self.prepare_natives(detail).await?;
+        let natives_dir = if loader_native_archives.is_empty() { natives_dir } else {
+            tokio::task::spawn_blocking(move || loader_natives::prepare(&natives_dir, &loader_native_archives)).await
+                .map_err(|error| crate::error::AppError::Internal(error.to_string()))??
+        };
         self.emit_log(&format!("Bibliotecas nativas preparadas em {:.2}s.",natives_started.elapsed().as_secs_f64()));
         self.emit_log(&format!("Natives dir: {}", natives_dir.display()));
 

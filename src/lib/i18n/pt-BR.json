@@ -1,4 +1,8 @@
 {
+  "externalCatalog": {"title": "Mais catálogos", "help": "Abrem no navegador oficial. Downloads e atualizações destes catálogos são gerenciados fora do Luxmc.", "failed": "Não foi possível abrir o catálogo."},
+  "modList": {"enabled": "Ativo", "disabled": "Desativado"},
+  "showcaseCatalogue": {"type": "Buscar favorito no catálogo", "results": "Resultados para favoritos", "unavailable": "O catálogo está indisponível. Você ainda pode adicionar apenas o nome."},
+  "instanceSettingsNav": {"navigation": "Categorias das configurações da instância", "general": "Identidade", "performance": "Desempenho", "runtime": "Java e loader", "window": "Janela do jogo", "advanced": "Comandos avançados", "maintenance": "Manutenção", "generalHelp": "Personalize o nome e o visual desta instância.", "performanceHelp": "Ajuste a memória e as otimizações para este modpack.", "runtimeHelp": "Configure o carregador de mods e o Java compatível. Altere somente se necessário.", "windowHelp": "Escolha como a janela do Minecraft será aberta.", "advancedHelp": "Configure os comandos executados antes e depois do jogo.", "maintenanceHelp": "Repare os arquivos ou remova a instância. A exclusão exige confirmação.", "bannerHelp": "Endereço da imagem de capa. Deixe vazio para usar a capa padrão.", "preparingRuntime": "Preparando Java e carregador de mods...", "validatingArguments": "Validando argumentos da JVM...", "startingGame": "Iniciando o Minecraft...", "waitingWindow": "Aguardando a janela do Minecraft..."},
   "introMotion": {"caption": "Seu próximo mundo está chegando."},
   "roomConnection": {"shared": "Mundo compartilhado", "copyAddress": "Copiar endereço", "copied": "Endereço copiado. No Minecraft, abra Multijogador → Conexão direta e cole o endereço.", "connecting": "Preparando conexão", "directHelp": "Se o mundo não aparecer em Jogos na rede local, copie o endereço e use Multijogador → Conexão direta. Mantenham os dois launchers abertos."},
   "membershipPanel": {"activeUntil": "Ativo até {{date}} · {{collections}} coleções · {{presets}} perfis de aparência", "free": "Seu launcher completo. Amplie seu perfil com Plus ou Pro.", "favourites": "favoritos no perfil", "palettes": "paletas do perfil", "plus": "Seis paletas para o perfil, molduras Halo e Contorno duplo. Seu estilo aparece para seus amigos.", "opening": "Abrindo…", "portal": "Meu plano e pedidos", "owner": "Central do dono · aprovar planos", "refresh": "Atualizar meu plano", "synced": "Perfis sincronizados de aparência", "presetName": "Nome do perfil de aparência", "presetPlaceholder": "Meu perfil de aparência", "savePreset": "Salvar perfil de aparência", "delete": "Excluir {{name}}", "roomCapacity": "Um convite para reunir até {{count}} pessoas, incluindo você. Qualquer participante pode abrir seu mundo."},
@@ -3534,6 +3538,11 @@
     "elapsed": "Tempo decorrido: {{time}}"
   },
   "planProfile": {
+    "showcaseLayout": "Formato da vitrine",
+    "showcaseLayoutHint": "Capas para todos. Pro libera destaque panorâmico e pôsteres. O primeiro favorito ocupa o destaque.",
+    "showcaseLayout_grid": "Grade de capas",
+    "showcaseLayout_spotlight": "Destaque panorâmico · Pro",
+    "showcaseLayout_poster": "Pôsteres · Pro",
     "frameDetail": "Acabamento do avatar",
     "frameDetailHint": "Um contorno geométrico exclusivo Pro, combinado com sua moldura.",
     "frameDetail_none": "Sem acabamento",
@@ -3561,6 +3570,11 @@
     "frame_halo": "Halo",
     "frame_double": "Contorno duplo",
     "frame_orbit": "Órbita",
+    "ambientEffect": "Aura do avatar",
+    "ambientEffectHint": "Aurora suave ou anéis luminosos. Ao escolher uma aura, o efeito anterior é desativado.",
+    "ambientEffect_none": "Sem aura",
+    "ambientEffect_aurora": "Aurora",
+    "ambientEffect_beacon": "Sinal luminoso",
     "effect_none": "Sem efeito",
     "effect_shimmer": "Brilho da capa",
     "effect_pulse": "Pulso do avatar",

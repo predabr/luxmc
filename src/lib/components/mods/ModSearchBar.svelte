@@ -4,6 +4,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { onMount } from "svelte";
 	import { versionsList } from "$lib/api/launch";
+    import { modsOpenCatalog } from '$lib/api/mods';
+    import { toast } from '$lib/stores/toasts.svelte';
 
 	let {
 		selectedSource = $bindable("all"),
@@ -75,6 +77,16 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                 </button>
             {/each}
         </fieldset>
+
+        <div class="catalog-provider-row">
+            <p class="filter-label">{uiText('externalCatalog.title')}</p>
+            <p class="text-xs leading-relaxed text-fg-muted">{uiText('externalCatalog.help')}</p>
+            {#each [{id:'ftb',label:'Feed The Beast'}, {id:'technic',label:'Technic'}, {id:'atlauncher',label:'ATLauncher'}] as provider}
+                <button type="button" onclick={() => modsOpenCatalog(provider.id as 'ftb' | 'technic' | 'atlauncher').catch(() => toast(uiText('externalCatalog.failed'), 'error'))}>
+                    <Globe class="h-4 w-4" /><span>{provider.label}</span><span class="ml-auto text-xs" aria-hidden="true">↗</span>
+                </button>
+            {/each}
+        </div>
 
 		<div>
 			<div class="text-[11px] font-bold text-fg-muted uppercase tracking-wider mb-2">{uiText("ui.5df9df4db410ba86")}</div>

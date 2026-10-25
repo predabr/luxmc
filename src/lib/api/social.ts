@@ -1,9 +1,9 @@
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 import { z } from "zod";
 import { api, listen, type UnlistenFn } from "./client";
-import { defaultProfileStyle, profileAccents, profileCardBackgrounds, profileEffects, profileFrameDetails, profileFrames, profileLayouts } from '$lib/utils/profileStyle';
+import { defaultProfileStyle, profileShowcaseLayouts, profileAccents, profileCardBackgrounds, profileEffects, profileAmbientEffects, profileFrameDetails, profileFrames, profileLayouts } from '$lib/utils/profileStyle';
 
-const profileStyleSchema = z.object({ accent: z.enum(profileAccents), frame: z.enum(profileFrames), effect: z.enum(profileEffects), layout: z.enum(profileLayouts), frameDetail: z.enum(profileFrameDetails).optional(), cardBackground: z.enum(profileCardBackgrounds).optional() });
+const profileStyleSchema = z.object({ accent: z.enum(profileAccents), frame: z.enum(profileFrames), effect: z.enum(profileEffects), ambientEffect: z.enum(profileAmbientEffects).optional(), layout: z.enum(profileLayouts), frameDetail: z.enum(profileFrameDetails).optional(), cardBackground: z.enum(profileCardBackgrounds).optional(), showcaseLayout: z.enum(profileShowcaseLayouts).optional() });
 
 const identitySchema = z.object({ profileStyle: profileStyleSchema.optional(), membership: z.object({plan:z.enum(['free','plus','pro']),expiresAt:z.number().nullable()}).optional(), id: z.string(), username: z.string(), avatarUrl: z.string().nullable().optional(), displayName: z.string().max(32).optional(), role: z.enum(['owner', 'member']).optional(), tags: z.array(z.string().max(24)).max(5).optional() });
 export function friendDisplayName(friend: SocialIdentity): string { return friend.displayName?.trim() || friend.username; }
@@ -91,12 +91,14 @@ const packEntrySchema = z.object({source:z.enum(['modrinth','curseforge']),proje
 const collectionSchema = z.object({id:z.string().regex(/^[a-zA-Z0-9-]{1,64}$/),title:z.string().min(1).max(80),description:z.string().max(240),entries:z.array(packEntrySchema).max(8)});
 export type PackEntry = z.infer<typeof packEntrySchema>;
 export type PackCollection = z.infer<typeof collectionSchema>;
-const publicProfileSchema = identitySchema.extend({ profileStyle: profileStyleSchema.default(defaultProfileStyle), role: z.enum(["owner", "member"]).default("member"), collections:z.array(collectionSchema).max(24).default([]), displayName: z.string().max(32).default(''), status: z.string().max(80).default(''), description: z.string().max(400), banner: z.string().max(934000), portrait: z.string().max(934000), packs: z.array(z.string().max(80)).max(24) });
+const packArtworkSchema = z.object({name:z.string().max(80),title:z.string().max(80),icon:z.string().max(2048),kind:z.enum(['mod','modpack']).optional()});
+export type PackArtwork = z.infer<typeof packArtworkSchema>;
+const publicProfileSchema = identitySchema.extend({ profileStyle: profileStyleSchema.default(defaultProfileStyle), role: z.enum(["owner", "member"]).default("member"), packArtwork:z.array(packArtworkSchema).max(24).default([]), collections:z.array(collectionSchema).max(24).default([]), displayName: z.string().max(32).default(''), status: z.string().max(80).default(''), description: z.string().max(400), banner: z.string().max(934000), portrait: z.string().max(934000), packs: z.array(z.string().max(80)).max(24) });
 export type PublicProfile = z.infer<typeof publicProfileSchema>;
-export type PublicProfileDraft = Pick<PublicProfile, 'displayName' | 'status' | 'description' | 'banner' | 'portrait' | 'packs' | 'collections' | 'profileStyle'>;
+export type PublicProfileDraft = Pick<PublicProfile, 'displayName' | 'status' | 'description' | 'banner' | 'portrait' | 'packs' | 'collections' | 'profileStyle' | 'packArtwork'>;
 export async function socialPublicProfile(accountId: string, targetId?: string): Promise<PublicProfile> {
     return z.object({profile: publicProfileSchema}).parse(await api.invoke('social_request', {accountId, request: {action:'profile_get', targetId, collectionsLimit:24, favouritesLimit:24}})).profile;
 }
-export async function socialSaveProfile(accountId: string, profile: Pick<PublicProfile, 'description' | 'banner' | 'portrait' | 'packs' | 'displayName' | 'status'> & {collections?:PackCollection[];profileStyle?:PublicProfile['profileStyle']}): Promise<void> {
+export async function socialSaveProfile(accountId: string, profile: Pick<PublicProfile, 'description' | 'banner' | 'portrait' | 'packs' | 'displayName' | 'status'> & {collections?:PackCollection[];packArtwork?:PackArtwork[];profileStyle?:PublicProfile['profileStyle']}): Promise<void> {
     z.object({ok:z.literal(true)}).parse(await api.invoke('social_request', {accountId, request:{action:'profile_save',collectionsLimit:24,...profile}}));
 }
