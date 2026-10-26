@@ -1,4 +1,4 @@
-import { isProjectArtwork } from "$lib/utils/curatedBanners";
+import { isCatalogIcon, isProjectArtwork } from "$lib/utils/curatedBanners";
 
 export interface Profile {
 	id: string;
@@ -89,35 +89,42 @@ function createProfileStore() {
 		const { instancePackReference } = await import("$lib/api/studio");
 		const { catalogGallery, firstLandscape } = await import("$lib/utils/catalogGallery");
 		const { projectLandscape } = await import("$lib/utils/curatedBanners");
-		for (const profile of list) {
+		async function restoreProfile(profile: Profile) {
 			const needsIcon = defaultIcons.has(profile.icon);
-			const needsCover = !profile.banner || profile.banner === profile.icon;
-			if (profile.loader === "vanilla" || (!needsIcon && !needsCover) || (artworkAttempts.get(profile.id) ?? 0) > Date.now()) continue;
+			const needsCover = !profile.banner || profile.banner === profile.icon || isCatalogIcon(profile.banner);
+			if (profile.loader === "vanilla" || (!needsIcon && !needsCover) || (artworkAttempts.get(profile.id) ?? 0) > Date.now()) return;
 			artworkAttempts.set(profile.id, Date.now() + 300_000);
 			try {
 				if (needsIcon) {
 					const matches = await modsSearch(profile.name, "", 10, 0, "modpack");
 					const match = matches.find(item => item.title.trim().toLowerCase() === profile.name.trim().toLowerCase() && item.iconUrl?.startsWith("https://"));
 					const current = list.find(item => item.id === profile.id);
-					if (!match?.iconUrl || !current || current.name !== profile.name || !defaultIcons.has(current.icon)) continue;
+					if (!match?.iconUrl || !current || current.name !== profile.name || !defaultIcons.has(current.icon)) return;
 					await profilesUpdate({ id: profile.id, icon: match.iconUrl });
 					list = list.map(item => item.id === profile.id && defaultIcons.has(item.icon) ? { ...item, icon: match.iconUrl! } : item);
 				}
 				if (needsCover) {
 					const reference = await instancePackReference(profile.id);
 					const current = list.find(item => item.id === profile.id);
-					if (!current || current.banner && current.banner !== current.icon) continue;
+					if (!current || current.banner && current.banner !== current.icon && !isCatalogIcon(current.banner)) return;
 					const landscape = projectLandscape({ source: reference?.source, sourceId: reference?.projectId, iconUrl: current.icon })
 						|| (reference ? await firstLandscape(await catalogGallery(reference.source, reference.projectId)) : undefined);
 					if (landscape) setCatalogBanner(profile.id, landscape);
 				}
 			} catch {}
 		}
+		const pendingProfiles = [...list];
+		let index = 0;
+		async function worker() {
+			while (index < pendingProfiles.length) await restoreProfile(pendingProfiles[index++]);
+		}
+		await Promise.all([worker(), worker()]);
 	}
 	function setCatalogBanner(id: string, value: string): boolean {
 		if (!isProjectArtwork({ url: value })) return false;
 		const current = list.find(profile => profile.id === id);
-		if (!current || current.banner && current.banner !== current.icon) return false;
+		if (!current || current.banner && current.banner !== current.icon && !isCatalogIcon(current.banner)) return false;
+		try { if (localStorage.getItem(`luxmc_banner_${id}`)) return false; } catch {}
 		try { localStorage.setItem(`luxmc_catalog_banner_${id}`, value); } catch {}
 		list = list.map(profile => profile.id === id ? { ...profile, banner: value } : profile);
 		return true;

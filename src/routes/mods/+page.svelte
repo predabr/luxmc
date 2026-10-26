@@ -14,12 +14,12 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 		Sparkles, Package, ArrowUpRight, SlidersHorizontal
 	} from "lucide-svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
-	import { catalogCompatibility } from "$lib/utils/catalogCompatibility";
+	import { catalogCompatibility, matchesContentLoader } from "$lib/utils/catalogCompatibility";
 	import { profiles } from "$lib/stores/profiles.svelte";
     import { settings } from '$lib/stores/settings.svelte';
 	import { modpackInstallation } from "$lib/stores/modpackInstallation.svelte";
 	import {
-		modsSearch, modsVersions, modsInstall, modsProjectDetails, modsChangelog,
+		modsSearch, modsVersions, modsVersionHistory, modsInstall, modsProjectDetails, modsChangelog,
 		modsDownloadToTemp, instanceImportMrpack, instanceImportModpack, instanceCancelImport,
 		curseforgeStatus,
 		type ModProjectDetails, type ModVersion, type ModSearchResultItem
@@ -149,6 +149,9 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	let selectedItem = $state<ModSearchResultItem | null>(null);
 	let modDetails = $state<ModProjectDetails | null>(null);
 	let modVersionsList = $state<ModVersion[]>([]);
+	let loadingVersions = $state(false);
+	let versionsError = $state('');
+	let nextVersionOffset = $state<number | null>(null);
 	let loadingDetails = $state(false);
 	let activeDetailTab = $state<"overview" | "gallery" | "changelog" | "versions">("overview");
 	let lightboxImage = $state<{ url: string; title?: string | null; description?: string | null } | null>(null);
@@ -298,7 +301,8 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
             if (request.content === "modpack") { openModpackInstall(item); return; }
             const compatible = profiles.list.filter(profile =>
                 (!details.gameVersions.length || details.gameVersions.includes(profile.mcVersion)) &&
-                (!details.loaders.length || details.loaders.includes(profile.loader)));
+                profile.loader !== 'vanilla' &&
+                (!details.loaders.length || matchesContentLoader(details.loaders, profile.loader, true)));
             targetInstanceId = compatible.find(profile => profile.id === profiles.activeId)?.id ?? compatible[0]?.id ?? "";
             if (!targetInstanceId) throw new Error(uiText("ui.844ab9e35683af6e"));
             itemToInstall = { item };
@@ -308,35 +312,58 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
     }
 
 	let detailsToken = 0;
-	const detailCache = new Map<string, { detail: Awaited<ReturnType<typeof modsProjectDetails>>; versions: Awaited<ReturnType<typeof modsVersions>>; time: number }>();
+	const detailCache = new Map<string, { detail: Awaited<ReturnType<typeof modsProjectDetails>>; versions: ModVersion[]; nextOffset: number | null; time: number }>();
 	async function openDetails(item: ModSearchResultItem) {
 		const token = ++detailsToken;
 		const key = `${item.source}:${item.sourceId}`;
 		const cached = detailCache.get(key);
+		versionsError = ''; nextVersionOffset = null;
 		if (cached && Date.now() - cached.time < 300000) {
 			selectedItem = item; modDetails = cached.detail; modVersionsList = cached.versions;
-			loadingDetails = false; activeDetailTab = "overview";
+			loadingDetails = false; loadingVersions = false; nextVersionOffset = cached.nextOffset; activeDetailTab = "overview";
+			return;
 		} else {
 			selectedItem = item; modDetails = null; modVersionsList = [];
 			loadingDetails = true; activeDetailTab = "overview";
 		}
+		loadingVersions = true;
 		try {
 			const detailRequest = modsProjectDetails(item.sourceId, item.source).then(detail => {
 				if (token === detailsToken) { modDetails = detail; loadingDetails = false; }
 				return detail;
 			});
-			const [d, v] = await Promise.all([detailRequest, modsVersions(item.sourceId, "", item.source).catch(() => [])]);
+			const versionRequest = (item.source === 'curseforge'
+				? modsVersionHistory(item.sourceId, item.source, 0)
+				: modsVersions(item.sourceId, '', item.source).then(versions => ({ versions, nextOffset: null })))
+				.catch(error => { if (token === detailsToken) versionsError = String(error); return { versions: [], nextOffset: null }; });
+			const [d, page] = await Promise.all([detailRequest, versionRequest]);
 			if (detailCache.size >= 30) detailCache.delete(detailCache.keys().next().value!);
-			detailCache.set(key, { detail: d, versions: v, time: Date.now() });
 			if (token !== detailsToken) return;
-			modDetails = d; modVersionsList = v;
+			if (!versionsError) detailCache.set(key, { detail: d, versions: page.versions, nextOffset: page.nextOffset, time: Date.now() });
+			modDetails = d; modVersionsList = page.versions; nextVersionOffset = page.nextOffset;
 		} catch (e) {
 			if (token !== detailsToken) return;
 			toast(uiText("ui.64e3285c73f9cf91") + String(e), "error");
-		} finally { if (token === detailsToken) loadingDetails = false; }
+		} finally { if (token === detailsToken) { loadingDetails = false; loadingVersions = false; } }
 	}
 
-	function closeDetails() { detailsToken++; selectedItem = null; modDetails = null; modVersionsList = []; loadingDetails = false; }
+	async function loadMoreVersions() {
+		if (!selectedItem || nextVersionOffset === null || loadingVersions) return;
+		const item = selectedItem;
+		const token = detailsToken;
+		loadingVersions = true; versionsError = '';
+		try {
+			const page = await modsVersionHistory(item.sourceId, item.source, nextVersionOffset);
+			if (token !== detailsToken) return;
+			const existing = new Set(modVersionsList.map(version => version.id));
+			modVersionsList = [...modVersionsList, ...page.versions.filter(version => !existing.has(version.id))];
+			nextVersionOffset = page.nextOffset;
+			if (modDetails) detailCache.set(`${item.source}:${item.sourceId}`, {detail: modDetails, versions: modVersionsList, nextOffset: nextVersionOffset, time: Date.now()});
+		} catch (error) { if (token === detailsToken) versionsError = String(error); }
+		finally { if (token === detailsToken) loadingVersions = false; }
+	}
+
+	function closeDetails() { detailsToken++; selectedItem = null; modDetails = null; modVersionsList = []; loadingDetails = false; loadingVersions = false; versionsError = ''; nextVersionOffset = null; }
 
 	function isItemModpack(_item: ModSearchResultItem): boolean {
 		return selectedType === "Modpack";
@@ -360,7 +387,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 
     function confirmModpackInstall() {
         if (!modpackToInstall) return;
-        void modpackInstallation.start(modpackToInstall, modpackInstanceName.trim() || modpackToInstall.title, modpackRamMb, selectedVersion, modpackVersionId);
+        void modpackInstallation.start(modpackToInstall, modpackInstanceName.trim() || modpackToInstall.title, modpackRamMb, selectedVersion, modpackVersionId, selectedLoader ?? undefined);
         showModpackInstallModal = false;
     }
     function cancelModpackInstall() { return modpackInstallation.cancel(); }
@@ -375,23 +402,25 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 
 	async function executeInstallItem(item: ModSearchResultItem, profileId: string, versionId?: string) {
 		const id = `${item.source}:${item.sourceId}`;
+		const installType = selectedType;
+		const installWorld = chosenWorldName;
 		if (installingIds.has(id)) return;
 		installingIds = new Set([...installingIds, id]);
 		try {
 			const pid = profileId || targetInstanceId || profiles.activeId || profiles.list[0]?.id || "default";
 			const prof = profiles.list.find(p => p.id === pid);
 			if (!prof) throw new Error(uiText("ui.57d70370f60875d9"));
-			const incompatibility = catalogCompatibility(item, prof, selectedType, false);
+			const incompatibility = catalogCompatibility(item, prof, installType, false);
 			if (incompatibility) throw new Error(incompatibility);
             const tv = prof.mcVersion;
             const vs = await modsVersions(item.sourceId, tv, item.source);
-            const candidates = vs.filter(version => selectedType !== "Mod" || !version.loaders?.length || version.loaders.includes(prof.loader));
+            const candidates = vs.filter(version => installType !== "Mod" || !version.loaders?.length || matchesContentLoader(version.loaders, prof.loader, true));
             const chosenVersion = versionId ? candidates.find(version => version.id === versionId) : candidates[0];
-            if (!chosenVersion) throw new Error(uiText("ui.6c519ffd1be4eabf", {arg0: (item.title), arg1: (tv), arg2: (selectedType === "Mod" ? ` / ${prof.loader}` : "")}));
+            if (!chosenVersion) throw new Error(uiText("ui.6c519ffd1be4eabf", {arg0: (item.title), arg1: (tv), arg2: (installType === "Mod" ? ` / ${prof.loader}` : "")}));
             const vid = chosenVersion.id;
 
-			const ct = selectedType.toLowerCase().replace(/\s+/g, "");
-			await modsInstall({ profileId: pid, projectId: item.sourceId, versionId: vid, source: item.source, contentType: ct, worldName: ct === "datapack" ? chosenWorldName : undefined, iconUrl: item.iconUrl });
+			const ct = installType.toLowerCase().replace(/\s+/g, "");
+			await modsInstall({ profileId: pid, projectId: item.sourceId, versionId: vid, source: item.source, contentType: ct, worldName: ct === "datapack" ? installWorld : undefined, iconUrl: item.iconUrl });
 			if (pid && pid !== "default") {
 				const p = profiles.list.find(p => p.id === pid);
 				if (p && ct === "mod") profiles.update(pid, { modCount: (p.modCount ?? 0) + 1 });
@@ -399,7 +428,9 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 			targetInstanceId = pid;
 			installedIds = new Set([...installedIds, `${pid}:${id}`]);
 			const pn = profiles.list.find(p => p.id === pid)?.name;
-			toast(pn ? `"${item.title}" instalado em "${pn}"!` : uiText("ui.8cb332040d3078ab", {arg0: (item.title)}), "success");
+			const installedMessage = pn ? uiText("contentInstall.inInstance", {name: item.title, instance: pn}) : uiText("ui.8cb332040d3078ab", {arg0: item.title});
+			const activationKey = ({resourcepack: "contentInstall.resourcepack", shader: "contentInstall.shader", datapack: "contentInstall.datapack", world: "contentInstall.world"} as Record<string, string>)[ct];
+			toast(activationKey ? `${installedMessage} ${uiText(activationKey)}` : installedMessage, "success");
 		} catch (e) {
 			toast(uiText("ui.523804d745b0d9e4", {arg0: (item.title), arg1: (e instanceof Error ? e.message : String(e))}), "error");
 		} finally { const n = new Set(installingIds); n.delete(id); installingIds = n; }
@@ -499,6 +530,11 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 				{:else if activeDetailTab === 'versions'}
 					<ModVersionPicker
 						versions={modVersionsList}
+						loading={loadingVersions}
+						error={versionsError}
+						hasMore={nextVersionOffset !== null}
+						onLoadMore={() => void loadMoreVersions()}
+						onRetry={() => nextVersionOffset !== null ? void loadMoreVersions() : selectedItem && void openDetails(selectedItem)}
 						contentType={selectedType}
 						onInstall={(verId) => promptInstall(selectedItem!, verId)}
 					/>

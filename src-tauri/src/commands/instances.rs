@@ -3309,6 +3309,244 @@ pub async fn instance_world_delete(
     Ok(())
 }
 
+struct WorldImportStaging {
+    path: std::path::PathBuf,
+}
+
+impl WorldImportStaging {
+    fn new(game_dir: &std::path::Path) -> AppResult<Self> {
+        let path = game_dir.join(".luxmc/world-imports").join(Uuid::new_v4().to_string());
+        std::fs::create_dir_all(&path)?;
+        Ok(Self { path })
+    }
+}
+
+impl Drop for WorldImportStaging {
+    fn drop(&mut self) { let _ = std::fs::remove_dir_all(&self.path); }
+}
+
+fn import_world_source(game_dir: &str, source_path: &str) -> AppResult<std::path::PathBuf> {
+    let src = std::path::PathBuf::from(source_path);
+    if !src.exists() {
+        return Err(crate::error::AppError::NotFound(format!(
+            "Source path not found: {}",
+            source_path
+        )));
+    }
+
+    let saves_dir = std::path::PathBuf::from(&game_dir).join("saves");
+    std::fs::create_dir_all(&saves_dir)?;
+
+    let get_unique_dir = |base_name: &str| -> std::path::PathBuf {
+        let clean: String = base_name
+            .chars()
+            .map(|c| {
+                if c.is_alphanumeric() || c == '-' || c == '_' || c == ' ' {
+                    c
+                } else {
+                    '_'
+                }
+            })
+            .collect();
+        let clean = clean.trim();
+        let clean = if clean.is_empty() {
+            "Mundo_Importado"
+        } else {
+            clean
+        };
+        let mut target = saves_dir.join(clean);
+        let mut counter = 1;
+        while target.exists() {
+            target = saves_dir.join(format!("{} ({})", clean, counter));
+            counter += 1;
+        }
+        target
+    };
+
+    let staging = WorldImportStaging::new(std::path::Path::new(&game_dir))?;
+    let target_dir = staging.path.clone();
+    let destination: std::path::PathBuf;
+
+    if src.is_file()
+        && src
+            .extension()
+            .map_or(false, |ext| ext.eq_ignore_ascii_case("zip"))
+    {
+        let file = std::fs::File::open(&src)?;
+        let mut archive = zip::ZipArchive::new(file)
+            .map_err(|e| crate::error::AppError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
+
+        let mut level_dat_prefix: Option<String> = None;
+        let mut default_folder_name = src
+            .file_stem()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_else(|| "Mundo_Importado".into());
+
+        for i in 0..archive.len() {
+            if let Ok(entry) = archive.by_index(i) {
+                let name = entry.name().replace('\\', "/");
+                if name.ends_with("level.dat") {
+                    let prefix = if name == "level.dat" {
+                        "".to_string()
+                    } else {
+                        name.trim_end_matches("level.dat").to_string()
+                    };
+                    if let Some(parent) = prefix.trim_end_matches('/').split('/').last() {
+                        if !parent.is_empty() {
+                            default_folder_name = parent.to_string();
+                        }
+                    }
+                    level_dat_prefix = Some(prefix);
+                    break;
+                }
+            }
+        }
+
+        destination = get_unique_dir(&default_folder_name);
+        std::fs::create_dir_all(&target_dir)?;
+
+        let prefix = level_dat_prefix.unwrap_or_default();
+
+        for i in 0..archive.len() {
+            let mut file = archive.by_index(i)
+                .map_err(|e| crate::error::AppError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
+            let entry_name = file.name().replace('\\', "/");
+
+            if !prefix.is_empty() && !entry_name.starts_with(&prefix) {
+                continue;
+            }
+
+            let rel_name = if !prefix.is_empty() {
+                entry_name.strip_prefix(&prefix).unwrap_or(&entry_name)
+            } else {
+                &entry_name
+            };
+
+            let rel_path = std::path::Path::new(rel_name);
+            if rel_path.components().any(|c| {
+                matches!(
+                    c,
+                    std::path::Component::ParentDir
+                        | std::path::Component::RootDir
+                        | std::path::Component::Prefix(_)
+                )
+            }) {
+                continue;
+            }
+
+            let out_path = target_dir.join(rel_path);
+            if file.is_dir() {
+                std::fs::create_dir_all(&out_path)?;
+            } else {
+                if let Some(parent) = out_path.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                let mut out_file = std::fs::File::create(&out_path)?;
+                std::io::copy(&mut file, &mut out_file)?;
+            }
+        }
+    } else if src.is_dir() {
+        let actual_world_src = if src.join("level.dat").is_file() {
+            src.clone()
+        } else {
+            let mut found = None;
+            if let Ok(entries) = std::fs::read_dir(&src) {
+                for e in entries.flatten() {
+                    if e.path().is_dir() && e.path().join("level.dat").is_file() {
+                        found = Some(e.path());
+                        break;
+                    }
+                }
+            }
+            found.unwrap_or(src.clone())
+        };
+
+        let folder_name = actual_world_src
+            .file_name()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_else(|| "Mundo_Importado".into());
+        destination = get_unique_dir(&folder_name);
+
+        let mut options = fs_extra::dir::CopyOptions::new();
+        options.copy_inside = true;
+        std::fs::create_dir_all(&target_dir)?;
+        fs_extra::dir::copy(&actual_world_src, &target_dir, &options)
+            .map_err(|e| crate::error::AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+
+        let sub = target_dir.join(&folder_name);
+        if sub.join("level.dat").is_file() {
+            if let Ok(entries) = std::fs::read_dir(&sub) {
+                for e in entries.flatten() {
+                    let dest = target_dir.join(e.file_name());
+                    let _ = std::fs::rename(e.path(), dest);
+                }
+            }
+            let _ = std::fs::remove_dir(sub);
+        }
+    } else {
+        return Err(crate::error::AppError::InvalidInput(
+            "Invalid world source: must be a directory or .zip file".into(),
+        ));
+    }
+    if parse_level_dat(&target_dir.join("level.dat")).is_none() {
+        return Err(AppError::InvalidInput("O arquivo não contém um mundo Minecraft válido. Os mundos existentes foram preservados.".into()));
+    }
+    std::fs::rename(&target_dir, &destination)?;
+    Ok(destination)
+}
+
+#[cfg(test)]
+mod live_world_import_tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn importing_the_same_world_creates_a_new_save_without_touching_the_active_one() {
+        let root = tempfile::tempdir().unwrap();
+        let source = root.path().join("source/World");
+        let game = root.path().join("game");
+        std::fs::create_dir_all(&source).unwrap();
+        let nbt = fastnbt::to_bytes(&serde_json::json!({"Data":{"LevelName":"Fixture"}})).unwrap();
+        let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        gzip.write_all(&nbt).unwrap();
+        let level = gzip.finish().unwrap();
+        std::fs::write(source.join("level.dat"), &level).unwrap();
+        let first = import_world_source(game.to_str().unwrap(), source.to_str().unwrap()).unwrap();
+        std::fs::write(first.join("session.lock"), b"active session").unwrap();
+        let second = import_world_source(game.to_str().unwrap(), source.to_str().unwrap()).unwrap();
+        assert_ne!(first, second);
+        let archive_path = root.path().join("download.zip");
+        let mut archive = zip::ZipWriter::new(std::fs::File::create(&archive_path).unwrap());
+        archive.start_file("World/level.dat", zip::write::FileOptions::default()).unwrap();
+        archive.write_all(&level).unwrap();
+        archive.start_file("World/region/r.0.0.mca", zip::write::FileOptions::default()).unwrap();
+        archive.write_all(b"region fixture").unwrap();
+        archive.finish().unwrap();
+        let third = import_world_source(game.to_str().unwrap(), archive_path.to_str().unwrap()).unwrap();
+        assert_ne!(first, third);
+        assert_ne!(second, third);
+        for folder in [&first, &second, &third] {
+            assert_eq!(folder.parent(), Some(game.join("saves").as_path()));
+            assert_eq!(std::fs::read(folder.join("level.dat")).unwrap(), level);
+        }
+        assert_eq!(std::fs::read(third.join("region/r.0.0.mca")).unwrap(), b"region fixture");
+        assert_eq!(std::fs::read(first.join("session.lock")).unwrap(), b"active session");
+        assert_eq!(std::fs::read_dir(game.join(".luxmc/world-imports")).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn invalid_worlds_never_appear_in_saves_and_staging_is_cleaned() {
+        let root = tempfile::tempdir().unwrap();
+        let source = root.path().join("invalid");
+        let game = root.path().join("game");
+        std::fs::create_dir(&source).unwrap();
+        std::fs::write(source.join("level.dat"), b"not nbt").unwrap();
+        assert!(import_world_source(game.to_str().unwrap(), source.to_str().unwrap()).is_err());
+        assert_eq!(std::fs::read_dir(game.join("saves")).unwrap().count(), 0);
+        assert_eq!(std::fs::read_dir(game.join(".luxmc/world-imports")).unwrap().count(), 0);
+    }
+}
+
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_world_import(
@@ -3326,169 +3564,7 @@ pub async fn instance_world_import(
 
     let snapshots_base = std::path::PathBuf::from(&row.game_dir).join("snapshots");
     let game_dir = row.game_dir.clone();
-    let target_dir = tokio::task::spawn_blocking(move || -> AppResult<std::path::PathBuf> {
-        let src = std::path::PathBuf::from(&sourcePath);
-        if !src.exists() {
-            return Err(crate::error::AppError::NotFound(format!(
-                "Source path not found: {}",
-                sourcePath
-            )));
-        }
-
-        let saves_dir = std::path::PathBuf::from(&game_dir).join("saves");
-        std::fs::create_dir_all(&saves_dir)?;
-
-        let get_unique_dir = |base_name: &str| -> std::path::PathBuf {
-            let clean: String = base_name
-                .chars()
-                .map(|c| {
-                    if c.is_alphanumeric() || c == '-' || c == '_' || c == ' ' {
-                        c
-                    } else {
-                        '_'
-                    }
-                })
-                .collect();
-            let clean = clean.trim();
-            let clean = if clean.is_empty() {
-                "Mundo_Importado"
-            } else {
-                clean
-            };
-            let mut target = saves_dir.join(clean);
-            let mut counter = 1;
-            while target.exists() {
-                target = saves_dir.join(format!("{} ({})", clean, counter));
-                counter += 1;
-            }
-            target
-        };
-
-        let target_dir: std::path::PathBuf;
-
-        if src.is_file()
-            && src
-                .extension()
-                .map_or(false, |ext| ext.eq_ignore_ascii_case("zip"))
-        {
-            let file = std::fs::File::open(&src)?;
-            let mut archive = zip::ZipArchive::new(file)
-                .map_err(|e| crate::error::AppError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
-
-            let mut level_dat_prefix: Option<String> = None;
-            let mut default_folder_name = src
-                .file_stem()
-                .map(|s| s.to_string_lossy().to_string())
-                .unwrap_or_else(|| "Mundo_Importado".into());
-
-            for i in 0..archive.len() {
-                if let Ok(entry) = archive.by_index(i) {
-                    let name = entry.name().replace('\\', "/");
-                    if name.ends_with("level.dat") {
-                        let prefix = if name == "level.dat" {
-                            "".to_string()
-                        } else {
-                            name.trim_end_matches("level.dat").to_string()
-                        };
-                        if let Some(parent) = prefix.trim_end_matches('/').split('/').last() {
-                            if !parent.is_empty() {
-                                default_folder_name = parent.to_string();
-                            }
-                        }
-                        level_dat_prefix = Some(prefix);
-                        break;
-                    }
-                }
-            }
-
-            target_dir = get_unique_dir(&default_folder_name);
-            std::fs::create_dir_all(&target_dir)?;
-
-            let prefix = level_dat_prefix.unwrap_or_default();
-
-            for i in 0..archive.len() {
-                let mut file = archive.by_index(i)
-                    .map_err(|e| crate::error::AppError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
-                let entry_name = file.name().replace('\\', "/");
-
-                if !prefix.is_empty() && !entry_name.starts_with(&prefix) {
-                    continue;
-                }
-
-                let rel_name = if !prefix.is_empty() {
-                    entry_name.strip_prefix(&prefix).unwrap_or(&entry_name)
-                } else {
-                    &entry_name
-                };
-
-                let rel_path = std::path::Path::new(rel_name);
-                if rel_path.components().any(|c| {
-                    matches!(
-                        c,
-                        std::path::Component::ParentDir
-                            | std::path::Component::RootDir
-                            | std::path::Component::Prefix(_)
-                    )
-                }) {
-                    continue;
-                }
-
-                let out_path = target_dir.join(rel_path);
-                if file.is_dir() {
-                    std::fs::create_dir_all(&out_path)?;
-                } else {
-                    if let Some(parent) = out_path.parent() {
-                        std::fs::create_dir_all(parent)?;
-                    }
-                    let mut out_file = std::fs::File::create(&out_path)?;
-                    std::io::copy(&mut file, &mut out_file)?;
-                }
-            }
-        } else if src.is_dir() {
-            let actual_world_src = if src.join("level.dat").is_file() {
-                src.clone()
-            } else {
-                let mut found = None;
-                if let Ok(entries) = std::fs::read_dir(&src) {
-                    for e in entries.flatten() {
-                        if e.path().is_dir() && e.path().join("level.dat").is_file() {
-                            found = Some(e.path());
-                            break;
-                        }
-                    }
-                }
-                found.unwrap_or(src.clone())
-            };
-
-            let folder_name = actual_world_src
-                .file_name()
-                .map(|s| s.to_string_lossy().to_string())
-                .unwrap_or_else(|| "Mundo_Importado".into());
-            target_dir = get_unique_dir(&folder_name);
-
-            let mut options = fs_extra::dir::CopyOptions::new();
-            options.copy_inside = true;
-            std::fs::create_dir_all(&target_dir)?;
-            fs_extra::dir::copy(&actual_world_src, &target_dir, &options)
-                .map_err(|e| crate::error::AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
-
-            let sub = target_dir.join(&folder_name);
-            if sub.join("level.dat").is_file() {
-                if let Ok(entries) = std::fs::read_dir(&sub) {
-                    for e in entries.flatten() {
-                        let dest = target_dir.join(e.file_name());
-                        let _ = std::fs::rename(e.path(), dest);
-                    }
-                }
-                let _ = std::fs::remove_dir(sub);
-            }
-        } else {
-            return Err(crate::error::AppError::InvalidInput(
-                "Invalid world source: must be a directory or .zip file".into(),
-            ));
-        }
-        Ok(target_dir)
-    })
+    let target_dir = tokio::task::spawn_blocking(move || import_world_source(&game_dir, &sourcePath))
     .await
     .map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
 

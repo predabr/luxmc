@@ -27,13 +27,14 @@ pub fn deep_links_take(state: tauri::State<'_, PendingLinks>) -> Vec<String> {
 }
 
 #[tauri::command]
-pub fn open_portal(section: String) -> Result<(), String> {
+pub async fn open_portal(section: String) -> Result<(), String> {
     let path = match section.as_str() {
-        "home" => "",
-        "catalog" => "#mods",
-        "news" => "#changelog",
-        "skins" => "skins.html",
+        "home" => "/",
+        "catalog" => "/#mods",
+        "news" => "/#changelog",
+        "skins" => "/",
         _ => return Err("Página do portal inválida".into()),
     };
-    open::that(format!("https://luxmc-r92.pages.dev/{path}")).map_err(|error| error.to_string())
+    let url = super::site_session::portal_url(path).await.map_err(|error| error.to_string())?;
+    super::instances::open_url_safe(&url).map_err(|error| error.to_string())
 }

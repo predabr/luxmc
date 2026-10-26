@@ -33,6 +33,12 @@ pub struct ModVersion {
     pub files: Vec<ModFile>,
     #[serde(default)]
     pub loaders: Vec<String>,
+    #[serde(default)]
+    pub game_versions: Vec<String>,
+    #[serde(default)]
+    pub release_type: Option<String>,
+    #[serde(default)]
+    pub published_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -359,7 +365,7 @@ impl ModrinthClient {
                 if attempt > 0 {
                     tokio::time::sleep(std::time::Duration::from_millis(300 * attempt as u64)).await;
                 }
-                if let Ok(resp) = self.http.get(&url).timeout(std::time::Duration::from_secs(20)).send().await {
+                if let Ok(resp) = self.http.get(&url).query(&[("include_changelog", "false")]).timeout(std::time::Duration::from_secs(20)).send().await {
                     if resp.status().is_success() {
                         if let Ok(json) = resp.json::<Vec<serde_json::Value>>().await {
                             let filtered: Vec<serde_json::Value> =
@@ -407,6 +413,9 @@ impl ModrinthClient {
                 .unwrap_or_default();
 
             versions.push(ModVersion {
+                game_versions: v.get("game_versions").and_then(|value| value.as_array()).map(|values| values.iter().filter_map(|value| value.as_str().map(str::to_owned)).collect()).unwrap_or_default(),
+                release_type: v.get("version_type").and_then(|value| value.as_str()).map(str::to_owned),
+                published_at: v.get("date_published").and_then(|value| value.as_str()).map(str::to_owned),
                 loaders: v.get("loaders").and_then(|value| value.as_array()).map(|values| values.iter().filter_map(|value| value.as_str().map(str::to_owned)).collect()).unwrap_or_default(),
                 id: v
                     .get("id")

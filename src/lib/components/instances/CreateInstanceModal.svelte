@@ -1,5 +1,6 @@
 <script lang="ts">
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { untrack } from 'svelte';
     import { button as launcherButton } from "$lib/components/ui/button";
 	import { quintOut } from "svelte/easing";
 	import { fade, slide } from "svelte/transition";
@@ -81,6 +82,11 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	let selectedLoaderVersion = $state("");
 	let loaderVersionsLoading = $state(false);
 	let loaderVersionError = $state("");
+    let loaderCompatibilityMessage = $state("");
+    let supportedGameVersions = $state<string[] | null>(null);
+    let supportedLoader = $state("");
+    let loaderRetry = $state(0);
+    const compatibleGameVersions = $derived(supportedLoader === newLoader && supportedGameVersions ? versions.filter(version => supportedGameVersions!.includes(version.id)) : versions);
 	let newIcon = $state("grass_block");
 	let showIconPicker = $state(false);
 
@@ -144,6 +150,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	$effect(() => {
 		const loader = newLoader;
 		const version = newVersion;
+        loaderRetry;
+        if (untrack(() => supportedLoader) !== loader) { supportedGameVersions = null; supportedLoader = loader; }
+		loaderCompatibilityMessage = "";
 		if (!isOpen || loader === "vanilla" || !version) {
 			availableLoaderVersions = [];
 			loaderVersionsLoading = false;
@@ -157,12 +166,13 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		void loadersVersions(loader, version).then(result => {
 			if (!active) return;
 			availableLoaderVersions = result.versions;
+            supportedGameVersions = result.supportedGameVersions ?? null;
 			if (!result.versions.some(candidate => candidate.id === selectedLoaderVersion)) {
 				selectedLoaderVersion = result.versions[0]?.id ?? "";
 			}
-			if (!result.versions.length) loaderVersionError = uiText("ui.4a1b977af3b86f73", {arg0: (loader), arg1: (version)});
+            if (!result.versions.length) loaderCompatibilityMessage = uiText("loaderCompatibility.unavailable", { loader: loaderOptions.find(option => option.id === loader)?.name || loader, version });
 		}).catch(error => {
-			if (active) loaderVersionError = uiText("ui.dbaeff1adfd85859", {arg0: (loader), arg1: (String(error))});
+			if (active) loaderVersionError = uiText("loaderCompatibility.requestFailed");
 		}).finally(() => { if (active) loaderVersionsLoading = false; });
 		return () => { active = false; };
 	});
@@ -407,7 +417,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				<div class="space-y-1.5">
 					<span class="block text-xs font-bold text-fg/80">{uiText("ui.be772845450077f0")}</span>
 					<FilterableVersionSelect
-						{versions}
+						versions={compatibleGameVersions}
+                        onlySupported={supportedGameVersions !== null}
 						bind:value={newVersion}
 						loading={versionsLoading}
 						onChange={handleVersionChange}
@@ -440,6 +451,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 						</div>
 						{#if loaderVersionsLoading}<p class="text-xs text-fg/50">{uiText("ui.39928af4a13cacba")}</p>{/if}
 						{#if loaderVersionError}<p class="text-xs text-danger" role="alert">{loaderVersionError}</p>{/if}
+                        {#if loaderVersionError}<button type="button" class={launcherButton({variant:'secondary',size:'sm'})} onclick={() => loaderRetry++}>{uiText('loaderCompatibility.retry')}</button>{/if}
+                        {#if loaderCompatibilityMessage}<div role="status" class="space-y-3 rounded-xl border border-border bg-bg-subtle p-4"><p class="text-xs leading-relaxed text-fg-muted">{loaderCompatibilityMessage}</p>{#if compatibleGameVersions.length && supportedGameVersions}<p class="text-xs text-fg-muted">{uiText('loaderCompatibility.chooseVersion')}</p><div class="flex flex-wrap gap-2">{#each compatibleGameVersions.slice(0,3) as version}<button type="button" class={launcherButton({variant:'secondary',size:'sm'})} onclick={() => { newVersion = version.id; handleVersionChange(version.id); }}>{version.id}</button>{/each}</div>{/if}</div>{/if}
 						{#if loaderReleaseType === 'other' && availableLoaderVersions.length > 0}
 							<select bind:value={selectedLoaderVersion} class="w-full rounded-xl border border-fg/10 bg-bg-subtle px-3 py-2 text-xs text-fg">
 								{#each availableLoaderVersions as loaderVersion}<option value={loaderVersion.id}>{loaderVersion.id}{loaderVersion.stable ? uiText("ui.9b83b2b7eb93f7ff") : ''}</option>{/each}

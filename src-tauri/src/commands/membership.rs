@@ -7,13 +7,17 @@ pub enum MembershipRequest {
     #[serde(rename = "status")]
     Status,
     #[serde(rename = "portal_ticket")]
-    PortalTicket { owner: bool },
+    PortalTicket { owner: bool, #[serde(default, skip_serializing_if = "Option::is_none")] destination: Option<String> },
     #[serde(rename = "preferences")]
     Preferences { preferences: serde_json::Value, presets: Vec<serde_json::Value>, revision: u32 },
 }
 
 #[tauri::command]
 pub async fn membership_request(account_id: String, request: MembershipRequest) -> AppResult<serde_json::Value> {
+    membership_request_core(account_id, request).await
+}
+
+pub(crate) async fn membership_request_core(account_id: String, request: MembershipRequest) -> AppResult<serde_json::Value> {
     if account_id.is_empty() || account_id.len() > 128 { return Err(AppError::InvalidInput("Conta inválida.".into())); }
     let token = if account_id.starts_with("luxmc:") { super::lux_account::token(&account_id).await? } else { super::social::identity(&account_id).await? };
     let body = serde_json::to_value(request)?;

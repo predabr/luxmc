@@ -5,6 +5,7 @@ import { appState } from '$lib/stores/app.svelte';
 
 type Target = { profileId: string; folder: string; name: string; iconKey?: string };
 const attempts = new Map<string, { time: number; request: Promise<string | null> }>();
+const revealed = new Set<string>();
 
 function recover(target: Target) {
     const key = JSON.stringify([target.profileId, target.folder, target.name, target.iconKey]);
@@ -23,10 +24,15 @@ export function contentImage(node: HTMLImageElement, initial: Target) {
     let target = initial;
     let generation = 0;
     let failed = '';
+    let source = node.getAttribute('src');
     let reveal: Animation | undefined;
     const loaded = () => {
         node.style.visibility = 'visible';
         reveal?.cancel();
+        const imageSource = node.getAttribute('src') || '';
+        if (revealed.has(imageSource)) return;
+        if (revealed.size >= 512) revealed.delete(revealed.values().next().value!);
+        revealed.add(imageSource);
         if (settings.value.animations === false || appState.performanceMode || appState.isLaunching || appState.isGameRunning || document.hidden || matchMedia('(prefers-reduced-motion: reduce)').matches && settings.value.respectReducedMotion !== false) return;
         reveal = node.animate([{ opacity: 0, scale: '.94' }, { opacity: 1, scale: '1' }], { duration: settings.value.motionSpeed === 'fast' ? 120 : 200, easing: 'ease-out' });
         reveal.onfinish = () => { reveal?.cancel(); reveal = undefined; };
@@ -43,11 +49,14 @@ export function contentImage(node: HTMLImageElement, initial: Target) {
     };
     node.addEventListener('load', loaded);
     node.addEventListener('error', error);
-    if (node.complete && !node.naturalWidth && node.getAttribute('src')) void error();
+    if (node.complete && node.getAttribute('src')) { if (node.naturalWidth) loaded(); else void error(); }
     return {
         update(next: Target) {
-            if (JSON.stringify(next) !== JSON.stringify(target)) { generation++; failed = ''; }
+            if (next.profileId !== target.profileId || next.folder !== target.folder || next.name !== target.name || next.iconKey !== target.iconKey) { generation++; failed = ''; node.style.visibility = 'visible'; }
             target = next;
+            const nextSource = node.getAttribute('src');
+            if (nextSource !== source) { source = nextSource; generation++; failed = ''; node.style.visibility = 'visible'; }
+            if (node.complete && node.naturalWidth) node.style.visibility = 'visible';
         },
         destroy() { generation++; reveal?.cancel(); node.removeEventListener('load', loaded); node.removeEventListener('error', error); }
     };

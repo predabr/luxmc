@@ -144,7 +144,8 @@ export async function onRequest({ request, env, params, waitUntil }: SiteContext
                     return json({ error: "Suas preferências mudaram em outro dispositivo. Confira e salve novamente.", account: publicAccount(current) }, 409);
                 return json({ account: publicAccount(current) });
             }
-            return json({ account: publicAccount(user) });
+            const minecraft = await db.prepare('SELECT minecraft_uuid FROM lux_microsoft_accounts WHERE account_id = ?').bind(user.id).first();
+            return json({ account: {...publicAccount(user), ...(minecraft ? {minecraftUuid: minecraft.minecraft_uuid} : {})} });
         }
         catch (error: any) {
             return json({ error: error.status ? error.message : `Erro no servidor (${error.message || error}).` }, error.status || 500);

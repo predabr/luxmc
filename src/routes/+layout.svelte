@@ -55,11 +55,13 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { cloudAccount } from "$lib/stores/cloudAccount.svelte";
     import { friendsState } from "$lib/stores/friends.svelte";
 	const socialAccountId = $derived(account.value?.id);
+	const cloudAccountId = $derived(account.value && (account.value.id.startsWith('luxmc:') || account.value.minecraftToken.length > 64) ? account.value.id : null);
 	$effect(() => {
         const id = socialAccountId;
+        const cloudId = cloudAccountId;
         untrack(() => {
             friendsState.disconnect(); cloudAccount.disconnect(); membershipState.disconnect();
-            if (id?.startsWith("luxmc:")) cloudAccount.connect(id);
+            if (cloudId) cloudAccount.connect(cloudId);
             if (id) { void friendsState.connect(); membershipState.connect(id); }
         });
         return () => { cloudAccount.disconnect(); friendsState.disconnect(); membershipState.disconnect(); };

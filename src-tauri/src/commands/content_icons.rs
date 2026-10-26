@@ -37,6 +37,10 @@ async fn cached_image(db: &crate::db::Db, source: &str) -> Option<String> {
     use sha2::Digest;
     let url = image_url(source)?;
     let key = format!("thumbnail:v1:{:x}", sha2::Sha256::digest(source.as_bytes()));
+    if let Some(image) = sqlx::query_scalar::<_, String>("SELECT icon_url FROM mod_icons WHERE key = ?")
+        .bind(&key).fetch_optional(db.pool()).await.ok().flatten() {
+        return Some(image);
+    }
     let _permit = IMAGE_WORK.acquire().await.ok()?;
     if let Some(image) = sqlx::query_scalar::<_, String>("SELECT icon_url FROM mod_icons WHERE key = ?")
         .bind(&key).fetch_optional(db.pool()).await.ok().flatten() {
@@ -61,7 +65,7 @@ pub struct ContentIcon { name: String, icon: Option<String>, icon_key: String, r
 
 pub fn cache_is_resolved(value: &str) -> bool {
     if let Some(time) = value.strip_prefix("missing:").and_then(|value| value.parse::<u64>().ok()) {
-        return now().saturating_sub(time) < 86400;
+        return now().saturating_sub(time) < 600;
     }
     !value.is_empty()
 }
@@ -294,14 +298,18 @@ pub async fn instance_content_icons_core(state: &AppState, profile_id: String, s
         }
     }
     if cache_images {
-        for entry in &mut results {
-            if let Some(source) = entry.icon.as_deref().filter(|source| source.starts_with("https://")) {
-                if let Some(image) = cached_image(&db, source).await {
+        use futures_util::{StreamExt, stream};
+        let sources = results.iter().enumerate().filter_map(|(index, entry)| entry.icon.as_ref().filter(|source| source.starts_with("https://")).map(|source| (index, source.clone()))).collect::<Vec<_>>();
+        let images = stream::iter(sources)
+            .map(|(index, source)| { let db = &db; async move { (index, cached_image(db, &source).await) } })
+            .buffer_unordered(2).collect::<Vec<_>>().await;
+        for (index, image) in images {
+            let entry = &mut results[index];
+                if let Some(image) = image {
                     let _ = sqlx::query("UPDATE mod_icons SET icon_url = ? WHERE key = ?")
                         .bind(&image).bind(&entry.icon_key).execute(db.pool()).await;
                     entry.icon = Some(image);
                 }
-            }
         }
     }
     Ok(results)

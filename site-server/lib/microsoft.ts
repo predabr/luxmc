@@ -51,7 +51,10 @@ export async function verifiedMinecraftProfile(accessToken: string) {
 export async function microsoftProfile(code: string, verifier: string, configuration: NonNullable<ReturnType<typeof microsoftConfiguration>>) {
     const token = await microsoftJson('https://login.microsoftonline.com/consumers/oauth2/v2.0/token', { method: 'POST', body: new URLSearchParams({ client_id: configuration.clientId, client_secret: configuration.secret, code, code_verifier: verifier, grant_type: 'authorization_code', redirect_uri: configuration.redirect }) });
     if (typeof token.access_token !== 'string' || token.access_token.length > 32000) throw new Error('Missing Microsoft token');
-    const xbox = await microsoftJson('https://user.auth.xboxlive.com/user/authenticate', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-xbl-contract-version': '1' }, body: JSON.stringify({ RelyingParty: 'http://auth.xboxlive.com', TokenType: 'JWT', Properties: { AuthMethod: 'RPS', SiteName: 'user.auth.xboxlive.com', RpsTicket: `d=${token.access_token}` } }) });
+    return minecraftProfileFromMicrosoftToken(token.access_token);
+}
+export async function minecraftProfileFromMicrosoftToken(accessToken: string) {
+    const xbox = await microsoftJson('https://user.auth.xboxlive.com/user/authenticate', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-xbl-contract-version': '1' }, body: JSON.stringify({ RelyingParty: 'http://auth.xboxlive.com', TokenType: 'JWT', Properties: { AuthMethod: 'RPS', SiteName: 'user.auth.xboxlive.com', RpsTicket: `d=${accessToken}` } }) });
     if (typeof xbox.Token !== 'string') throw new Error('Missing Xbox token');
     const xsts = await microsoftJson('https://xsts.auth.xboxlive.com/xsts/authorize', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-xbl-contract-version': '1' }, body: JSON.stringify({ RelyingParty: 'rp://api.minecraftservices.com/', TokenType: 'JWT', Properties: { SandboxId: 'RETAIL', UserTokens: [xbox.Token] } }) });
     const hash = xsts.DisplayClaims?.xui?.[0]?.uhs;

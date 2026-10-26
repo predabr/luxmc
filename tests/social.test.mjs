@@ -20,6 +20,7 @@ function fixture() {
   sqlite.exec(readFileSync(new URL("../website/migrations/0013_memberships.sql", import.meta.url), "utf8"));
   sqlite.exec(readFileSync(new URL("../website/migrations/0016_profile_style.sql", import.meta.url), "utf8"));
   sqlite.exec(readFileSync(new URL("../website/migrations/0018_profile_showcase.sql", import.meta.url), "utf8"));
+  for (const migration of ["0017_microsoft_login.sql", "0019_microsoft_identity.sql", "0020_microsoft_launcher_sync.sql"]) sqlite.exec(readFileSync(new URL(`../website/migrations/${migration}`, import.meta.url), "utf8"));
   const db = { async batch(statements) { sqlite.exec("BEGIN"); try { const results=[]; for(const statement of statements)results.push(await statement.run()); sqlite.exec("COMMIT"); return results; } catch(error) { sqlite.exec("ROLLBACK"); throw error; } }, prepare(sql) {
     const statement = sqlite.prepare(sql);
     return { bind(...values) {

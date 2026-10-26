@@ -247,8 +247,19 @@ pub async fn pack_file(state:&crate::state::AppState,reference:&PackReference) -
 pub async fn pack_reference_version(state:tauri::State<'_,crate::state::AppState>,reference:PackReference) -> AppResult<crate::core::mods::ModVersion> { pack_reference_version_core(&state,reference).await }
 
 pub async fn pack_reference_version_core(state:&crate::state::AppState,reference:PackReference) -> AppResult<crate::core::mods::ModVersion> {
+    if !valid_reference(&reference) {return Err(AppError::InvalidInput("Referência de modpack inválida".into()));}
+    if reference.source == "modrinth" {
+        let detail = crate::core::mods::ModrinthClient::new(state.http.clone()).get_version_detail(&reference.project_id, &reference.version_id, "").await?;
+        return Ok(crate::core::mods::ModVersion {
+            id: detail.id, name: detail.name, version_number: detail.version_number,
+            files: detail.files, loaders: detail.loaders, game_versions: detail.game_versions,
+            release_type: None, published_at: None,
+        });
+    }
+    let mut version = crate::core::mods::curseforge::get_version_metadata(&state.http, &reference.project_id, &reference.version_id).await?;
     let file=pack_file(state,&reference).await?;
-    Ok(crate::core::mods::ModVersion {id:reference.version_id.clone(),name:reference.name,version_number:reference.version_id,files:vec![file],loaders:Vec::new()})
+    version.files = vec![file];
+    Ok(version)
 }
 
 pub async fn pack_archive(state:&crate::state::AppState,reference:&PackReference) -> AppResult<String> {

@@ -55,3 +55,20 @@ test('logout requires CSRF, expires the browser session and keeps profiles and o
     const state=await(await f.call()).json();assert.equal((await f.call(session,{method:'POST',body:{},headers:{'X-Luxmc-CSRF':state.csrfToken}})).status,200);
     assert.deepEqual(await(await f.call()).json(),{user:null});assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM social_users').get().count,2);assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM lux_commerce_sessions').get().count,1);
 });
+
+test('launcher transfer opens the existing account dashboard and keeps tickets single-use',async t=>{
+    const f=fixture(t), ticket='e'.repeat(64), id='44444444-4444-4444-8444-444444444444';
+    f.sqlite.prepare("INSERT INTO lux_accounts(id,username,password_hash,password_salt,recovery_hash,social_id,created_at,auth_provider) VALUES (?,?,?,?,?,?,?,'microsoft')").run(id,'Bob','not-a-password','salt','recovery',bob,f.now);
+    f.sqlite.prepare('INSERT INTO lux_microsoft_accounts(minecraft_uuid,account_id,created_at) VALUES (?,?,?)').run('1234567890abcdef1234567890abcdef',id,f.now);
+    f.sqlite.prepare('INSERT INTO lux_commerce_tickets(token_hash,social_id,expires_at) VALUES (?,?,?)').run(sha(ticket),bob,f.now+60);
+    const transfer=await f.call(commerce,{method:'POST',path:'/api/commerce/exchange',body:{ticket}});
+    assert.equal(transfer.status,200);
+    assert.ok(transfer.headers.getSetCookie().some(value=>value.startsWith('__Host-luxmc=')&&value.includes('HttpOnly')&&value.includes('Secure')));
+    const state=await(await f.call()).json();
+    assert.equal(state.user.id,bob);
+    assert.equal(state.user.canManageAccount,true);
+    assert.match(state.user.avatarUrl,/1234567890abcdef1234567890abcdef/);
+    assert.equal((await f.call(account,{method:'POST',path:'/api/account/me',body:{}})).status,200);
+    assert.equal((await f.call(commerce,{method:'POST',path:'/api/commerce/exchange',body:{ticket}})).status,401);
+    assert.doesNotMatch(JSON.stringify(state),/recovery|password|token_hash/);
+});

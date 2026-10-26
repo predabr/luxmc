@@ -16,9 +16,20 @@ pub async fn confirm_startup(
     }
 }
 
+pub(super) fn supports_lwjgl_overlay<'a>(libraries: impl Iterator<Item = &'a str>) -> bool {
+    !libraries.into_iter().any(|name| name.starts_with("org.lwjgl:lwjgl-sdl:"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sdl_clients_keep_appearance_and_lan_without_starting_glfw_hooks() {
+        assert!(supports_lwjgl_overlay(["org.lwjgl.lwjgl:lwjgl:2.9.4"].into_iter()));
+        assert!(supports_lwjgl_overlay(["org.lwjgl:lwjgl-glfw:3.3.3"].into_iter()));
+        assert!(!supports_lwjgl_overlay(["org.lwjgl:lwjgl:3.4.3", "org.lwjgl:lwjgl-sdl:3.4.3"].into_iter()));
+    }
 
     #[test]
     fn counter_fallback_only_applies_to_missing_counters_and_respects_explicit_options() {

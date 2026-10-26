@@ -109,6 +109,15 @@ pub async fn fetch_loader_versions(
     }
 }
 
+pub async fn supported_game_versions(http: &reqwest::Client, loader: &str) -> AppResult<Option<Vec<String>>> {
+    let meta = match LoaderKind::from_str(loader) {
+        LoaderKind::LegacyFabric => "https://meta.legacyfabric.net/v2",
+        LoaderKind::Babric => "https://meta.babric.glass-launcher.net/v2",
+        _ => return Ok(None),
+    };
+    Ok(Some(fabric::supported_game_versions(http, meta).await?))
+}
+
 #[derive(Debug, Clone)]
 pub struct PreparedLoader {
     pub main_class: String,

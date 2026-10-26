@@ -6,9 +6,10 @@ import { listen } from "$lib/api/client";
 import { profiles } from "$lib/stores/profiles.svelte";
 import { toast } from "$lib/stores/toasts.svelte";
 import { fireModpackSuccessConfetti } from "$lib/utils/confetti";
-import { installationQueueGet, installationQueueSave, verifyPackDownload, type InstallationJob as Job } from '$lib/api/experience';
+import { installationQueueGet, installationQueueSave, verifyPackDownload, discardPackDownload, type InstallationJob as Job } from '$lib/api/experience';
 import { z } from 'zod';
 import { packReferenceVersion, instanceLinkPack } from '$lib/api/studio';
+import { matchesContentLoader } from '$lib/utils/catalogCompatibility';
 import { contentActivity } from './contentActivity.svelte';
 let jobs = $state<Job[]>([]);
 let current: Job | null = null;
@@ -28,7 +29,7 @@ async function initialize(): Promise<void> {
 async function loadJobs() {
     try {
         const saved = await installationQueueGet();
-        const schema = z.array(z.object({id:z.string(),name:z.string().min(1).max(200),ramMb:z.number().min(512).max(65536),selectedVersion:z.string(),modpackVersionId:z.string().optional(),status:z.enum(['queued','running','paused','failed']),error:z.string().optional(),item:z.object({sourceId:z.string(),source:z.string(),title:z.string(),slug:z.string(),description:z.string(),downloads:z.number(),author:z.string().nullable(),versions:z.array(z.string()),categories:z.array(z.string()),iconUrl:z.string().nullable(),bannerUrl:z.string().nullable()}).passthrough()})).max(50);
+        const schema = z.array(z.object({id:z.string(),name:z.string().min(1).max(200),ramMb:z.number().min(512).max(65536),selectedVersion:z.string(),modpackVersionId:z.string().optional(),selectedLoader:z.string().optional(),status:z.enum(['queued','running','paused','failed']),error:z.string().optional(),item:z.object({sourceId:z.string(),source:z.string(),title:z.string(),slug:z.string(),description:z.string(),downloads:z.number(),author:z.string().nullable(),versions:z.array(z.string()),categories:z.array(z.string()),iconUrl:z.string().nullable(),bannerUrl:z.string().nullable()}).passthrough()})).max(50);
         const result = schema.safeParse(saved);
         if (!result.success) throw new Error(uiText('workshop.invalidQueue'));
         if (result.success) jobs = result.data.map(job => ({...job,status:job.status === 'failed' ? 'failed' : 'paused'})) as Job[];
@@ -39,22 +40,22 @@ async function pump() {
     const next = jobs.find(job => job.status === 'queued');
     if (!next) return;
     current = next; paused = false; next.status = 'running'; persist();
-    await run(next.item,next.name,next.ramMb,next.selectedVersion,next.modpackVersionId);
+    await run(next.item,next.name,next.ramMb,next.selectedVersion,next.modpackVersionId,next.selectedLoader);
     if (paused) next.status = 'paused';
     else if (operation.error) { next.status = 'failed'; next.error = operation.error; }
     else jobs = jobs.filter(job => job.id !== next.id);
     current = null; persist();
     if (!paused) void pump();
 }
-async function start(item: ModSearchResultItem, name: string, ramMb: number, selectedVersion: string, modpackVersionId?: string) {
+async function start(item: ModSearchResultItem, name: string, ramMb: number, selectedVersion: string, modpackVersionId?: string, selectedLoader?: string) {
     try { await initialize(); } catch { return; }
     if (jobs.length >= 50) { toast(uiText('workshop.queueFull'), 'error'); return; }
     const id=crypto.randomUUID();
-    jobs.push({id,item,name,ramMb,selectedVersion,modpackVersionId,status:'queued'});
+    jobs.push({id,item,name,ramMb,selectedVersion,modpackVersionId,selectedLoader,status:'queued'});
     try { await persist(); void pump(); } catch(error) { const job=jobs.find(job => job.id===id); if(job) {job.status='failed';job.error=String(error);} }
 }
 const operation = $state({ paused: false, busy: false, cancelling: false, item: null as ModSearchResultItem | null, name: '', text: '', percent: 0, error: '', profileId: '', phase: 'package', startedAt: 0, finishedAt: 0 });
-	async function run(item: ModSearchResultItem, name: string, ramMb: number, selectedVersion: string, modpackVersionId?: string) {
+	async function run(item: ModSearchResultItem, name: string, ramMb: number, selectedVersion: string, modpackVersionId?: string, selectedLoader?: string) {
 		if (operation.busy) return;
         operation.paused = false; operation.item = item; operation.name = name; operation.error = ""; operation.profileId = "";
 
@@ -76,6 +77,7 @@ const operation = $state({ paused: false, busy: false, cancelling: false, item: 
 			const ver = selectedVersion === "Qualquer Versão" || modpackVersionId ? "" : selectedVersion;
 			let versions = modpackVersionId ? [await packReferenceVersion({source:item.source as 'modrinth'|'curseforge',projectId:item.sourceId,versionId:modpackVersionId,name:item.title})] : await modsVersions(item.sourceId, ver, item.source);
 			if (modpackVersionId) versions = versions.filter(version => version.id === modpackVersionId);
+            if (selectedLoader) versions = versions.filter(version => matchesContentLoader(version.loaders || [], selectedLoader));
             if (versions.length === 0) throw new Error(uiText("ui.c38446c7df13fc52", {arg0:item.title,arg1:item.source === 'curseforge' ? 'CurseForge' : 'Modrinth'}));
 			const extension = item.source === "curseforge" ? ".zip" : ".mrpack";
             const f = versions.flatMap(version => version.files).find(file => file.url && file.filename.toLowerCase().endsWith(extension))
@@ -124,6 +126,7 @@ const operation = $state({ paused: false, busy: false, cancelling: false, item: 
 			profiles.activeId = cp.id;
 
 			operation.profileId = cp.id; operation.phase = 'complete'; operation.percent = 100; operation.text = uiText("downloadsDesign.complete");
+            await discardPackDownload(tempPath,importId).catch(() => {});
             void import('$lib/utils/contentPrefetch').then(({ prefetchInstanceContent }) => prefetchInstanceContent(cp.id, true));
             void profiles.refresh().catch(() => {});
 			fireModpackSuccessConfetti();

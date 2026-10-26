@@ -4,7 +4,7 @@ import { settings } from '$lib/stores/settings.svelte';
 import { appState } from '$lib/stores/app.svelte';
 import { instanceContentEntries } from '$lib/utils/instanceContent';
 
-const icons = new Map<string, { icon: string | null; resolved: boolean }>();
+const icons = new Map<string, { icon: string | null; resolved: boolean; expires: number }>();
 type IconResult = { iconKey: string; icon: string | null; resolved: boolean };
 const listeners = new Set<(entries: IconResult[]) => void>();
 export function subscribeContentIcons(listener: (entries: IconResult[]) => void) {
@@ -58,7 +58,7 @@ function remember(key: string, icon: string | null, resolved: boolean) {
     const old = icons.get(key);
     bytes -= old?.icon?.length || 0;
     icons.delete(key);
-    icons.set(key, { icon, resolved });
+    icons.set(key, { icon, resolved, expires: icon ? Infinity : Date.now() + 600000 });
     bytes += icon?.length || 0;
     while (icons.size > 1500 || bytes > 6 * 1024 * 1024) {
         const first = icons.keys().next().value;
@@ -70,6 +70,7 @@ function remember(key: string, icon: string | null, resolved: boolean) {
 export function hydrateContentIcons(entries: FileTreeEntry[]): FileTreeEntry[] {
     return entries.map(entry => {
         const cached = entry.iconKey ? icons.get(entry.iconKey) : undefined;
+        if (cached && cached.expires <= Date.now()) { bytes -= cached.icon?.length || 0; icons.delete(entry.iconKey!); return entry; }
         return cached && !entry.icon ? { ...entry, icon: cached.icon, iconResolved: cached.resolved } : entry;
     });
 }
@@ -94,7 +95,7 @@ export function prefetchInstanceContent(profileId: string, refresh = false): Pro
             if (document.hidden || appState.isLaunching || appState.isGameRunning) return;
             const entries = instanceContentEntries(await instanceFileTree(profileId, folder), folder);
             warmContentImages(entries);
-            const missing = entries.filter(entry => entry.iconKey && !icons.has(entry.iconKey) && !entry.icon);
+            const missing = entries.filter(entry => entry.iconKey && (!icons.has(entry.iconKey) || icons.get(entry.iconKey)!.expires <= Date.now()) && !entry.icon);
             rememberContentIcons(entries.filter(entry => entry.iconKey && entry.icon).map(entry => ({ iconKey: entry.iconKey!, icon: entry.icon!, resolved: true })));
             const batches: string[][] = [];
             for (let index = 0; index < Math.min(missing.length, 1000); index += 32) batches.push(missing.slice(index, index + 32).map(entry => entry.name));

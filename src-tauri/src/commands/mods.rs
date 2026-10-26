@@ -412,21 +412,8 @@ pub async fn mods_install_core(state: &AppState, request: ModInstallRequest) -> 
 
 async fn mods_install_single_core(state: &AppState, request: ModInstallRequest) -> AppResult<()> {
     tracing::info!(profile_id = %request.profile_id, project_id = %request.project_id, version_id = %request.version_id, source = %request.source, content_type = ?request.content_type, "mods_install called");
-    let content_type = request.content_type.as_deref().unwrap_or("mod").to_lowercase();
-    let is_world = matches!(
-        content_type.as_str(),
-        "world" | "worlds" | "world pack" | "world_pack" | "worldpack"
-    );
-    let target_subfolder = if is_world {
-        "world-import"
-    } else {
-        match content_type.as_str() {
-            "shader" | "shaders" => "shaderpacks",
-            "resourcepack" | "resource pack" | "resource_pack" => "resourcepacks",
-            "datapack" | "data pack" | "data_pack" | "datapacks" => "datapacks",
-            _ => "mods",
-        }
-    };
+    let target_subfolder = content_subfolder(request.content_type.as_deref());
+    let is_world = target_subfolder == "world-import";
 
     let db = crate::db::shared_db().await?;
     let profile = sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
@@ -434,12 +421,14 @@ async fn mods_install_single_core(state: &AppState, request: ModInstallRequest) 
         .fetch_optional(db.pool())
         .await?
         .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {} not found", request.profile_id)))?;
-    ensure_content_idle(&profile.game_dir)?;
+    if target_subfolder == "mods" { ensure_content_idle(&profile.game_dir)?; }
     if target_subfolder == "mods" && matches!(profile.loader.as_str(), "vanilla" | "") {
         return Err(crate::error::AppError::InvalidInput("Esta instância Vanilla aceita resource packs e data packs, mas mods precisam de um loader compatível.".into()));
     }
     let target_dir = if is_world {
-        std::env::temp_dir().join(format!("luxmc-world-{}", uuid::Uuid::new_v4()))
+        let dir = std::env::temp_dir().join(format!("luxmc-world-{}", uuid::Uuid::new_v4()));
+        tokio::fs::create_dir_all(&dir).await?;
+        dir
     } else if target_subfolder == "datapacks" {
         datapack_directory(&profile.game_dir, request.world_name.as_deref()).await?
     } else {
@@ -529,7 +518,7 @@ async fn mods_install_single_core(state: &AppState, request: ModInstallRequest) 
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or(fallback_name);
-    let file_path = target_dir.join(safe_name);
+    let mut file_path = target_dir.join(safe_name);
     let tmp_path = target_dir.join(format!("{}.{}.part", safe_name, uuid::Uuid::new_v4()));
     let write_result: AppResult<()> = async {
         let mut stream = resp.bytes_stream();
@@ -553,7 +542,10 @@ async fn mods_install_single_core(state: &AppState, request: ModInstallRequest) 
         if total == 0 || (file_size > 0 && total != file_size) || (!file_sha1.is_empty() && !format!("{:x}", sha1::Digest::finalize(digest)).eq_ignore_ascii_case(&file_sha1)) {
             return Err(crate::error::AppError::InvalidInput("O download do conteúdo está incompleto ou falhou na verificação. O arquivo anterior foi preservado.".into()));
         }
-        tokio::fs::rename(&tmp_path, &file_path).await?;
+        let staged = tmp_path.clone();
+        let target = file_path.clone();
+        file_path = tokio::task::spawn_blocking(move || publish_content_file(&staged, &target, target_subfolder != "mods"))
+            .await.map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
         Ok(())
     }
     .await;
@@ -707,9 +699,52 @@ fn validate_mod_version(version: &crate::core::mods::ModVersionDetail, minecraft
 
 fn ensure_content_idle(game_dir: &str) -> AppResult<()> {
     if crate::core::launcher::get_active_game_dir().as_deref() == Some(std::path::Path::new(game_dir)) {
-        return Err(crate::error::AppError::InvalidState("Feche o Minecraft desta instância antes de alterar seus conteúdos.".into()));
+        return Err(crate::error::AppError::InvalidState("Feche o Minecraft desta instância antes de instalar ou alterar mods.".into()));
     }
     Ok(())
+}
+
+fn content_subfolder(kind: Option<&str>) -> &'static str {
+    match kind.unwrap_or("mod").trim().to_ascii_lowercase().as_str() {
+        "world" | "worlds" | "world pack" | "world_pack" | "worldpack" => "world-import",
+        "shader" | "shaders" => "shaderpacks",
+        "resourcepack" | "resourcepacks" | "resource pack" | "resource_pack" => "resourcepacks",
+        "datapack" | "data pack" | "data_pack" | "datapacks" => "datapacks",
+        _ => "mods",
+    }
+}
+
+fn publish_content_file(staged: &std::path::Path, target: &std::path::Path, preserve_existing: bool) -> AppResult<std::path::PathBuf> {
+    fn digest(path: &std::path::Path) -> std::io::Result<String> {
+        use std::io::Read;
+        let mut input = std::fs::File::open(path)?;
+        let mut hash = sha1::Sha1::default();
+        let mut buffer = [0u8; 65536];
+        loop {
+            let size = input.read(&mut buffer)?;
+            if size == 0 { break; }
+            sha1::Digest::update(&mut hash, &buffer[..size]);
+        }
+        Ok(format!("{:x}", sha1::Digest::finalize(hash)))
+    }
+    let mut destination = target.to_path_buf();
+    if preserve_existing && target.exists() {
+        let hash = digest(staged)?;
+        let stem = target.file_stem().unwrap_or_default().to_string_lossy();
+        let extension = target.extension().map(|value| format!(".{}", value.to_string_lossy())).unwrap_or_default();
+        let mut counter = 0;
+        while destination.exists() {
+            if digest(&destination).ok().as_deref() == Some(&hash) {
+                std::fs::remove_file(staged)?;
+                return Ok(destination);
+            }
+            let suffix = if counter == 0 { String::new() } else { format!("-{counter}") };
+            destination = target.with_file_name(format!("{stem}-{}{suffix}{extension}", &hash[..12]));
+            counter += 1;
+        }
+    }
+    std::fs::rename(staged, &destination)?;
+    Ok(destination)
 }
 
 fn loader_matches(loaders: &[String], loader: &str) -> bool {
@@ -720,6 +755,38 @@ fn loader_matches(loaders: &[String], loader: &str) -> bool {
 #[cfg(test)]
 mod compatibility_tests {
     use super::*;
+
+    #[test]
+    fn installing_a_pack_preserves_the_archive_that_minecraft_may_have_open() {
+        let root = tempfile::tempdir().unwrap();
+        let target = root.path().join("pack.zip");
+        let staged = root.path().join("download.part");
+        std::fs::write(&target, b"active pack").unwrap();
+        std::fs::write(&staged, b"new pack").unwrap();
+        let installed = publish_content_file(&staged, &target, true).unwrap();
+        assert_ne!(installed, target);
+        assert_eq!(std::fs::read(&target).unwrap(), b"active pack");
+        assert_eq!(std::fs::read(&installed).unwrap(), b"new pack");
+        std::fs::write(&staged, b"new pack").unwrap();
+        assert_eq!(publish_content_file(&staged, &target, true).unwrap(), installed);
+        assert!(!staged.exists());
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 2);
+    }
+
+    #[test]
+    fn live_content_never_uses_the_mod_installation_directory() {
+        for (aliases, folder) in [
+            (vec!["world", "worlds", "world pack", "world_pack", "worldpack"], "world-import"),
+            (vec!["shader", "shaders", " Shader "], "shaderpacks"),
+            (vec!["resourcepack", "resourcepacks", "resource pack", "resource_pack"], "resourcepacks"),
+            (vec!["datapack", "data pack", "data_pack", "datapacks"], "datapacks"),
+        ] {
+            for alias in aliases { assert_eq!(content_subfolder(Some(alias)), folder); }
+        }
+        for kind in [None, Some("mod"), Some("MOD"), Some("unknown"), Some("")] {
+            assert_eq!(content_subfolder(kind), "mods");
+        }
+    }
 
     #[test]
     fn exact_game_version_and_loader_are_required_before_installation() {
@@ -756,15 +823,16 @@ pub async fn mods_remove(
     .await?;
 
     if let Some(m) = old {
+        let profile = sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+            .bind(&profileId)
+            .fetch_optional(db.pool())
+            .await?;
+        if let Some(prof) = &profile { ensure_content_idle(&prof.game_dir)?; }
         let file_name = safe_file_name(&m.file_name);
         if let Some(base_dir) = directories::ProjectDirs::from("io", "github", "Luxmc") {
             let p = base_dir.data_dir().join("mods").join(&profileId).join(&file_name);
             let _ = tokio::fs::remove_file(p).await;
         }
-        let profile = sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
-            .bind(&profileId)
-            .fetch_optional(db.pool())
-            .await?;
         if let Some(prof) = profile {
             let p = std::path::PathBuf::from(&prof.game_dir).join("mods").join(&file_name);
             let _ = tokio::fs::remove_file(p).await;

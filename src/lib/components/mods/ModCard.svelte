@@ -101,9 +101,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				loading="lazy"
 				decoding="async"
                 referrerpolicy="no-referrer"
-				class="catalog-cover-image relative h-full w-full rounded-t-2xl object-cover transition-[opacity,transform] duration-500 group-hover:scale-105"
-                style:object-position={logoArtwork ? '50% 35%' : '50% 50%'}
-                style:opacity={bannerLoaded ? 1 : 0}
+				class="catalog-cover-image relative h-full w-full rounded-t-2xl object-cover transition-opacity duration-150"
+                style:object-position="50% 50%"
+                style:opacity={bannerLoaded ? logoArtwork ? .4 : 1 : 0}
                 onload={(event) => {
 					if (artworkUrl !== effectiveBanner) return;
 					const image = event.currentTarget as HTMLImageElement;
@@ -137,12 +137,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         {#if latest}<span class="catalog-version absolute bottom-3 right-3">MC {latest}</span>{/if}
 
 	</div>
-		{#if item.iconUrl && !logoArtwork}
+		{#if item.iconUrl}
 			<div data-catalog-logo class="catalog-logo absolute left-5 z-10 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-bg-elevated p-1 shadow-elevated">
 				<LazyImage src={item.iconUrl} alt={item.title} loading="eager" class="h-full w-full rounded-xl object-contain p-0.5" fallback="/grass_block.png" />
 			</div>
 		{/if}
-	<div class="flex flex-1 flex-col min-h-0 catalog-card-body gap-2 p-5" class:pt-9={!logoArtwork}>
+	<div class="flex flex-1 flex-col min-h-0 catalog-card-body gap-2 p-5" class:pt-9={Boolean(item.iconUrl)}>
 		<h3 title={item.title} class="line-clamp-2 min-h-11 shrink-0 text-lg leading-tight font-semibold text-fg group-hover:text-brand-400">
 			<span>{item.title}</span>
 		</h3>

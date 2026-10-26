@@ -2,6 +2,18 @@ use super::{LoaderVersion, PreparedLoader};
 use crate::error::AppResult;
 
 const FABRIC_META: &str = "https://meta.fabricmc.net/v2";
+static GAME_VERSIONS: std::sync::LazyLock<std::sync::Mutex<std::collections::HashMap<String, (std::time::Instant, Vec<String>)>>> = std::sync::LazyLock::new(Default::default);
+
+pub(super) async fn supported_game_versions(http: &reqwest::Client, meta: &str) -> AppResult<Vec<String>> {
+    if let Some((at, versions)) = GAME_VERSIONS.lock().ok().and_then(|cache| cache.get(meta).cloned()) {
+        if at.elapsed() < std::time::Duration::from_secs(300) { return Ok(versions); }
+    }
+    let entries: Vec<serde_json::Value> = http.get(format!("{meta}/versions/game")).timeout(std::time::Duration::from_secs(12)).send().await?.error_for_status()?.json().await?;
+    let versions: Vec<String> = entries.iter().filter_map(|entry| entry.get("version").and_then(|value| value.as_str())).filter(|version| !version.is_empty()).map(str::to_owned).collect();
+    if versions.is_empty() { return Err(crate::error::AppError::InvalidState("O provedor não informou as versões compatíveis. Tente novamente.".into())); }
+    if let Ok(mut cache) = GAME_VERSIONS.lock() { cache.insert(meta.to_owned(), (std::time::Instant::now(), versions.clone())); }
+    Ok(versions)
+}
 
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct FabricLibrary {
@@ -37,6 +49,7 @@ pub async fn fetch_versions(
 }
 
 pub(super) async fn fetch_versions_from(http: &reqwest::Client, mc_version: &str, meta: &str) -> AppResult<Vec<LoaderVersion>> {
+    if meta != FABRIC_META && !supported_game_versions(http, meta).await?.iter().any(|version| version == mc_version) { return Ok(Vec::new()); }
     let url = format!("{meta}/versions/loader/{mc_version}");
     let resp: Vec<serde_json::Value> = http
         .get(&url)
@@ -277,6 +290,43 @@ pub async fn ensure_fabric_api(
 #[cfg(test)]
 mod fixed_loader_cache_tests {
     use super::*;
+    #[tokio::test]
+    async fn incompatible_game_is_rejected_before_querying_the_loader_endpoint() {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let meta = format!("http://{}/v2", listener.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            let started = std::time::Instant::now();
+            let mut paths = Vec::new();
+            while paths.len() < 2 && started.elapsed() < std::time::Duration::from_secs(5) {
+                match listener.accept() {
+                    Ok((mut stream,_)) => {
+                        stream.set_read_timeout(Some(std::time::Duration::from_secs(2))).unwrap();
+                        let mut buffer = [0;4096];
+                        let size = stream.read(&mut buffer).unwrap();
+                        let request = String::from_utf8_lossy(&buffer[..size]);
+                        let path = request.lines().next().unwrap().split_whitespace().nth(1).unwrap().to_owned();
+                        let body = match path.as_str() {
+                            "/v2/versions/game" => r#"[{"version":"1.8.9","stable":true}]"#,
+                            "/v2/versions/loader/1.8.9" => r#"[{"loader":{"version":"0.16.0","stable":true}}]"#,
+                            _ => panic!("Unexpected unsupported version request: {path}"),
+                        };
+                        write!(stream,"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",body.len(),body).unwrap();
+                        paths.push(path);
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => std::thread::sleep(std::time::Duration::from_millis(5)),
+                    Err(error) => panic!("{error}"),
+                }
+            }
+            paths
+        });
+        let http = reqwest::Client::builder().no_proxy().timeout(std::time::Duration::from_secs(2)).build().unwrap();
+        assert!(fetch_versions_from(&http,"26.3",&meta).await.unwrap().is_empty());
+        let supported = fetch_versions_from(&http,"1.8.9",&meta).await.unwrap();
+        assert_eq!(supported[0].id,"0.16.0");
+        assert_eq!(server.join().unwrap(),vec!["/v2/versions/game","/v2/versions/loader/1.8.9"]);
+    }
     #[tokio::test]
     async fn windows_fabric_fixed_loader_uses_disk_cache_without_network() {
         let root = std::env::temp_dir().join(format!("luxmc-fabric-cache-{}", uuid::Uuid::new_v4()));

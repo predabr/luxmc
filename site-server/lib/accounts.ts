@@ -101,13 +101,15 @@ export async function authenticate(request: any, db: Database) {
     const token = sessionToken(request);
     if (!token || !/^[a-f0-9]{64}$/.test(token))
         return null;
-    return db.prepare("SELECT a.*, s.token_hash AS session_hash FROM lux_sessions s JOIN lux_accounts a ON a.id = s.account_id WHERE s.token_hash = ? AND s.expires_at > ?")
+    const session = await db.prepare("SELECT a.*, s.token_hash AS session_hash FROM lux_sessions s JOIN lux_accounts a ON a.id = s.account_id WHERE s.token_hash = ? AND s.expires_at > ?")
         .bind(await digest(token), Math.floor(Date.now() / 1000)).first();
+    if (session || !request.headers.has('Authorization')) return session;
+    return db.prepare('SELECT a.*, d.token_hash AS session_hash FROM lux_microsoft_devices d JOIN lux_accounts a ON a.id = d.account_id JOIN social_users u ON u.id = a.social_id JOIN lux_microsoft_subjects m ON m.account_id = a.id JOIN lux_microsoft_accounts p ON p.account_id = a.id WHERE d.token_hash = ? AND u.removed_at = 0').bind(await digest(token)).first();
 }
 export function preferences(value: any) {
     if (!value || typeof value !== "object" || Array.isArray(value))
         throw Object.assign(new Error("Preferências inválidas."), { status: 400 });
-    const options: Record<string, (string | boolean)[]> = { theme: ["default-dark", "default-light"], accentTheme: ["gold", "cyan", "emerald", "rose", "violet", "orange", "blue"], language: ["pt-BR", "en"], animations: [true, false] };
+    const options: Record<string, (string | boolean)[]> = { theme: ["default-dark", "default-light"], accentTheme: ["gold", "cyan", "emerald", "rose", "violet", "orange", "blue"], language: ["pt-BR", "en", "es"], animations: [true, false] };
     const result: Record<string,string | boolean> = {};
     for (const [key, allowed] of Object.entries(options)) {
         if (Object.hasOwn(value, key)) {

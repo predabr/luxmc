@@ -1,4 +1,19 @@
 const accountTranslations = {
+  "Usar conta aberta no launcher": ["Use the account open in the launcher", "Usar la cuenta abierta en el launcher"],
+  "Conectando ao launcher…": ["Connecting to the launcher…", "Conectando con el launcher…"],
+  "Abra o Luxmc neste computador e permita a conexão local no navegador, se solicitado. Você também pode abrir Portal Luxmc pelo launcher.": ["Open Luxmc on this computer and allow the local connection in your browser if prompted. You can also open Portal Luxmc from the launcher.", "Abre Luxmc en este equipo y permite la conexión local en el navegador si se solicita. También puedes abrir Portal Luxmc desde el launcher."],
+  "Perfil do launcher conectado. Abra Meu plano para ver seus benefícios. Para concluir a sincronização Microsoft, entre novamente com Microsoft no launcher atualizado.": ["Launcher profile connected. Open My plan to view your benefits. To finish Microsoft synchronization, sign in with Microsoft again in the updated launcher.", "Perfil del launcher conectado. Abre Mi plan para ver tus beneficios. Para completar la sincronización Microsoft, vuelve a entrar con Microsoft en el launcher actualizado."],
+  "Usa uma versão anterior?": ["Using an earlier version?", "¿Usas una versión anterior?"],
+  "No launcher, abra Meu plano e pedidos. Volte a esta página e confirme o perfil exibido. Você não precisa criar uma senha Luxmc.": ["In the launcher, open My plan and orders. Return to this page and confirm the displayed profile. You don't need to create a Luxmc password.", "En el launcher, abre Mi plan y pedidos. Vuelve a esta página y confirma el perfil mostrado. No necesitas crear una contraseña Luxmc."],
+  "Você entrou com Microsoft.": ["You're signed in with Microsoft.", "Has iniciado sesión con Microsoft."],
+  "Sua senha continua na Microsoft. Não é necessário criar outra conta Luxmc.": ["Your password stays with Microsoft. You don't need to create another Luxmc account.", "Tu contraseña permanece en Microsoft. No necesitas crear otra cuenta Luxmc."],
+  "Baixe e abra o Luxmc, ou abra o launcher que já está instalado.": ["Download and open Luxmc, or open your installed launcher.", "Descarga y abre Luxmc, o abre el launcher que ya tienes instalado."],
+  "Entre com a mesma conta Microsoft no launcher para confirmar seu Minecraft e sincronizar skin, amigos, plano e preferências.": ["Sign in with the same Microsoft account in the launcher to confirm Minecraft and sync your skin, friends, plan and preferences.", "Entra con la misma cuenta Microsoft en el launcher para confirmar Minecraft y sincronizar tu skin, amigos, plan y preferencias."],
+  "Aguardando o acesso Microsoft no launcher. Esta página será atualizada automaticamente.": ["Waiting for Microsoft sign-in in the launcher. This page will update automatically.", "Esperando el acceso con Microsoft en el launcher. Esta página se actualizará automáticamente."],
+  "Usar perfil existente": ["Use existing profile", "Usar perfil existente"],
+  "Trocar conta": ["Switch account", "Cambiar cuenta"],
+  "Microsoft e Minecraft sincronizados": ["Microsoft and Minecraft synced", "Microsoft y Minecraft sincronizados"],
+  "Sua conta no site e no launcher": ["Your account on the website and launcher", "Tu cuenta en el sitio y el launcher"],
   "MICROSOFT / IDENTIDADE CONFIRMADA": ["MICROSOFT / IDENTITY CONFIRMED", "MICROSOFT / IDENTIDAD CONFIRMADA"],
   "Mantenha seu perfil Luxmc.": ["Keep your Luxmc profile.", "Conserva tu perfil Luxmc."],
   "Uma confirmação conecta esta conta Microsoft ao seu perfil atual, preservando amigos e plano. Seu nome do Minecraft não será alterado.": ["One confirmation connects this Microsoft account to your existing profile, keeping your friends and plan. Your Minecraft name will not change.", "Una confirmación conecta esta cuenta Microsoft a tu perfil actual, conservando amigos y plan. Tu nombre de Minecraft no cambiará."],
@@ -456,6 +471,7 @@ let mode = "login";
 let current = null;
 let microsoftConfirmation = "";
 let microsoftLinkGeneration = 0;
+let microsoftLinkTimer;
 let poll;
 let generation = 0;
 async function api(action, body = {}, area = "account") {
@@ -542,7 +558,8 @@ function showAccount(account, recoveryCode) {
   $("#accountNickname").textContent = account.username;
   $("#passwordForm").hidden = account.provider === "microsoft";
   $("#microsoftSecurity").hidden = account.provider !== "microsoft";
-  $("#accountAvatar").src = "/assets/avatar-steve.png";
+  $("#accountAvatar").src = /^[a-f0-9]{32}$/i.test(account.minecraftUuid || "") ? `https://mc-heads.net/avatar/${account.minecraftUuid}/64` : account.provider === "microsoft" ? `https://mc-heads.net/avatar/${encodeURIComponent(account.username)}/64` : "/assets/avatar-steve.png";
+  $("#accountSyncLabel").textContent = accountText(account.minecraftUuid ? "Microsoft e Minecraft sincronizados" : "Sua conta no site e no launcher");
   window.dispatchEvent(new Event("luxmc-session-changed"));
   fillPreferences();
   if (recoveryCode) {
@@ -713,6 +730,10 @@ $("#passwordForm").addEventListener("submit", async (event) => {
 $("#logoutButton").addEventListener("click", async () => {
   try {
     await api("logout");
+    try {
+      localStorage.setItem("luxmc.launcher-autologin", "off");
+    } catch {
+    }
     generation++;
     clearTimeout(poll);
     current = null;
@@ -738,6 +759,23 @@ window.addEventListener("luxmc-session-ready", (event) => {
     $("#generatedRecovery").value = "";
     $("#recoveryNotice").hidden = true;
     setMode("login");
+  }
+  if (!current && detail?.user?.canManageAccount) void api("me").then((result) => showAccount(result.account)).catch(() => {
+  });
+  else if (!current && detail?.user) {
+    $("#launcherLoginStatus").hidden = false;
+    $("#launcherLoginStatus").textContent = accountText("Perfil do launcher conectado. Abra Meu plano para ver seus benefícios. Para concluir a sincronização Microsoft, entre novamente com Microsoft no launcher atualizado.");
+  }
+});
+$("#launcherLogin").addEventListener("click", async () => {
+  const button = $("#launcherLogin"), status = $("#launcherLoginStatus");
+  button.disabled = true;
+  status.hidden = false;
+  status.textContent = accountText("Conectando ao launcher…");
+  try {
+    if (!await window.LuxLauncherSession?.connect()) status.textContent = accountText("Abra o Luxmc neste computador e permita a conexão local no navegador, se solicitado. Você também pode abrir Portal Luxmc pelo launcher.");
+  } finally {
+    button.disabled = false;
   }
 });
 function friendRow(friend, search = false) {
@@ -793,7 +831,7 @@ async function refreshFriends(run) {
     const result = await api("sync", { readOnly: true }, "social");
     if (run !== generation)
       return;
-    if (result.me.avatarUrl)
+    if (result.me.avatarUrl && !current?.minecraftUuid)
       $("#accountAvatar").src = result.me.avatarUrl;
     $("#friendsList").replaceChildren(...result.friends.map((friend) => friendRow(friend)));
     if (!result.friends.length) {
@@ -821,18 +859,34 @@ $("#friendSearch").addEventListener("submit", async (event) => {
   }
 });
 async function refreshMicrosoftLink() {
+  clearTimeout(microsoftLinkTimer);
   const run = ++microsoftLinkGeneration;
   try {
     const status = await api("link_status", {}, "microsoft");
-    if (run !== microsoftLinkGeneration) return;
+    if (run !== microsoftLinkGeneration || typeof document === "undefined" || !document?.documentElement) return;
+    if (status.linked) {
+      const result = await api("me");
+      if (run === microsoftLinkGeneration) showAccount(result.account);
+      return;
+    }
     $("#microsoftLinkPanel").hidden = !status.pending;
     microsoftConfirmation = status.pending ? status.confirmation : "";
-    if (!status.pending) return;
+    if (!status.pending) {
+      if (!current) $("#authPanel").hidden = false;
+      return;
+    }
+    $("#authPanel").hidden = true;
     $("#microsoftLinkIdentity").textContent = accountText("Conta Microsoft: {{account}}").replace("{{account}}", status.microsoft);
+    const minecraftUuid = status.minecraft?.uuid;
+    $("#microsoftSkinPreview").hidden = !/^[a-f0-9]{32}$/i.test(minecraftUuid || "");
+    if (minecraftUuid) $("#microsoftSkinPreview").src = `https://mc-heads.net/avatar/${minecraftUuid}/64`;
     $("#microsoftLinkConfirm").disabled = !status.profile;
+    $("#microsoftLinkConfirm").hidden = !status.profile;
     $("#microsoftLinkConfirm").textContent = status.profile ? accountText("Vincular ao perfil {{profile}}").replace("{{profile}}", status.profile.username) : accountText("Entre no seu perfil para confirmar");
-    $("#microsoftLinkHelp").textContent = accountText(status.profile ? "Confira as duas contas antes de confirmar. Nos próximos acessos, basta usar Entrar com Microsoft." : "Entre na sua conta Luxmc abaixo. Se usa Microsoft no launcher, abra Meu plano e pedidos e volte à página Conta neste navegador. No primeiro acesso ao Luxmc, crie uma conta abaixo.");
+    $("#microsoftLinkHelp").textContent = accountText("Aguardando o acesso Microsoft no launcher. Esta página será atualizada automaticamente.");
+    if (!document.hidden) microsoftLinkTimer = setTimeout(() => void refreshMicrosoftLink(), 5e3);
   } catch {
+    if (run === microsoftLinkGeneration && typeof document !== "undefined" && document?.documentElement && !document.hidden) microsoftLinkTimer = setTimeout(() => void refreshMicrosoftLink(), 15e3);
   }
 }
 $("#microsoftLinkConfirm").addEventListener("click", async () => {
@@ -858,6 +912,8 @@ $("#microsoftLinkCancel").addEventListener("click", async () => {
     microsoftLinkGeneration++;
     microsoftConfirmation = "";
     $("#microsoftLinkPanel").hidden = true;
+    clearTimeout(microsoftLinkTimer);
+    if (!current) $("#authPanel").hidden = false;
   } catch (failure) {
     $("#microsoftLinkError").textContent = failure.message;
     $("#microsoftLinkError").hidden = false;
@@ -894,13 +950,16 @@ api("me").then((result) => showAccount(result.account)).catch(() => {
 });
 document.addEventListener("visibilitychange", () => {
   clearTimeout(poll);
+  clearTimeout(microsoftLinkTimer);
   if (!document.hidden && current)
     void refreshFriends(generation);
   if (!document.hidden) void refreshMicrosoftLink();
 });
 window.addEventListener("pagehide", () => {
   generation++;
+  microsoftLinkGeneration++;
   clearTimeout(poll);
+  clearTimeout(microsoftLinkTimer);
   clearTimeout(avatarTimer);
 });
 translateAccountPage();

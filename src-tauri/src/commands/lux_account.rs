@@ -127,7 +127,7 @@ pub async fn lux_account_login(username: String, password: String) -> AppResult<
 
 #[tauri::command]
 pub async fn lux_account_sync(account_id: String, preferences: Option<Preferences>, revision: Option<i64>) -> AppResult<PortalAccount> {
-    let token = token(&account_id).await?;
+    let token = if account_id.starts_with("luxmc:") { token(&account_id).await? } else { super::social::identity(&account_id).await? };
     let body = if let Some(prefs) = preferences { serde_json::json!({"preferences":prefs,"revision":revision}) } else { serde_json::json!({}) };
     let response: PortalResponse = serde_json::from_value(request("sync", body, Some(&token)).await?)?;
     Ok(response.account)

@@ -87,6 +87,9 @@ export interface ModFile {
 }
 
 export interface ModVersion {
+    gameVersions?: string[];
+    releaseType?: string | null;
+    publishedAt?: string | null;
     loaders?: string[];
 	id: string;
 	name: string;

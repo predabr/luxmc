@@ -416,6 +416,32 @@ pub async fn get_mod_versions(
     Ok(versions.into_iter().filter(|version| !version.files.is_empty() && !version.files[0].url.is_empty()).collect())
 }
 
+fn file_game_versions(file: &serde_json::Value) -> Vec<String> {
+    file.get("gameVersions").and_then(|value| value.as_array()).map(|values| values.iter().filter_map(|value| value.as_str()).filter(|value| value.starts_with(|character: char| character.is_ascii_digit()) || value.starts_with("Beta ") || value.starts_with("Alpha ")).map(str::to_owned).collect()).unwrap_or_default()
+}
+
+pub async fn get_version_metadata(http: &reqwest::Client, project: &str, version: &str) -> AppResult<ModVersion> {
+    let key = api_key().ok_or_else(|| crate::error::AppError::InvalidState("Chave CurseForge indisponível".into()))?;
+    let response: serde_json::Value = http.get(format!("{CURSEFORGE_API}/mods/{project}/files/{version}"))
+        .header("x-api-key", key).timeout(Duration::from_secs(20)).send().await?.error_for_status()?.json().await?;
+    let file = &response["data"];
+    if file["modId"].as_u64().map(|id| id.to_string()).as_deref() != Some(project)
+        || file["id"].as_u64().map(|id| id.to_string()).as_deref() != Some(version)
+        || file["isServerPack"] == true || file["isAvailable"] == false {
+        return Err(crate::error::AppError::InvalidInput("Arquivo de modpack incompatível ou indisponível".into()));
+    }
+    Ok(ModVersion {
+        id: version.into(),
+        name: file["displayName"].as_str().unwrap_or(version).into(),
+        version_number: String::new(),
+        files: Vec::new(),
+        loaders: file.get("gameVersions").and_then(|value| value.as_array()).map(|values| values.iter().filter_map(|value| value.as_str()).map(str::to_lowercase).filter(|value| matches!(value.as_str(), "forge" | "fabric" | "quilt" | "neoforge")).collect()).unwrap_or_default(),
+        game_versions: file_game_versions(file),
+        release_type: match file["releaseType"].as_u64() { Some(1) => Some("release".into()), Some(2) => Some("beta".into()), Some(3) => Some("alpha".into()), _ => None },
+        published_at: file["fileDate"].as_str().map(str::to_owned),
+    })
+}
+
 fn ordered_client_files(mut files: Vec<serde_json::Value>) -> Vec<serde_json::Value> {
     files.retain(|file| file["isServerPack"] != true && file["isAvailable"] != false);
     files.sort_by(|a,b| {
@@ -543,6 +569,9 @@ pub async fn get_mod_versions_page(
             };
 
             ModVersion {
+                game_versions: file_game_versions(f),
+                release_type: match f.get("releaseType").and_then(|value| value.as_u64()) { Some(1) => Some("release".into()), Some(2) => Some("beta".into()), Some(3) => Some("alpha".into()), _ => None },
+                published_at: f.get("fileDate").and_then(|value| value.as_str()).map(str::to_owned),
                 loaders: f.get("gameVersions").and_then(|value| value.as_array()).map(|values| values.iter().filter_map(|value| value.as_str()).map(str::to_lowercase).filter(|value| matches!(value.as_str(), "fabric" | "forge" | "neoforge" | "quilt")).collect()).unwrap_or_default(),
                 id,
                 name: display,
@@ -672,6 +701,14 @@ pub async fn get_mod_details(
 
     let mut game_versions = Vec::new();
     let mut loaders = Vec::new();
+    if let Some(files) = m.get("latestFiles").and_then(|value| value.as_array()) {
+        for file in files.iter().filter(|file| file["isServerPack"] != true && file["isAvailable"] != false) {
+            game_versions.extend(file_game_versions(file));
+            if let Some(tags) = file.get("gameVersions").and_then(|value| value.as_array()) {
+                loaders.extend(tags.iter().filter_map(|value| value.as_str()).map(str::to_lowercase).filter(|value| matches!(value.as_str(), "forge" | "fabric" | "quilt" | "neoforge")));
+            }
+        }
+    }
     if let Some(indexes) = m.get("latestFilesIndexes").and_then(|i| i.as_array()) {
         for idx in indexes {
             if let Some(gv) = idx.get("gameVersion").and_then(|g| g.as_str()) {
@@ -681,10 +718,10 @@ pub async fn get_mod_details(
             }
             if let Some(mod_loader) = idx.get("modLoader").and_then(|l| l.as_u64()) {
                 let loader_name = match mod_loader {
-                    1 => "Forge",
-                    4 => "Fabric",
-                    5 => "Quilt",
-                    6 => "NeoForge",
+                    1 => "forge",
+                    4 => "fabric",
+                    5 => "quilt",
+                    6 => "neoforge",
                     _ => "",
                 };
                 if !loader_name.is_empty() && !loaders.contains(&loader_name.to_string()) {
@@ -694,6 +731,10 @@ pub async fn get_mod_details(
         }
     }
 
+    game_versions.sort();
+    game_versions.dedup();
+    loaders.sort();
+    loaders.dedup();
     let desc_url = format!("{}/mods/{}/description", CURSEFORGE_API, mod_id);
     let body_html = if let Ok(d_resp) = http
         .get(&desc_url)

@@ -9,8 +9,20 @@ export function isRenderableBanner(value: string): boolean {
 	}
 }
 
+export function isCatalogIcon(value: string): boolean {
+	try {
+		const url = new URL(value);
+		return ['media.forgecdn.net', 'mediafilez.forgecdn.net'].includes(url.hostname) && url.pathname.startsWith('/avatars/')
+			|| url.hostname === 'cdn.modrinth.com' && /\/icon(?:\.[a-z]+)?$/i.test(url.pathname);
+	} catch { return false; }
+}
+
 export function isProjectArtwork(image: { url: string; title?: string | null; description?: string | null; link?: string }): boolean {
 	if (!isRenderableBanner(image.url)) return false;
+	try {
+		const url = new URL(image.url);
+		if (url.protocol === 'https:' && ['bisecthosting.com', 'www.bisecthosting.com'].includes(url.hostname) && /^\/images\/CF\/[^/]+\/BH_[^/]+_Header\.(?:webp|png|jpe?g)$/i.test(url.pathname)) return true;
+	} catch {}
 	const metadata = `${image.title || ''} ${image.description || ''} ${image.link || ''}`;
 	return !/(?:nodecraft|promocard|donation|sponsor|badge|\/partners\/|shields\.io|_important|_summary|_features)/i.test(image.url)
 		&& !/(?:\b(?:sponsor(?:ed)?|partner(?:ship)?|advertisement|discount|coupon|donate|donation|hosting|patrocin(?:ador|ado)|desconto|cupom)\b|nodecraft|bisecthosting|apexhosting|server\.pro)/i.test(metadata);
@@ -54,6 +66,8 @@ export function matchesCatalogBanner(name: string, slug: string, key: string): b
 }
 
 export function projectLandscape(item: { source?: string; sourceId?: string; iconUrl?: string | null }): string | null {
+	const rlcraft = 'https://bisecthosting.com/images/CF/RLCraft/BH_RL_Header.webp';
+	if (item.source === 'curseforge' && item.sourceId === '285109') return rlcraft;
 	const presets: Record<string, string> = {
 		modpack_fo: "/modpack_fo.webp",
 		"/modpack_fo_icon.png": "/modpack_fo.webp",
@@ -67,6 +81,7 @@ export function projectLandscape(item: { source?: string; sourceId?: string; ico
 	if ((item.source === "modrinth" && item.sourceId === "1KVo5zza") || (item.source === "curseforge" && item.sourceId === "396246")) return "/modpack_fo.webp";
 	try {
 		const url = new URL(item.iconUrl || "");
+		if (['media.forgecdn.net', 'mediafilez.forgecdn.net'].includes(url.hostname) && /^\/avatars\/(?:thumbnails\/)?468\/243\//.test(url.pathname)) return rlcraft;
 		if (url.hostname === "cdn.modrinth.com" && /^\/data\/1KVo5zza\//.test(url.pathname)) return "/modpack_fo.webp";
 	} catch {}
 	return null;
@@ -97,6 +112,7 @@ export function resolveProfileBanner(profile?: {
 		profile.banner !== profile.icon &&
 		profile.banner !== "/grass_block.png" &&
 		profile.banner !== "grass_block"
+		&& !isCatalogIcon(profile.banner)
 	) {
 		return profile.banner;
 	}

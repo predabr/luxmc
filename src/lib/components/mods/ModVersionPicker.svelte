@@ -8,12 +8,22 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		versions = [],
 		showAll = $bindable(false),
 		contentType = "Mod",
-		onInstall
+		onInstall,
+		loading = false,
+		error = '',
+		hasMore = false,
+		onLoadMore,
+		onRetry
 	}: {
 		versions: ModVersion[];
 		showAll?: boolean;
 		contentType?: string;
 		onInstall: (versionId: string) => void;
+		loading?: boolean;
+		error?: string;
+		hasMore?: boolean;
+		onLoadMore?: () => void;
+		onRetry?: () => void;
 	} = $props();
 
 	function formatBytes(bytes: number): string {
@@ -28,7 +38,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	const isModpack = $derived(contentType === "Modpack");
 </script>
 
-{#if versions.length === 0}
+{#if loading && versions.length === 0}
+	<p class="rounded-2xl border border-fg/10 p-6 text-sm text-fg/60" role="status">{uiText('compatibility.loading')}</p>
+{:else if versions.length === 0 && !error}
 	<div class="bg-bg-elevated border border-fg/5 rounded-3xl p-12 text-center text-fg/40 text-xs">
 		<Layers class="w-10 h-10 text-fg/20 mx-auto mb-3" />
 		<p>{uiText("ui.9135dcfa3a4a2e7f")}</p>
@@ -38,7 +50,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		<div class="divide-y divide-white/5">
 			{#each displayedVersions as ver (ver.id)}
 				{@const file = ver.files[0]}
-				<div class="p-4 flex items-center justify-between hover:bg-fg/[0.02] transition-colors gap-4">
+				<div class="p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between hover:bg-fg/[0.02] transition-colors gap-4">
 					<div class="min-w-0">
 						<div class="flex items-center gap-2">
 							<h4 class="text-xs font-extrabold text-fg truncate">{ver.name || ver.versionNumber}</h4>
@@ -50,16 +62,22 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 						</div>
 						<div class="flex items-center gap-2 text-[10px] text-fg/40 mt-1 font-mono">
 							{#if file}
-								<span>{file.filename}</span>
+								<span class="truncate" title={file.filename}>{file.filename}</span>
 								<span>•</span>
 								<span>{formatBytes(file.size)}</span>
 							{/if}
+						</div>
+						<div class="mt-2 flex flex-wrap gap-1.5 text-[10px] text-fg/70">
+							{#each ver.loaders ?? [] as loader}<span class="rounded-md border border-brand-400/20 bg-brand-400/10 px-2 py-1 capitalize">{loader}</span>{/each}
+							{#each ver.gameVersions ?? [] as mcVersion}<span class="rounded-md border border-fg/10 px-2 py-1">MC {mcVersion}</span>{/each}
+							{#if ver.releaseType}<span class="rounded-md border border-fg/10 px-2 py-1">{uiText(`compatibility.${ver.releaseType}`)}</span>{/if}
 						</div>
 					</div>
 
 					<button
 						type="button"
 						class={launcherButton({ variant: "primary", size: "sm", class: "shrink-0 flex items-center gap-1.5" })}
+						disabled={!file?.url}
 						onclick={() => onInstall(ver.id)}
 					>
 						{#if isModpack}
@@ -85,4 +103,13 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			</div>
 		{/if}
 	</div>
+{/if}
+{#if error}
+	<div class="rounded-2xl border border-fg/10 p-4 space-y-3" role="alert">
+		<p class="text-xs text-fg/70">{uiText('compatibility.failed')}</p>
+		{#if onRetry}<button type="button" class={launcherButton({variant: 'secondary', size: 'sm'})} onclick={onRetry} disabled={loading}>{uiText('compatibility.retry')}</button>{/if}
+	</div>
+{/if}
+{#if hasMore && onLoadMore}
+	<button type="button" class={launcherButton({variant: 'secondary', size: 'sm'})} onclick={() => { showAll = true; onLoadMore?.(); }} disabled={loading}>{uiText(loading ? 'compatibility.loading' : 'compatibility.loadMore')}</button>
 {/if}

@@ -1287,7 +1287,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 							>
 
 								<div class="w-full flex-1 flex items-center justify-center relative my-2">
-									<div class="w-28 h-28 rounded-2xl flex items-center justify-center overflow-hidden transition-transform motion-reduce:transition-none group-hover:scale-[1.03] {inst.icon && !inst.icon.includes('grass_block') ? 'bg-fg/5 border border-fg/10' : tileCol.bg}">
+									<div class="home-instance-icon w-28 h-28 rounded-2xl flex items-center justify-center overflow-hidden {inst.icon && !inst.icon.includes('grass_block') ? 'bg-fg/5 border border-fg/10' : tileCol.bg}">
 										{#if inst.icon && inst.icon !== '/grass_block.png' && !inst.icon.includes('grass_block')}
 											<img loading="lazy" decoding="async"
 												src={inst.icon}

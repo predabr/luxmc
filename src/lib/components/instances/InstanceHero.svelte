@@ -16,14 +16,18 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         javaLabel?: string; onPlay: () => void; onStop?: () => void; onSettings: () => void; onHost: () => void; actions?: Snippet;
     } = $props();
     const icon = $derived(getIconSrc(profile?.icon));
+    let bannerIsLogo = $state(false);
+    $effect(() => { banner; bannerIsLogo = false; });
 </script>
 
 <section class="instance-hero surface-glass relative overflow-hidden" use:scenery={settings.value.animations !== false && !appState.performanceMode && !running && !launching}>
-    <div class="instance-photo relative h-44 overflow-hidden sm:h-52">
+    <div class="instance-photo relative h-44 overflow-hidden sm:h-52" class:logo-cover={bannerIsLogo || banner === icon}>
         <img loading="lazy" decoding="async"
             src={banner}
             alt=""
             class="h-full w-full object-cover"
+            style:opacity={bannerIsLogo || banner === icon ? .4 : 1}
+            onload={event => { const image = event.currentTarget as HTMLImageElement; bannerIsLogo = image.naturalWidth / Math.max(1,image.naturalHeight) <= 1.2; }}
             onerror={(e) => { const image = e.currentTarget as HTMLImageElement; if (!image.src.endsWith('/cinema/forest.webp')) image.src = '/cinema/forest.webp'; }}
         />
         <div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/30 to-bg-overlay/10"></div>
@@ -74,5 +78,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     .instance-photo { border-bottom:1px solid rgb(var(--border)/.35); }
     .instance-hero :global(button) { border-radius:14px; }
     .instance-photo > img { transform: scale(1.06) translate3d(calc(var(--scene-x, 0) * -14px),calc(var(--scene-y, 0) * -10px),0); transition: transform 650ms cubic-bezier(.2,.7,.2,1); }
+    .instance-photo.logo-cover > img { transform:none; transition:none; }
     @media (prefers-reduced-motion: reduce) { .instance-photo > img { transform: none; transition: none; } }
 </style>

@@ -465,3 +465,73 @@ test('account page follows English and Spanish without clearing entered credenti
     assert.equal(window.document.querySelector('#password').value, 'keep-private-value');
   } finally { window.close(); }
 });
+
+test('Microsoft onboarding hides the extra password form and finishes with the official Minecraft skin', async () => {
+  const dom=createDom(read('conta.html')), window=dom.window;
+  let linked=false, consumed=false;
+  const uuid='1234567890abcdef1234567890abcdef';
+  window.localStorage.setItem('luxmc_lang','pt');
+  window.fetch=async url=>{
+    if(url.endsWith('/microsoft/link_status')) {
+      if(linked && !consumed){consumed=true;return {ok:true,json:async()=>({pending:false,linked:true})};}
+      return {ok:true,json:async()=>({pending:!consumed,confirmation:'test-confirmation',microsoft:'verified@example.test',minecraft:{uuid,username:'Player'},profile:null})};
+    }
+    if(url.endsWith('/account/me'))return linked ? {ok:true,json:async()=>({account:{id:'test',socialId:'profile',username:'Player',preferences:{},revision:0,provider:'microsoft',minecraftUuid:uuid}})} : {ok:false,status:401,json:async()=>({error:'Session expired'})};
+    return {ok:true,json:async()=>({me:{avatarUrl:null},friends:[]})};
+  };
+  try {
+    window.eval(read('i18n.js'));window.eval(read('account.js'));
+    await settle();await settle();
+    assert.equal(window.document.querySelector('#authPanel').hidden,true);
+    assert.equal(window.document.querySelector('#microsoftLinkPanel').hidden,false);
+    assert.equal(window.document.querySelector('#microsoftLinkConfirm').hidden,true);
+    assert.ok(window.document.querySelector('#microsoftLinkPanel a[href="/#download"]'));
+    assert.match(window.document.querySelector('#microsoftSkinPreview').src,new RegExp(uuid));
+    linked=true;window.document.dispatchEvent(new window.Event('visibilitychange'));
+    await settle();await settle();
+    assert.equal(window.document.querySelector('#dashboard').hidden,false);
+    assert.equal(window.document.querySelector('#passwordForm').hidden,true);
+    assert.match(window.document.querySelector('#accountAvatar').src,new RegExp(uuid));
+  } finally {window.dispatchEvent(new window.Event('pagehide'));window.close();}
+});
+
+test('opening the website from the launcher consumes a fragment ticket without requesting local access', async () => {
+  const dom=createDom('<body><div data-site-account></div></body>'), window=dom.window;
+  const ticket='a'.repeat(64), calls=[];
+  window.location.hash='launcher_ticket='+ticket+'&section=mods';
+  let connected=false;
+  window.AbortSignal.timeout=()=>new window.AbortController().signal;
+  window.fetch=async (url,options={})=>{
+    calls.push(url);
+    if(url==='/api/commerce/exchange'){assert.equal(JSON.parse(options.body).ticket,ticket);connected=true;return{ok:true};}
+    if(url==='/api/session')return{ok:true,json:async()=>({user:connected?{id:'player',username:'Player',displayName:'Player',avatarUrl:'/avatar.png',skinUrl:null,canManageAccount:true,membership:{plan:'pro'}}:null})};
+    throw Error('Unexpected request');
+  };
+  try {
+    window.eval(read('session.js'));await settle();await settle();
+    assert.equal(window.location.hash,'#mods');
+    assert.equal(window.document.querySelector('[data-site-account]').dataset.accountId,'player');
+    assert.ok(!calls.some(url=>url.startsWith('http://127.0.0.1')));
+    assert.equal(window.localStorage.getItem('luxmc.launcher-autologin'),null);
+  }finally{window.close();}
+});
+
+test('the site can discover the launcher locally and respects an explicit website logout', async () => {
+  for(const blocked of [false,true]){
+    const dom=createDom('<body><div data-site-account></div></body>'), window=dom.window;
+    const calls=[];let connected=false;
+    if(blocked)window.localStorage.setItem('luxmc.launcher-autologin','off');
+    window.AbortSignal.timeout=()=>new window.AbortController().signal;
+    window.fetch=async (url,options={})=>{
+      calls.push(url);
+      if(url.startsWith('http://127.0.0.1')){assert.equal(options.credentials,'omit');assert.equal(options.headers['X-Luxmc-Site'],'1');return{ok:true,json:async()=>({ticket:'b'.repeat(64)})};}
+      if(url==='/api/commerce/exchange'){connected=true;return{ok:true};}
+      return{ok:true,json:async()=>({user:connected?{id:'local-player',username:'Player',displayName:'Player',avatarUrl:'/avatar.png',canManageAccount:true,membership:{plan:'free'}}:null})};
+    };
+    try{
+      window.eval(read('session.js'));await settle();await settle();await settle();
+      assert.equal(calls.some(url=>url.startsWith('http://127.0.0.1')),!blocked);
+      assert.equal(window.document.querySelector('[data-site-account]').dataset.accountId,blocked?'':'local-player');
+    }finally{window.close();}
+  }
+});

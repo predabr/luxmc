@@ -6,15 +6,19 @@ const issuer = `https://login.microsoftonline.com/${consumerTenant}/v2.0`;
 const keys = createRemoteJWKSet(new URL("https://login.microsoftonline.com/consumers/discovery/v2.0/keys"), { timeoutDuration: 8e3 });
 const MICROSOFT_LINK_COOKIE = "__Host-luxmc-microsoft-link";
 const microsoftNonce = (verifier) => digest(`luxmc-microsoft-identity:${verifier}`);
-const microsoftLinkCookie = (value, age = 600) => `${MICROSOFT_LINK_COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${age}`;
+const microsoftLinkCookie = (value, age = 7 * 86400) => `${MICROSOFT_LINK_COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${age}`;
 const microsoftLinkToken = (request) => request.headers.get("Cookie")?.split(";").map((value) => value.trim()).find((value) => value.startsWith(`${MICROSOFT_LINK_COOKIE}=`))?.slice(MICROSOFT_LINK_COOKIE.length + 1) || "";
 async function verifiedMicrosoftIdentity(code, verifier, configuration) {
   const result = await microsoftJson("https://login.microsoftonline.com/consumers/oauth2/v2.0/token", {
     method: "POST",
     body: new URLSearchParams({ client_id: configuration.clientId, client_secret: configuration.secret, code, code_verifier: verifier, grant_type: "authorization_code", redirect_uri: configuration.redirect })
   });
-  if (typeof result.id_token !== "string" || result.id_token.length > 32e3) throw new Error("Missing Microsoft identity token");
-  const { payload } = await jwtVerify(result.id_token, keys, {
+  const identity = await verifyMicrosoftToken(result.id_token, await microsoftNonce(verifier), configuration);
+  return { ...identity, accessToken: typeof result.access_token === "string" && result.access_token.length < 32e3 ? result.access_token : null };
+}
+async function verifyMicrosoftToken(token, nonce, configuration) {
+  if (typeof token !== "string" || token.length > 32e3) throw new Error("Missing Microsoft identity token");
+  const { payload } = await jwtVerify(token, keys, {
     issuer,
     audience: configuration.clientId,
     algorithms: ["RS256"],
@@ -22,7 +26,7 @@ async function verifiedMicrosoftIdentity(code, verifier, configuration) {
     clockTolerance: 60,
     maxTokenAge: "15m"
   });
-  if (payload.tid !== consumerTenant || payload.nonce !== await microsoftNonce(verifier) || typeof payload.sub !== "string" || !payload.sub || payload.sub.length > 255) throw new Error("Invalid Microsoft identity");
+  if (payload.tid !== consumerTenant || payload.nonce !== nonce || typeof payload.sub !== "string" || !payload.sub || payload.sub.length > 255) throw new Error("Invalid Microsoft identity");
   const label = (typeof payload.preferred_username === "string" ? payload.preferred_username : typeof payload.name === "string" ? payload.name : "Microsoft").replace(/[\u0000-\u001f\u007f]/g, "").slice(0, 200);
   return { subject: await digest(`${issuer}
 ${configuration.clientId}
@@ -34,7 +38,7 @@ async function microsoftSubjectAccount(db, subject) {
 async function microsoftLinkPending(request, db, now) {
   const token = microsoftLinkToken(request);
   if (!/^[a-f0-9]{64}$/.test(token)) return null;
-  return db.prepare("SELECT token_hash, subject_hash, display_name FROM lux_microsoft_link_pending WHERE token_hash = ? AND expires_at > ?").bind(await digest(token), now).first();
+  return db.prepare("SELECT token_hash, subject_hash, display_name, minecraft_uuid, minecraft_name FROM lux_microsoft_link_pending WHERE token_hash = ? AND expires_at > ?").bind(await digest(token), now).first();
 }
 async function linkMicrosoftIdentity(db, pending, socialId, now) {
   const user = await db.prepare("SELECT id, username FROM social_users WHERE id = ? AND removed_at = 0").bind(socialId).first();
@@ -64,5 +68,6 @@ export {
   microsoftLinkToken,
   microsoftNonce,
   microsoftSubjectAccount,
-  verifiedMicrosoftIdentity
+  verifiedMicrosoftIdentity,
+  verifyMicrosoftToken
 };

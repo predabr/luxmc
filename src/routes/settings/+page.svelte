@@ -389,6 +389,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	}
 
 	const storageReport = $derived(storageActivity.report);
+    const applicationBytes = $derived(storageReport?.categories.filter(category => category.category === 'application').reduce((sum,category) => sum + category.bytes,0) ?? 0);
+    const gameContentBytes = $derived(storageReport?.categories.filter(category => ['instances','external_instances','mods','assets','libraries','versions','java'].includes(category.category)).reduce((sum,category) => sum + category.bytes,0) ?? 0);
 	const storageLoading = $derived(storageActivity.loading);
     const storageCleanup = $derived(storageActivity.cleanup);
     const storageError = $derived(storageActivity.error);
@@ -1161,8 +1163,14 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
             {#if storageCleanup || storageLoading}<p role="status" class="flex items-center gap-2 text-xs text-fg-muted"><RefreshCw class="h-4 w-4 animate-spin" />{uiText(storageCleanup ? 'refinement.storageWorking' : 'refinement.storageScanning')}</p>{/if}
             <p class="text-xs text-fg-muted">{uiText("refinement.storageSizes")}</p>
+            <div class="grid gap-3 sm:grid-cols-3">
+                {#each [{label:uiText('storageClarity.application'),bytes:applicationBytes},{label:uiText('storageClarity.games'),bytes:gameContentBytes},{label:uiText('storageClarity.cache'),bytes:storageReport?.cacheBytes || 0}] as summary}
+                    <div class="rounded-2xl border border-border bg-bg-elevated p-5"><p class="text-xs text-fg-muted">{summary.label}</p><p class="mt-2 text-2xl font-semibold tabular-nums text-fg">{storageReport ? formatBytes(summary.bytes) : '—'}</p></div>
+                {/each}
+            </div>
+            <div class="space-y-2 rounded-2xl border border-border bg-bg-subtle p-5"><p class="text-sm leading-relaxed text-fg-muted">{uiText('storageClarity.explanation')}</p><p class="text-xs leading-relaxed text-fg-muted">{uiText('storageClarity.downloads')}</p></div>
 			<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-				{#each (storageReport?.categories || []) as cat}
+				{#each (storageReport?.categories || []).toSorted((a,b) => b.bytes - a.bytes) as cat}
 					<div class="bg-bg-elevated border border-fg/5 rounded-2xl p-4 shadow-sm flex flex-col justify-between gap-2">
 						<div class="flex items-center justify-between">
 							<span class="text-xs font-semibold text-fg/60 capitalize">

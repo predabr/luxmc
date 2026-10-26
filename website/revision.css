@@ -196,6 +196,9 @@
 .microsoft-link-card p { margin:12px 0; color:rgb(var(--fg-muted)); font-size:13px; line-height:1.8; }
 .microsoft-link-actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:20px; }
 .microsoft-link-actions .auth-submit-lux { width:auto; margin:0; min-height:44px; padding:12px 18px; }
+.microsoft-sync-steps { display:grid; gap:16px; padding-left:22px; margin:24px 0; color:rgb(var(--fg)); font-size:14px; line-height:1.7; }
+.microsoft-link-actions a.auth-submit-lux { display:inline-flex; align-items:center; justify-content:center; text-decoration:none; }
+.microsoft-skin-preview { width:64px; height:64px; margin:16px 0; border-radius:12px; image-rendering:pixelated; }
 .project-card .project-footer { padding: 15px 20px; margin: 0; background: rgb(var(--bg) / .25); }
 .project-footer .btn-download-mod { font-size: 10px; border-radius: 10px; }
 .privacy-band { border-block: 1px solid rgb(var(--border)); background: linear-gradient(110deg, rgb(var(--brand-500) / .08), transparent); }

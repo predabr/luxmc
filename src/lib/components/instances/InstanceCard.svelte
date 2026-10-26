@@ -92,11 +92,13 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	let menuOpen = $state(false);
 	let bannerFailed = $state(false);
+    let bannerIsLogo = $state(false);
 
 	$effect(() => {
 		profile.id;
 		profile.banner;
 		bannerFailed = false;
+        bannerIsLogo = false;
 	});
 
 	function handleFavorite(e: MouseEvent) {
@@ -121,7 +123,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     const playtime = $derived(minutes <= 0 ? (isRunningThis ? '< 1 min' : '0 min') : (minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes} min`));
     const banner = $derived(bannerFailed ? '/bg_day.jpg' : resolveProfileBanner(profile));
     const resolvedIcon = $derived(getIconSrc(profile.icon));
-    const showAvatarIcon = $derived(Boolean(resolvedIcon && resolvedIcon !== '/grass_block.png' && resolvedIcon !== banner));
+    const showAvatarIcon = $derived(Boolean(resolvedIcon && resolvedIcon !== '/grass_block.png'));
     const actions = $derived([
         { label: uiText("ui.4ea489ea6c7e5d1e"), icon: Pencil, onClick: () => onEdit?.(profile) },
         { label: uiText("screenshots.openFolderBtn"), icon: FolderOpen, onClick: () => onOpenFolder?.(profile.id) },
@@ -172,9 +174,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
             <img
                 src={banner}
                 alt=""
-                class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                class="instance-card-artwork h-full w-full object-cover"
+                class:instance-card-logo={bannerIsLogo || banner === resolvedIcon}
+                style:opacity={bannerIsLogo || banner === resolvedIcon ? .4 : 1}
                 loading="lazy"
                 decoding="async"
+                onload={event => { const image = event.currentTarget as HTMLImageElement; bannerIsLogo = image.naturalWidth / Math.max(1,image.naturalHeight) <= 1.2; }}
                 onerror={() => { bannerFailed = true; }}
             />
             <div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/25 to-transparent"></div>

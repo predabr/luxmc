@@ -17,6 +17,14 @@ function updateApprovalButtons() { for (const form of document.querySelectorAll<
 const statuses: Record<string, string> = { awaiting_receipt: 'Aguardando comprovante', pending: 'Esperando verificação', approved: 'Aprovado', rejected: 'Rejeitado', cancelled: 'Cancelado' };
 let snapshot: Snapshot | null = null;
 let accountResolved = false;
+let siteIdentity = '';
+window.addEventListener('luxmc-session-ready', (event: Event) => {
+    const id = (event as CustomEvent).detail?.user?.id || '';
+    if (id && id !== siteIdentity) {
+        siteIdentity = id;
+        if (!busy && !updatesRunning) void refresh().catch(() => {});
+    }
+});
 let busy = false;
 let offset = 0;
 let queueTotal = 0;

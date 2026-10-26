@@ -1,4 +1,4 @@
-import { digest, equalHash, json, limited, passwordHash, randomToken, readJson, sameOrigin, sessionToken } from "../../../lib/accounts.js";
+import { cookie, digest, equalHash, json, limited, passwordHash, randomToken, readJson, sameOrigin, sessionToken, SESSION_SECONDS } from "../../../lib/accounts.js";
 import { appearancePreferences, catalog, COMMERCE_COOKIE, commerceIdentity, fail, membership, nowSeconds } from "../../../lib/membership.js";
 import { base32, commerceCookie, csrfFor, decryptSecret, encryptSecret, newOwnerSession, otpAt, ownerCredentials, ownerSession, requireOwnerSession, verifyCsrf } from "../../../lib/owner-security.js";
 import { activeProfileStyle, parseProfileStyle, profileStyleAllowed, retainedProfileStyle } from "../../../lib/profile-style.js";
@@ -36,7 +36,13 @@ async function onRequest({ request, env, params, waitUntil }) {
       ]);
       if (!results[0].meta.changes) return fail("Link j\xE1 usado.", 401);
       const response = json({ ok: true, csrfToken: await csrfFor(token) }, 200, { "Set-Cookie": `${COMMERCE_COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${age}` });
-      response.headers.append("Set-Cookie", "__Host-luxmc=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0");
+      const account = await db.prepare("SELECT a.id FROM lux_accounts a JOIN social_users u ON u.id = a.social_id WHERE a.social_id = ? AND u.removed_at = 0").bind(ticket.social_id).first();
+      if (account) {
+        const session = randomToken();
+        await db.prepare("INSERT INTO lux_sessions(token_hash, account_id, created_at, expires_at, client) VALUES (?, ?, ?, ?, 'web')").bind(await digest(session), account.id, now, now + SESSION_SECONDS).run();
+        await db.prepare("DELETE FROM lux_sessions WHERE account_id = ? AND token_hash NOT IN (SELECT token_hash FROM lux_sessions WHERE account_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 20)").bind(account.id, account.id).run();
+        response.headers.append("Set-Cookie", cookie(session));
+      } else response.headers.append("Set-Cookie", cookie("", 0));
       return response;
     }
     const me = await commerceIdentity(request, db);
@@ -66,13 +72,14 @@ async function onRequest({ request, env, params, waitUntil }) {
       return json({ revision: await digest(JSON.stringify([changes, config, await membership(db, me.id)])) });
     }
     if (action === "portal_ticket") {
+      if (body.destination !== void 0 && !["/", "/conta", "/planos", "/#mods", "/#changelog"].includes(body.destination)) return fail("P\xE1gina do site inv\xE1lida.");
       const ticket = randomToken();
       await db.prepare("INSERT INTO lux_commerce_tickets(token_hash, social_id, expires_at) VALUES (?, ?, ?)").bind(await digest(ticket), me.id, now + 60).run();
-      return json({ path: owner && body.owner === true ? "/painel-luxmc" : "/planos", ticket });
+      return json({ path: owner && body.owner === true ? "/painel-luxmc" : body.destination || "/planos", ticket });
     }
     if (action === "logout") {
-      const cookie = request.headers.get("Cookie")?.match(/(?:^|;\s*)__Host-luxmc-commerce=([a-f0-9]{64})/)?.[1];
-      if (cookie) await db.prepare("DELETE FROM lux_commerce_sessions WHERE token_hash = ?").bind(await digest(cookie)).run();
+      const cookie2 = request.headers.get("Cookie")?.match(/(?:^|;\s*)__Host-luxmc-commerce=([a-f0-9]{64})/)?.[1];
+      if (cookie2) await db.prepare("DELETE FROM lux_commerce_sessions WHERE token_hash = ?").bind(await digest(cookie2)).run();
       return json({ ok: true }, 200, { "Set-Cookie": `${COMMERCE_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0` });
     }
     const current = await membership(db, me.id);

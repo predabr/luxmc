@@ -98,6 +98,31 @@ public class LuxmcClientAgent {
         } catch (Throwable error) { System.err.println("[LUXMC_CLIENT] Appearance agent unavailable: " + error.getClass().getSimpleName()); }
         if ("appearance-only".equals(agentArgs)) return;
         final Thread gameMain = Thread.currentThread();
+        final String readyPath = System.getProperty("luxmc.client.windowReady", "");
+        if (readyPath.isEmpty()) {
+            startClientExtras(gameMain);
+            return;
+        }
+        Thread deferred = new Thread(new Runnable() {
+            public void run() {
+                java.nio.file.Path ready = java.nio.file.Paths.get(readyPath);
+                while (gameMain.isAlive() && running) {
+                    if (java.nio.file.Files.isRegularFile(ready)) {
+                        try { java.nio.file.Files.deleteIfExists(ready); } catch (IOException ignored) {}
+                        startClientExtras(gameMain);
+                        return;
+                    }
+                    try { Thread.sleep(250); }
+                    catch (InterruptedException ignored) { Thread.currentThread().interrupt(); return; }
+                }
+            }
+        }, "Luxmc-Client-Readiness");
+        deferred.setDaemon(true);
+        deferred.start();
+    }
+
+    private static void startClientExtras(final Thread gameMain) {
+        System.out.println("[LUXMC_CLIENT] Starting optional HUD after game window readiness");
         Thread cleanup = new Thread(new Runnable() {
             public void run() {
                 try { gameMain.join(); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); return; }

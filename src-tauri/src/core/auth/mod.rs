@@ -11,6 +11,7 @@ pub mod microsoft;
 pub mod minecraft;
 pub mod oauth_server;
 pub mod xbox;
+mod portal;
 
 pub use microsoft::MicrosoftOAuth;
 pub use minecraft::MinecraftClient;
@@ -35,6 +36,8 @@ pub struct AuthAccount {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MicrosoftTokens {
+    #[serde(skip)]
+    pub portal_proof: Option<(String, String)>,
     pub access_token: String,
     pub refresh_token: String,
     pub expires_in: i64,
@@ -176,7 +179,7 @@ impl AuthService {
         self.minecraft.check_entitlements(&mc_token).await?;
         let profile = self.minecraft.profile(&mc_token).await?;
 
-        Ok(AuthAccount {
+        let account = AuthAccount {
             id: profile.id.clone(),
             username: profile.name,
             uuid: profile.id,
@@ -186,6 +189,10 @@ impl AuthService {
             skin_url: profile.skin_url,
             skin_variant: profile.skin_variant,
             cape_url: profile.cape_url,
-        })
+        };
+        if let Some(proof) = ms_tokens.portal_proof {
+            portal::queue(account.clone(), proof);
+        }
+        Ok(account)
     }
 }

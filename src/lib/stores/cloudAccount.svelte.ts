@@ -36,7 +36,7 @@ async function pull(run: number) {
 }
 async function poll(run: number) {
     await pull(run);
-    if (run === generation) pollTimer = setTimeout(() => void poll(run), 30000);
+    if (run === generation) pollTimer = setTimeout(() => void poll(run), ready ? 30000 : 5000);
 }
 async function save(run: number) {
     if (run !== generation || !pending || busy) return;

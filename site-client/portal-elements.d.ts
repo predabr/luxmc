@@ -1,4 +1,8 @@
 interface PortalElements {
+    '#launcherLogin': HTMLButtonElement;
+    '#launcherLoginStatus': HTMLElement;
+    '#accountSyncLabel': HTMLElement;
+    '#microsoftSkinPreview': HTMLImageElement;
     '#microsoftLinkPanel': HTMLElement;
     '#microsoftLinkIdentity': HTMLElement;
     '#microsoftLinkHelp': HTMLElement;

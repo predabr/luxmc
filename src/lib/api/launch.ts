@@ -68,6 +68,7 @@ export async function stopGame(pid?: number): Promise<boolean> {
 }
 
 export async function loadersVersions(loader: string, mcVersion: string): Promise<{
+	supportedGameVersions?: string[] | null;
 	versions: Array<{
 		id: string;
 		stable: boolean;

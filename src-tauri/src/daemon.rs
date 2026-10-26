@@ -99,6 +99,7 @@ async fn dispatch_command(
     state: Arc<AppState>,
 ) -> Result<Value, String> {
     match cmd {
+        "discard_pack_download" => { crate::commands::experience::discard_pack_download_core(&state,args["path"].as_str().unwrap_or_default().into(),args.get("operationId").and_then(Value::as_str)).await.map_err(|e| e.to_string())?; Ok(Value::Null) },
         "verify_pack_download" => { crate::commands::instances::instance_check_import_job(&state,args.get("operationId").and_then(Value::as_str)).await.map_err(|e|e.to_string())?; let _import = state.import_lock.lock().await; crate::commands::experience::verify_pack_download_core(args["path"].as_str().unwrap_or_default().into(),args["size"].as_u64().unwrap_or(0),args["sha1"].as_str().unwrap_or_default().into(),Some(state.import_cancel.clone())).await.map_err(|e| e.to_string())?; Ok(Value::Null) },
         "instance_backup_world" => { let _guard=state.launch_lock.try_lock().map_err(|_|"Lançamento em andamento".to_string())?; Ok(serde_json::to_value(crate::commands::world_backup::instance_backup_world_core(args["profileId"].as_str().unwrap_or_default().into(),args["worldFolder"].as_str().unwrap_or_default().into()).await.map_err(|e| e.to_string())?).map_err(|e| e.to_string())?) },
         "instance_list_world_backups" => Ok(serde_json::to_value(crate::commands::world_backup::instance_list_world_backups(args["profileId"].as_str().unwrap_or_default().into()).await.map_err(|e| e.to_string())?).map_err(|e| e.to_string())?),
@@ -570,7 +571,8 @@ async fn dispatch_command(
             let loader = args.get("loader").and_then(|v| v.as_str()).unwrap_or("fabric");
             let game_version = args.get("gameVersion").or_else(|| args.get("mcVersion")).and_then(|v| v.as_str()).unwrap_or("1.20.1");
             let versions = crate::core::loaders::fetch_loader_versions(&state.http, loader, game_version).await.map_err(|e| e.to_string())?;
-            let response = crate::commands::loaders::LoaderVersionsResponse { versions };
+            let supported_game_versions = crate::core::loaders::supported_game_versions(&state.http, loader).await.map_err(|e| e.to_string())?;
+            let response = crate::commands::loaders::LoaderVersionsResponse { versions, supported_game_versions };
             Ok(serde_json::to_value(response).map_err(|e| e.to_string())?)
         },
 

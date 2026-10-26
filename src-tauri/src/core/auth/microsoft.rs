@@ -8,7 +8,7 @@ use crate::error::{AppError, AppResult};
 use super::{default_client_id, default_tenant_id, pkce_challenge, pkce_verifier, AuthProvider, MicrosoftTokens};
 
 const REDIRECT_URI: &str = "http://localhost:8453/callback";
-const SCOPES: &str = "offline_access XBoxLive.signin";
+const SCOPES: &str = "openid profile offline_access XBoxLive.signin";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -20,6 +20,8 @@ pub struct PendingAuth {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MicrosoftTokenResponse {
+    #[serde(default)]
+    pub id_token: Option<String>,
     pub token_type: String,
     pub scope: String,
     pub expires_in: i64,
@@ -60,9 +62,11 @@ impl MicrosoftOAuth {
         let verifier = pkce_verifier();
         let challenge = pkce_challenge(&verifier);
         let state = random_state();
+        use sha2::Digest;
+        let nonce = format!("{:x}", sha2::Sha256::digest(format!("luxmc-microsoft-launcher:{verifier}").as_bytes()));
         let auth_url = self.auth_url();
         let url = format!(
-			"{auth_url}?client_id={cid}&response_type=code&redirect_uri={ru}&response_mode=query&scope={scopes}&state={state}&code_challenge={challenge}&code_challenge_method=S256",
+			"{auth_url}?client_id={cid}&response_type=code&redirect_uri={ru}&response_mode=query&scope={scopes}&state={state}&nonce={nonce}&code_challenge={challenge}&code_challenge_method=S256",
 			cid = urlencoding(cid),
 			ru = urlencoding(REDIRECT_URI),
 			scopes = urlencoding(SCOPES),
@@ -104,6 +108,7 @@ impl MicrosoftOAuth {
             .error_for_status()?;
         let body: MicrosoftTokenResponse = resp.json().await?;
         Ok(MicrosoftTokens {
+            portal_proof: body.id_token.map(|token| (token, verifier.to_owned())),
             access_token: body.access_token,
             refresh_token: body.refresh_token,
             expires_in: body.expires_in,
@@ -132,6 +137,7 @@ impl MicrosoftOAuth {
             .error_for_status()?;
         let body: MicrosoftTokenResponse = resp.json().await?;
         Ok(MicrosoftTokens {
+            portal_proof: None,
             access_token: body.access_token,
             refresh_token: body.refresh_token,
             expires_in: body.expires_in,
@@ -163,6 +169,30 @@ fn urlencoding(s: &str) -> String {
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod portal_identity_tests {
+    use super::*;
+    use sha2::Digest;
+
+    #[test]
+    fn microsoft_login_binds_the_portal_identity_to_the_pkce_secret() {
+        let pending = MicrosoftOAuth::new(reqwest::Client::new()).begin();
+        let url = reqwest::Url::parse(&pending.url).unwrap();
+        let query = url.query_pairs().collect::<std::collections::HashMap<_, _>>();
+        assert_eq!(query.get("nonce").unwrap(), &format!("{:x}", sha2::Sha256::digest(format!("luxmc-microsoft-launcher:{}", pending.verifier).as_bytes())));
+        let scopes = query.get("scope").unwrap();
+        for scope in ["openid", "profile", "XBoxLive.signin", "offline_access"] { assert!(scopes.split_whitespace().any(|value| value == scope)); }
+        assert!(!pending.url.contains(&pending.verifier));
+    }
+
+    #[test]
+    fn portal_identity_proof_is_never_serialized_to_the_frontend() {
+        let tokens = MicrosoftTokens { access_token: "minecraft-auth".into(), refresh_token: "refresh".into(), expires_in: 3600, portal_proof: Some(("private-id-token".into(), "private-verifier".into())) };
+        let value = serde_json::to_string(&tokens).unwrap();
+        assert!(!value.contains("private-id-token") && !value.contains("private-verifier") && !value.contains("portal_proof"));
+    }
 }
 
 fn nibble(b: u8) -> u8 {
@@ -198,6 +228,7 @@ impl AuthProvider for MicrosoftOAuth {
             .error_for_status()?;
         let body: MicrosoftTokenResponse = resp.json().await?;
         Ok(MicrosoftTokens {
+            portal_proof: None,
             access_token: body.access_token,
             refresh_token: body.refresh_token,
             expires_in: body.expires_in,

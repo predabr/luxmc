@@ -1,4 +1,5 @@
 pub mod auth;
+pub(crate) mod site_session;
 pub mod bedrock;
 pub mod changelog;
 pub mod dep_checker;

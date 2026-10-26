@@ -13,17 +13,19 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		versions: Version[];
 		value: string;
 		loading?: boolean;
+        onlySupported?: boolean;
 		onChange?: (id: string) => void;
 	};
 
-	let { versions = [], value = $bindable(""), loading = false, onChange }: Props = $props();
+	let { versions = [], value = $bindable(""), loading = false, onlySupported = false, onChange }: Props = $props();
 
 	let search = $state("");
 	let typeFilter = $state<"all" | "release" | "snapshot" | "old_beta" | "old_alpha">("release");
+    const activeFilter = $derived(onlySupported && !versions.some(version => version.versionType === typeFilter) ? 'all' : typeFilter);
 
 	const filtered = $derived(
 		versions
-			.filter((v) => (typeFilter === "all" ? true : v.versionType === typeFilter))
+			.filter((v) => (activeFilter === "all" ? true : v.versionType === activeFilter))
 			.filter((v) =>
 				search.trim() ? v.id.toLowerCase().includes(search.toLowerCase()) : true,
 			)
@@ -49,7 +51,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		{ id: "1.20.1", label: uiText("ui.774e064308df6c12"), tag: "Modpacks" },
 		{ id: "1.16.5", label: uiText("ui.7d92573f62b0facb"), tag: "Forge" },
 		{ id: "1.8.9", label: uiText("ui.397b98314838406b"), tag: "PvP" }
-	] as const);
+	].filter(version => versions.some(candidate => candidate.id === version.id)));
 </script>
 
 <div class="version-selector min-w-0 space-y-3 select-none">
@@ -81,9 +83,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			{#each filterTabs as tab}
 				<button
 					type="button"
-					aria-pressed={typeFilter === tab.id}
-					class:selection-control={typeFilter === tab.id}
-					class="version-filter min-w-0 px-2 py-2.5 rounded-lg text-[11px] font-semibold transition-[color,background-color,box-shadow] cursor-pointer {typeFilter === tab.id ? 'bg-brand-500 shadow' : 'text-fg-muted hover:text-fg hover:bg-fg/5'}"
+					aria-pressed={activeFilter === tab.id}
+					class:selection-control={activeFilter === tab.id}
+					class="version-filter min-w-0 px-2 py-2.5 rounded-lg text-[11px] font-semibold transition-[color,background-color,box-shadow] cursor-pointer {activeFilter === tab.id ? 'bg-brand-500 shadow' : 'text-fg-muted hover:text-fg hover:bg-fg/5'}"
 					onclick={() => { typeFilter = tab.id; }}
 				>
 					<span>{tab.label}</span>

@@ -98,13 +98,20 @@
       <div class="portal-card">
         <section id="microsoftLinkPanel" class="microsoft-link-card" aria-labelledby="microsoftLinkTitle" hidden>
           <span class="eyebrow">MICROSOFT / IDENTIDADE CONFIRMADA</span>
-          <h2 id="microsoftLinkTitle">Mantenha seu perfil Luxmc.</h2>
+          <h2 id="microsoftLinkTitle">Você entrou com Microsoft.</h2>
+          <img id="microsoftSkinPreview" class="microsoft-skin-preview" alt="Skin Minecraft" width="64" height="64" hidden />
           <p id="microsoftLinkIdentity"></p>
-          <p>Uma confirmação conecta esta conta Microsoft ao seu perfil atual, preservando amigos e plano. Seu nome do Minecraft não será alterado.</p>
-          <p id="microsoftLinkHelp">Entre na sua conta Luxmc abaixo. Se usa Microsoft no launcher, abra Meu plano e pedidos e volte à página Conta neste navegador. No primeiro acesso ao Luxmc, crie uma conta abaixo.</p>
+          <p>Sua senha continua na Microsoft. Não é necessário criar outra conta Luxmc.</p>
+          <ol class="microsoft-sync-steps">
+            <li>Baixe e abra o Luxmc, ou abra o launcher que já está instalado.</li>
+            <li>Entre com a mesma conta Microsoft no launcher para confirmar seu Minecraft e sincronizar skin, amigos, plano e preferências.</li>
+          </ol>
+          <p id="microsoftLinkHelp" role="status" aria-live="polite">Aguardando o acesso Microsoft no launcher. Esta página será atualizada automaticamente.</p>
+          <details class="microsoft-sync-legacy"><summary>Usa uma versão anterior?</summary><p>No launcher, abra Meu plano e pedidos. Volte a esta página e confirme o perfil exibido. Você não precisa criar uma senha Luxmc.</p></details>
           <div class="microsoft-link-actions">
-            <button type="button" id="microsoftLinkConfirm" class="auth-submit-lux" disabled>Confirmar vínculo</button>
-            <button type="button" id="microsoftLinkCancel" class="portal-tab-btn">Cancelar</button>
+            <a href="/#download" class="auth-submit-lux">Baixar o launcher ↗</a>
+            <button type="button" id="microsoftLinkConfirm" class="portal-tab-btn" hidden disabled>Usar perfil existente</button>
+            <button type="button" id="microsoftLinkCancel" class="portal-tab-btn">Trocar conta</button>
           </div>
           <p id="microsoftLinkError" class="dashboard-message error" role="alert" hidden></p>
         </section>
@@ -115,6 +122,8 @@
           <button type="button" class="auth-submit-lux microsoft-signin" id="microsoftLogin"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M2 2h9v9H2zm11 0h9v9h-9zM2 13h9v9H2zm11 0h9v9h-9z"/></svg><span>Entrar com Microsoft</span></button>
           <p class="microsoft-signin-hint">O acesso acontece na Microsoft; sua senha não é solicitada pelo Luxmc. Na primeira vez, confirme o vínculo com seu perfil para manter amigos e plano.</p>
           <p id="microsoftError" class="dashboard-message error" role="alert" hidden></p>
+          <button type="button" class="portal-tab-btn" id="launcherLogin">Usar conta aberta no launcher</button>
+          <p id="launcherLoginStatus" class="dashboard-message" role="status" aria-live="polite" hidden></p>
           <div class="portal-tabs" role="group" aria-label="Acesso à conta">
             <button
               type="button"
@@ -233,7 +242,7 @@
               <h1 id="accountNickname"></h1>
               <div class="sync-label">
                 <span></span>
-                <span>Site e Launcher sincronizados</span>
+                <span id="accountSyncLabel">Sua conta no site e no launcher</span>
               </div>
             </div>
           </div>

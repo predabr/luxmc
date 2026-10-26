@@ -41,9 +41,9 @@ export function catalogGallery(source: string, projectId: string): Promise<strin
 			void modsProjectDetails(projectId, source).then(async details => {
                 const matches = details?.id === projectId && (!details.source || details.source === source);
                 const gallery = matches ? (details.gallery || []).filter(isProjectArtwork).map(image => image.url) : [];
-                const authorCover = matches && !gallery.length ? await firstLandscape(descriptionArtwork(details.body || '')) : undefined;
+                const authorCover = matches ? await firstLandscape([...gallery, ...descriptionArtwork(details.body || '')]) : undefined;
 				const urls = matches
-					? [...new Set([...gallery, ...(authorCover ? [authorCover] : []), ...(details.iconUrl && isRenderableBanner(details.iconUrl) ? [details.iconUrl] : [])])].slice(0, 8)
+					? [...new Set([...(authorCover ? [authorCover] : []), ...gallery, ...(details.iconUrl && isRenderableBanner(details.iconUrl) ? [details.iconUrl] : [])])].slice(0, 8)
 					: [];
 				if (cache.size >= 128) cache.delete(cache.keys().next().value!);
 				cache.set(key, { urls, expires: Date.now() + (urls.length ? 600_000 : 60_000) });

@@ -1,15 +1,140 @@
 {
-  "externalCatalog": {"title": "Mais catálogos", "help": "Abrem no navegador oficial. Downloads e atualizações destes catálogos são gerenciados fora do Luxmc.", "failed": "Não foi possível abrir o catálogo."},
-  "modList": {"enabled": "Ativo", "disabled": "Desativado"},
-  "showcaseCatalogue": {"type": "Buscar favorito no catálogo", "results": "Resultados para favoritos", "unavailable": "O catálogo está indisponível. Você ainda pode adicionar apenas o nome."},
-  "instanceSettingsNav": {"navigation": "Categorias das configurações da instância", "general": "Identidade", "performance": "Desempenho", "runtime": "Java e loader", "window": "Janela do jogo", "advanced": "Comandos avançados", "maintenance": "Manutenção", "generalHelp": "Personalize o nome e o visual desta instância.", "performanceHelp": "Ajuste a memória e as otimizações para este modpack.", "runtimeHelp": "Configure o carregador de mods e o Java compatível. Altere somente se necessário.", "windowHelp": "Escolha como a janela do Minecraft será aberta.", "advancedHelp": "Configure os comandos executados antes e depois do jogo.", "maintenanceHelp": "Repare os arquivos ou remova a instância. A exclusão exige confirmação.", "bannerHelp": "Endereço da imagem de capa. Deixe vazio para usar a capa padrão.", "preparingRuntime": "Preparando Java e carregador de mods...", "validatingArguments": "Validando argumentos da JVM...", "startingGame": "Iniciando o Minecraft...", "waitingWindow": "Aguardando a janela do Minecraft..."},
-  "introMotion": {"caption": "Seu próximo mundo está chegando."},
-  "roomConnection": {"shared": "Mundo compartilhado", "copyAddress": "Copiar endereço", "copied": "Endereço copiado. No Minecraft, abra Multijogador → Conexão direta e cole o endereço.", "connecting": "Preparando conexão", "directHelp": "Se o mundo não aparecer em Jogos na rede local, copie o endereço e use Multijogador → Conexão direta. Mantenham os dois launchers abertos."},
-  "membershipPanel": {"activeUntil": "Ativo até {{date}} · {{collections}} coleções · {{presets}} perfis de aparência", "free": "Seu launcher completo. Amplie seu perfil com Plus ou Pro.", "favourites": "favoritos no perfil", "palettes": "paletas do perfil", "plus": "Seis paletas para o perfil, molduras Halo e Contorno duplo. Seu estilo aparece para seus amigos.", "opening": "Abrindo…", "portal": "Meu plano e pedidos", "owner": "Central do dono · aprovar planos", "refresh": "Atualizar meu plano", "synced": "Perfis sincronizados de aparência", "presetName": "Nome do perfil de aparência", "presetPlaceholder": "Meu perfil de aparência", "savePreset": "Salvar perfil de aparência", "delete": "Excluir {{name}}", "roomCapacity": "Um convite para reunir até {{count}} pessoas, incluindo você. Qualquer participante pode abrir seu mundo."},
-  "extendedSettings": {"interface": "Interface e animações", "wallpaper": "Wallpapers", "catalog": "Catálogo e downloads", "wallpaperHelp": "Seus arquivos importados são copiados para a biblioteca interna do Luxmc. Depois de concluir a importação, você pode remover o original.", "catalogHelp": "Controle o carregamento da biblioteca e adapte os downloads à sua conexão.", "latestRelease": "Versão estável", "snapshot": "Snapshot", "minecraftCatalog": "Versões do Minecraft", "versionsHelp": "O catálogo oficial é consultado ao abrir o seletor de versões. As consultas próximas reutilizam o resultado por até um minuto. Sem conexão, a última lista salva continua disponível.", "refreshCatalog": "Consultar catálogo", "preload": "Preparar capas antecipadamente", "interfaceHelp": "Escolha o movimento e o consumo da interface.", "motionStyle": "Estilo das animações", "expressive": "Expressivo · entrada em sequência", "subtle": "Discreto · movimentos curtos", "motionSpeed": "Velocidade das transições", "balanced": "Suave", "fast": "Rápida", "gifQuality": "Qualidade dos GIFs", "gifHigh": "Alta · melhor nitidez", "gifBalanced": "Equilibrada · menor processamento", "gifHelp": "Aplicada às próximas importações. GIFs grandes podem ser otimizados como WebP animado.", "preloadHelp": "Prepara os ícones em segundo plano, com limite de tarefas e sem competir com a abertura do Minecraft.", "reducedMotion": "Respeitar movimento reduzido do sistema", "motionHelp": "O modo econômico reduz os efeitos para priorizar os jogos. Entradas, cliques e transições usam animações curtas; nada precisa ficar se movendo sem parar."},
-  "proCards": {"requiredTitle":"Personalize com Luxmc Pro","benefits": "Fundo com imagem ou GIF nos cartões de amigos, moldura Prisma, Órbita, Brilho, Pulso e composição centralizada."},
-  "updateCenter": { "available": "Atualização do modpack", "current": "Modpack atualizado", "installed": "Instalada", "availableVersion": "Disponível", "check": "Buscar atualização", "review": "Revisar atualização", "backup": "Revise as mudanças antes de aplicar. Seus mundos recebem um backup antes da atualização.", "otherVersions": "Escolher outra versão", "alreadyInstalled": "Versão já instalada", "extractedPack": "Pacote extraído" },
-  "planPrompt": { "title": "Personalize com Plus ou Pro", "help": "GIFs no avatar, na capa do perfil e nas pastas exigem Luxmc Plus ou Pro ativo. Escolha um plano para usar essas animações.", "wallpaper": "Wallpapers, inclusive em vídeo, continuam gratuitos no Luxmc Free.", "later": "Agora não", "plans": "Conhecer os planos", "openError": "Não foi possível abrir os planos. Tente novamente.", "checkPlan": "Aguarde a confirmação do seu plano e tente novamente.", "folderGif": "GIFs nas pastas exigem Luxmc Plus ou Pro.", "style": "Este estilo faz parte dos planos pagos.", "previewStatus": "Pronto para a próxima aventura" },
+  "contentInstall": {
+    "inInstance": "\"{{name}}\" instalado em \"{{instance}}\"!",
+    "resourcepack": "Ative-o em Opções → Pacotes de recursos no Minecraft.",
+    "shader": "Selecione-o nas opções de shaders do Minecraft. Um loader de shaders compatível precisa estar instalado.",
+    "datapack": "Use /reload com permissão ou reabra o mundo para carregar o datapack. Alguns recursos exigem reabrir o mundo.",
+    "world": "Volte à seleção de mundos para encontrar o novo mundo. Seu mundo atual foi preservado."
+  },
+  "compatibility": {
+    "byFile": "Compatibilidade por loader",
+    "scope": "Loaders e versões declarados pelo autor. A relação abaixo usa os arquivos de versões carregados nesta página.",
+    "moreFiles": "Consulte mais arquivos na aba Versões para conferir as versões deste loader.",
+    "ports": "Ports em outros projetos não são confirmados automaticamente. Um loader listado não torna o modpack compatível com os demais.",
+    "loading": "Carregando versões…",
+    "failed": "Não foi possível carregar as versões. Tente novamente.",
+    "retry": "Tentar novamente",
+    "loadMore": "Carregar versões anteriores",
+    "release": "Estável",
+    "beta": "Beta",
+    "alpha": "Alpha"
+  },
+  "externalCatalog": {
+    "title": "Mais catálogos",
+    "help": "Abrem no navegador oficial. Downloads e atualizações destes catálogos são gerenciados fora do Luxmc.",
+    "failed": "Não foi possível abrir o catálogo."
+  },
+  "modList": {
+    "enabled": "Ativo",
+    "disabled": "Desativado"
+  },
+  "showcaseCatalogue": {
+    "type": "Buscar favorito no catálogo",
+    "results": "Resultados para favoritos",
+    "unavailable": "O catálogo está indisponível. Você ainda pode adicionar apenas o nome."
+  },
+  "instanceSettingsNav": {
+    "navigation": "Categorias das configurações da instância",
+    "general": "Identidade",
+    "performance": "Desempenho",
+    "runtime": "Java e loader",
+    "window": "Janela do jogo",
+    "advanced": "Comandos avançados",
+    "maintenance": "Manutenção",
+    "generalHelp": "Personalize o nome e o visual desta instância.",
+    "performanceHelp": "Ajuste a memória e as otimizações para este modpack.",
+    "runtimeHelp": "Configure o carregador de mods e o Java compatível. Altere somente se necessário.",
+    "windowHelp": "Escolha como a janela do Minecraft será aberta.",
+    "advancedHelp": "Configure os comandos executados antes e depois do jogo.",
+    "maintenanceHelp": "Repare os arquivos ou remova a instância. A exclusão exige confirmação.",
+    "bannerHelp": "Endereço da imagem de capa. Deixe vazio para usar a capa padrão.",
+    "preparingRuntime": "Preparando Java e carregador de mods...",
+    "validatingArguments": "Validando argumentos da JVM...",
+    "startingGame": "Iniciando o Minecraft...",
+    "waitingWindow": "Aguardando a janela do Minecraft..."
+  },
+  "introMotion": {
+    "caption": "Seu próximo mundo está chegando."
+  },
+  "roomConnection": {
+    "shared": "Mundo compartilhado",
+    "copyAddress": "Copiar endereço",
+    "copied": "Endereço copiado. No Minecraft, abra Multijogador → Conexão direta e cole o endereço.",
+    "connecting": "Preparando conexão",
+    "directHelp": "Se o mundo não aparecer em Jogos na rede local, copie o endereço e use Multijogador → Conexão direta. Mantenham os dois launchers abertos."
+  },
+  "membershipPanel": {
+    "activeUntil": "Ativo até {{date}} · {{collections}} coleções · {{presets}} perfis de aparência",
+    "free": "Seu launcher completo. Amplie seu perfil com Plus ou Pro.",
+    "favourites": "favoritos no perfil",
+    "palettes": "paletas do perfil",
+    "plus": "Seis paletas para o perfil, molduras Halo e Contorno duplo. Seu estilo aparece para seus amigos.",
+    "opening": "Abrindo…",
+    "portal": "Meu plano e pedidos",
+    "owner": "Central do dono · aprovar planos",
+    "refresh": "Atualizar meu plano",
+    "synced": "Perfis sincronizados de aparência",
+    "presetName": "Nome do perfil de aparência",
+    "presetPlaceholder": "Meu perfil de aparência",
+    "savePreset": "Salvar perfil de aparência",
+    "delete": "Excluir {{name}}",
+    "roomCapacity": "Um convite para reunir até {{count}} pessoas, incluindo você. Qualquer participante pode abrir seu mundo."
+  },
+  "extendedSettings": {
+    "interface": "Interface e animações",
+    "wallpaper": "Wallpapers",
+    "catalog": "Catálogo e downloads",
+    "wallpaperHelp": "Seus arquivos importados são copiados para a biblioteca interna do Luxmc. Depois de concluir a importação, você pode remover o original.",
+    "catalogHelp": "Controle o carregamento da biblioteca e adapte os downloads à sua conexão.",
+    "latestRelease": "Versão estável",
+    "snapshot": "Snapshot",
+    "minecraftCatalog": "Versões do Minecraft",
+    "versionsHelp": "O catálogo oficial é consultado ao abrir o seletor de versões. As consultas próximas reutilizam o resultado por até um minuto. Sem conexão, a última lista salva continua disponível.",
+    "refreshCatalog": "Consultar catálogo",
+    "preload": "Preparar capas antecipadamente",
+    "interfaceHelp": "Escolha o movimento e o consumo da interface.",
+    "motionStyle": "Estilo das animações",
+    "expressive": "Expressivo · entrada em sequência",
+    "subtle": "Discreto · movimentos curtos",
+    "motionSpeed": "Velocidade das transições",
+    "balanced": "Suave",
+    "fast": "Rápida",
+    "gifQuality": "Qualidade dos GIFs",
+    "gifHigh": "Alta · melhor nitidez",
+    "gifBalanced": "Equilibrada · menor processamento",
+    "gifHelp": "Aplicada às próximas importações. GIFs grandes podem ser otimizados como WebP animado.",
+    "preloadHelp": "Prepara os ícones em segundo plano, com limite de tarefas e sem competir com a abertura do Minecraft.",
+    "reducedMotion": "Respeitar movimento reduzido do sistema",
+    "motionHelp": "O modo econômico reduz os efeitos para priorizar os jogos. Entradas, cliques e transições usam animações curtas; nada precisa ficar se movendo sem parar."
+  },
+  "proCards": {
+    "requiredTitle": "Personalize com Luxmc Pro",
+    "benefits": "Fundo com imagem ou GIF nos cartões de amigos, moldura Prisma, Órbita, Brilho, Pulso e composição centralizada."
+  },
+  "updateCenter": {
+    "available": "Atualização do modpack",
+    "current": "Modpack atualizado",
+    "installed": "Instalada",
+    "availableVersion": "Disponível",
+    "check": "Buscar atualização",
+    "review": "Revisar atualização",
+    "backup": "Revise as mudanças antes de aplicar. Seus mundos recebem um backup antes da atualização.",
+    "otherVersions": "Escolher outra versão",
+    "alreadyInstalled": "Versão já instalada",
+    "extractedPack": "Pacote extraído"
+  },
+  "planPrompt": {
+    "title": "Personalize com Plus ou Pro",
+    "help": "GIFs no avatar, na capa do perfil e nas pastas exigem Luxmc Plus ou Pro ativo. Escolha um plano para usar essas animações.",
+    "wallpaper": "Wallpapers, inclusive em vídeo, continuam gratuitos no Luxmc Free.",
+    "later": "Agora não",
+    "plans": "Conhecer os planos",
+    "openError": "Não foi possível abrir os planos. Tente novamente.",
+    "checkPlan": "Aguarde a confirmação do seu plano e tente novamente.",
+    "folderGif": "GIFs nas pastas exigem Luxmc Plus ou Pro.",
+    "style": "Este estilo faz parte dos planos pagos.",
+    "previewStatus": "Pronto para a próxima aventura"
+  },
   "packFollowup": {
     "updating": "Atualizando modpack",
     "updated": "Modpack atualizado",
@@ -3547,13 +3672,11 @@
     "frameDetailHint": "Um contorno geométrico exclusivo Pro, combinado com sua moldura.",
     "frameDetail_none": "Sem acabamento",
     "frameDetail_prism": "Prisma",
-
     "frame_prism": "Prisma",
     "cardBackground": "Fundo do cartão de amigos",
     "cardBackgroundHint": "Exclusivo Pro. Use a capa do seu perfil como fundo na lista de amigos. Escolha uma imagem ou GIF em Imagem de fundo, abaixo.",
     "cardBackground_none": "Discreto",
     "cardBackground_cover": "Usar capa do perfil",
-
     "title": "Assinatura visual",
     "help": "Escolha a paleta, a moldura e os detalhes. A prévia acompanha suas alterações.",
     "accent": "Paleta",
@@ -3650,5 +3773,21 @@
     "planRetryHint": "Não foi possível confirmar seu plano. Tente atualizar a consulta.",
     "cleanupPartial": "Alguns arquivos continuam em uso. Você pode tentar limpar novamente depois de fechar o jogo.",
     "storageScanning": "Medindo o espaço ocupado… Você pode continuar usando o launcher."
+  },
+  "loaderCompatibility": {
+    "unavailable": "{{loader}} não é compatível com Minecraft {{version}}. Escolha uma versão do jogo suportada por esse loader.",
+    "supported": "Versões compatíveis",
+    "chooseVersion": "Escolha uma das versões compatíveis abaixo ou use a lista do jogo.",
+    "requestFailed": "Não foi possível consultar o provedor. Confira sua conexão e tente novamente.",
+    "retry": "Tentar novamente",
+    "selectLoaderVersion": "Escolha uma versão publicada deste loader ou deixe a escolha automática.",
+    "automatic": "Automático · versão publicada mais recente"
+  },
+  "storageClarity": {
+    "application": "Aplicativo instalado",
+    "games": "Minecraft, mods e instâncias",
+    "cache": "Cache que pode ser recriado",
+    "explanation": "O total inclui seus jogos: mods, mundos, recursos do Minecraft, bibliotecas e Java. Esses arquivos são separados do tamanho do aplicativo e não são removidos ao limpar o cache.",
+    "downloads": "Nas próximas instalações concluídas, o pacote ZIP/MRPACK temporário será descartado. Downloads com falha ou pausados continuam disponíveis para retomar. O cache de pacotes antigos pode ser limpo pelo botão acima."
   }
 }

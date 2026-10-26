@@ -781,7 +781,9 @@ impl GameLauncher {
         let appearance_root = game_dir.join("resourcepacks/LuxmcCustomSkin/assets/minecraft/textures/entity");
         let appearance_skin = appearance_root.join(if appearance_variant == "slim" { "player/slim/alex.png" } else { "player/wide/steve.png" });
         let appearance_cape = appearance_root.join("cape.png");
-        let pvp = !is_modpack && !has_mods && profile.loader == "vanilla";
+        let pvp = !is_modpack && !has_mods && profile.loader == "vanilla"
+            && startup::supports_lwjgl_overlay(detail.libraries.iter().map(|library| library.name.as_str()));
+        let client_ready = game_dir.join(".luxmc/client-window.ready");
         #[cfg(windows)]
         startup::append_counter_fallback(&mut safe_jvm_args, startup::windows_counters_unavailable());
         {
@@ -799,6 +801,15 @@ impl GameLauncher {
                 safe_jvm_args.push(format!("-Dluxmc.appearance.skin={}", appearance_skin.display()));
                 safe_jvm_args.push(format!("-Dluxmc.appearance.model={}", appearance_variant));
                 if appearance_cape.is_file() { safe_jvm_args.push(format!("-Dluxmc.appearance.cape={}", appearance_cape.display())); }
+            }
+            if pvp {
+                tokio::fs::create_dir_all(game_dir.join(".luxmc")).await?;
+                match tokio::fs::remove_file(&client_ready).await {
+                    Ok(()) => {},
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+                    Err(error) => return Err(error.into()),
+                }
+                safe_jvm_args.push(format!("-Dluxmc.client.windowReady={}", client_ready.display()));
             }
             safe_jvm_args.push(format!("-javaagent:{}{}", agent_path.display(), if pvp { "" } else { "=appearance-only" }));
             self.emit_log("Luxmc Custom Skin: aparência local e skins compartilhadas de contas Luxmc");
@@ -1154,6 +1165,7 @@ impl GameLauncher {
             }
         }
 
+        let process_start = std::time::Instant::now();
         let mut child = cmd.spawn().map_err(|e| {
             let msg = format!("Failed to start Java process: {}", e);
             self.emit_log(&msg);
@@ -1447,6 +1459,12 @@ impl GameLauncher {
             std::time::Duration::from_millis(500)).await {
             self.emit_stage(LaunchStage::Failed);
             return Err(AppError::InvalidState(reason));
+        }
+        self.emit_log(&format!("Minecraft window confirmed {:.2}s after starting Java", process_start.elapsed().as_secs_f64()));
+        if pvp {
+            if let Err(error) = tokio::fs::write(&client_ready, b"ready").await {
+                tracing::warn!(%error, "Unable to signal optional client overlay readiness");
+            }
         }
         self.emit_stage(LaunchStage::Running);
         Ok(pid)

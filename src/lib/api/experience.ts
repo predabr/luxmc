@@ -3,10 +3,11 @@ import type { AppSettings } from '$lib/stores/settings.svelte';
 import type { InstanceReadiness, CrashDiagnosis } from './doctor';
 import type { ModSearchResultItem } from './types';
 import { open, save } from '@tauri-apps/plugin-dialog';
-export interface InstallationJob { id:string; item:ModSearchResultItem; name:string; ramMb:number; selectedVersion:string; modpackVersionId?:string; status:'queued'|'running'|'paused'|'failed'; error?:string }
+export interface InstallationJob { id:string; item:ModSearchResultItem; name:string; ramMb:number; selectedVersion:string; modpackVersionId?:string; selectedLoader?:string; status:'queued'|'running'|'paused'|'failed'; error?:string }
 export async function installationQueueGet():Promise<unknown> { const settings=await api.invoke<{installationQueue?:unknown}|null>('settings_get'); return settings?.installationQueue ?? []; }
 export const installationQueueSave = (jobs:InstallationJob[]):Promise<void> => api.invoke('settings_set',{value:{installationQueue:jobs}});
 export const verifyPackDownload = (path:string,size:number,sha1:string,operationId?:string):Promise<void> => api.invoke('verify_pack_download',{path,size,sha1,operationId});
+export const discardPackDownload = (path:string,operationId?:string):Promise<void> => api.invoke('discard_pack_download',{path,operationId});
 export async function themeFileChoose():Promise<string|null> { const path=await open({multiple:false,filters:[{name:'Luxmc theme',extensions:['luxtheme']}]}); return typeof path==='string' ? path : null; }
 export const themeFileDestination = ():Promise<string|null> => save({defaultPath:'Luxmc.luxtheme',filters:[{name:'Luxmc theme',extensions:['luxtheme']}]});
 export const supportFileDestination = ():Promise<string|null> => save({defaultPath:'Luxmc-support.json',filters:[{name:'JSON',extensions:['json']}]});

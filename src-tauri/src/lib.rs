@@ -403,6 +403,7 @@ pub async fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .manage(commands::deep_links::PendingLinks::default())
         .setup(move |app| {
+            tauri::async_runtime::spawn(commands::site_session::serve());
             if let Err(error) = setup_tray(app, &tray_language) { tracing::warn!(%error, "System tray unavailable"); }
             #[cfg(target_os = "linux")]
             {
@@ -761,6 +762,7 @@ pub async fn run() {
             commands::experience::modpack_validate,
             commands::experience::instance_compatibility,
             commands::experience::verify_pack_download,
+            commands::experience::discard_pack_download,
             commands::world_backup::world_restore,
             commands::experience::performance_history,
             commands::studio::dependency_graph,

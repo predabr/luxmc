@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ModProjectDetails } from "$lib/api/types";
 import { catalogGallery, latestMinecraftVersion, descriptionArtwork } from "./catalogGallery";
 
@@ -7,6 +7,17 @@ vi.mock("$lib/api/mods", () => ({ modsProjectDetails: mocks.details }));
 const details = (id: string): ModProjectDetails => ({ id, source:"modrinth", slug:id, title:id, description:"", body:"", bodyType:"markdown", downloads:0, iconUrl:null, categories:[], loaders:[], gameVersions:[], gallery:[{url:`https://cdn.modrinth.com/data/${id}/landscape.png`}] });
 
 describe("catalog gallery recovery", () => {
+    beforeEach(() => {
+        mocks.details.mockReset();
+        vi.stubGlobal('Image', class {
+            naturalWidth = 960;
+            naturalHeight = 540;
+            onload: (() => void) | null = null;
+            onerror: (() => void) | null = null;
+            set src(value: string) { if (value) queueMicrotask(() => this.onload?.()); }
+        });
+    });
+    afterEach(() => vi.unstubAllGlobals());
     it('ignores sponsor images hosted on the project CDN through HTML and Markdown links', () => {
         expect(descriptionArtwork('<a href="https://nodecraft.com/r/skyfactory"><img src="https://media.forgecdn.net/attachments/100/200/banner.png"></a><img src="https://example.com/scene.png" alt="SkyFactory landscape"> [![Partner](https://example.com/advert.png)](https://bisecthosting.com/code)')).toEqual(['https://example.com/scene.png']);
     });

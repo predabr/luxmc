@@ -25,7 +25,7 @@ export async function onRequest({request, env}: SiteContext) {
             return response;
         }
         if (!me) return json({user:null});
-        const profile = await db.prepare('SELECT p.display_name, p.portrait, p.updated_at, u.avatar_url, a.username AS account_username, s.updated_at AS skin_updated FROM social_users u LEFT JOIN social_public_profiles p ON p.user_id = u.id LEFT JOIN lux_accounts a ON a.social_id = u.id LEFT JOIN lux_appearance s ON s.account_id = a.id WHERE u.id = ? AND u.removed_at = 0').bind(me.id).first();
+        const profile = await db.prepare('SELECT p.display_name, p.portrait, p.updated_at, u.avatar_url, a.username AS account_username, s.updated_at AS skin_updated, m.minecraft_uuid FROM social_users u LEFT JOIN social_public_profiles p ON p.user_id = u.id LEFT JOIN lux_accounts a ON a.social_id = u.id LEFT JOIN lux_appearance s ON s.account_id = a.id LEFT JOIN lux_microsoft_accounts m ON m.account_id = a.id WHERE u.id = ? AND u.removed_at = 0').bind(me.id).first();
         const entitlement = await membership(db,me.id);
         const portrait = activeProfileImage(profile?.portrait || '', entitlement.plan);
         const photo = typeof portrait === 'string' && portrait.length <= 960000 ? portrait.match(/^data:image\/(png|jpeg|webp|gif);base64,([A-Za-z0-9+/=]+)$/) : null;
@@ -38,7 +38,7 @@ export async function onRequest({request, env}: SiteContext) {
         }
         const token = commerceCookie(request) || sessionToken(request);
         const registered = await authenticate(request,db);
-        const avatarUrl = photo ? `/api/session?asset=avatar&profile=${me.id}&v=${profile?.updated_at || 0}` : validAvatar(profile?.avatar_url) ? profile?.avatar_url : null;
+        const avatarUrl = photo ? `/api/session?asset=avatar&profile=${me.id}&v=${profile?.updated_at || 0}` : /^[a-f0-9]{32}$/i.test(profile?.minecraft_uuid || '') ? `https://mc-heads.net/avatar/${profile?.minecraft_uuid}/64` : validAvatar(profile?.avatar_url) ? profile?.avatar_url : null;
         return json({user:{id:me.id,username:me.username,displayName:profile?.display_name || me.username,avatarUrl,skinUrl:profile?.skin_updated ? `/api/appearance/${encodeURIComponent(profile.account_username)}?asset=skin&v=${profile.skin_updated}` : null,canManageAccount:registered?.social_id === me.id,membership:entitlement},csrfToken:token ? await csrfFor(token) : null});
     } catch (error) {
         const status = Number((error as {status?:number}).status) || 503;

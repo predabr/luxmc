@@ -9,6 +9,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	import LazyImage from "$lib/components/ui/LazyImage.svelte";
 	import { pageMotion } from "$lib/actions/pageMotion";
 	import SourceBadge from "./SourceBadge.svelte";
+	import { projectCompatibility } from "$lib/utils/projectCompatibility";
 	import type { ModSearchResultItem, ModProjectDetails, ModVersion } from "$lib/api";
 
 	let {
@@ -58,8 +59,9 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	}
 
 	const isModpack = $derived(contentType === "Modpack");
-	const effectiveLoaders = $derived(details?.loaders && details.loaders.length > 0 ? details.loaders : item.categories.filter(c => ['fabric', 'forge', 'neoforge', 'quilt'].includes(c.toLowerCase())));
-	const effectiveVersions = $derived(details?.gameVersions && details.gameVersions.length > 0 ? details.gameVersions : item.versions);
+	const compatibility = $derived(projectCompatibility(item, details, versions));
+	const effectiveLoaders = $derived(compatibility.loaders);
+	const effectiveVersions = $derived(compatibility.gameVersions);
 	const effectiveCategories = $derived(details?.categories && details.categories.length > 0 ? details.categories : item.categories.filter(c => !['fabric', 'forge', 'neoforge', 'quilt'].includes(c.toLowerCase())));
 </script>
 
@@ -297,6 +299,21 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 								<span class="px-2 py-0.5 rounded-lg bg-bg-elevated border border-fg/5 text-[10px] font-mono text-fg/60">{v}</span>
 							{/each}
 						</div>
+					</div>
+				{/if}
+				{#if compatibility.rows.length > 0}
+					<div class="space-y-3 border-t border-fg/10 pt-4">
+						<h3 class="text-xs font-semibold text-fg">{uiText('compatibility.byFile')}</h3>
+						<p class="text-xs leading-relaxed text-fg/50">{uiText('compatibility.scope')}</p>
+						<div class="max-h-64 overflow-y-auto custom-scrollbar space-y-2">
+							{#each compatibility.rows as row (row.loader)}
+								<div class="compatibility-row rounded-xl border border-fg/10 p-3">
+									<h4 class="text-xs font-semibold capitalize text-brand-400">{row.loader}</h4>
+									<p class="mt-1 text-xs leading-relaxed text-fg/70">{row.gameVersions.length ? row.gameVersions.join(' · ') : uiText('compatibility.moreFiles')}</p>
+								</div>
+							{/each}
+						</div>
+						{#if isModpack}<p class="text-xs leading-relaxed text-fg/50">{uiText('compatibility.ports')}</p>{/if}
 					</div>
 				{/if}
 				{#if effectiveCategories.length > 0}

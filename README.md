@@ -73,13 +73,19 @@ Wallpapers importados são copiados para a biblioteca interna. GIFs no perfil e 
 
 As salas Java têm capacidade de 10 participantes, ou **20 incluindo o anfitrião com Pro confirmado**. Todos devem usar uma revisão atualizada do launcher e versões compatíveis do jogo e dos mods. A capacidade do túnel não garante desempenho para vinte jogadores em qualquer computador: o processamento do mundo continua no PC que o abriu. A descoberta LAN tem alternativa por endereço direto para redes que bloqueiam multicast. A validação entre dois PCs com o modpack do usuário continua necessária.
 
-O site adapta o idioma inicial ao navegador e permite escolher português, inglês ou espanhol. O novo acesso Microsoft usa OpenID Connect, PKCE, nonce e validação da assinatura do ID token. Ele autentica a conta Microsoft sem depender da API do Minecraft. No primeiro acesso, a pessoa confirma o vínculo com um perfil Luxmc já autenticado; nomes e e-mails não são usados para juntar perfis. Quem já usa o launcher pode abrir “Meu plano e pedidos”, voltar à página Conta e confirmar o perfil. Os próximos acessos reutilizam esse vínculo. Isso não verifica nem concede uma licença do Minecraft; a autenticação do jogo continua no launcher.
+O site adapta o idioma inicial ao navegador e permite escolher português, inglês ou espanhol. O acesso Microsoft usa OpenID Connect, PKCE, nonce e validação da assinatura do ID token. Quando o serviço Minecraft bloqueia consultas da hospedagem, o site orienta a entrar com a mesma Microsoft no launcher. O launcher confirma a identidade oficial por um desafio de sessão e o site conclui o vínculo automaticamente, preservando o perfil, os amigos e o plano. Nomes e e-mails não são usados para juntar perfis.
+
+Com a revisão atual do launcher aberta, o site pode reconhecer a conta ativa sem pedir outra senha. O botão **Portal Luxmc** abre o navegador com um código de uso único, válido por 60 segundos; os tokens Microsoft e Minecraft ficam no launcher. Ao abrir o site diretamente, o navegador pode pedir permissão para a conexão local. A página Conta também oferece **Usar conta aberta no launcher**. Sair do site interrompe a reconexão automática até a próxima ação explícita. Perfis antigos da Microsoft podem precisar de um novo login no launcher para concluir o vínculo.
 
 A revisão mais recente encurta as transições de navegação, antecipa o código da tela de Amigos e evita animações sobrepostas na biblioteca. As configurações da instância separam identidade, desempenho, Java/loader, janela, comandos e manutenção. A primeira preparação do Minecraft segue o fluxo normal de abertura; reparos continuam disponíveis quando necessários.
 
 Os favoritos do perfil exibem capas sincronizadas. O NameMC abre em uma janela própria com redução de elementos publicitários. O catálogo integrado concentra a busca no Modrinth e no CurseForge.
 
-As correções locais em preparação mostram loaders e versões por arquivo publicado, com histórico paginado do CurseForge, e mantêm as ações das configurações abaixo dos campos. Um port mantido em outro projeto não é tratado como compatibilidade automática. Essas mudanças só chegam ao instalador público depois da publicação de uma nova build.
+A revisão mostra loaders e versões por arquivo publicado, com histórico paginado do CurseForge, e mantém as ações das configurações abaixo dos campos. Um port mantido em outro projeto não é tratado como compatibilidade automática. Resource packs, shaders, datapacks e mundos podem ser adicionados com o Minecraft aberto; a troca de mods continua exigindo fechar o jogo. O mundo ou pacote recém-instalado pode exigir atualização da lista ou recarregamento dentro do Minecraft.
+
+## Android no futuro
+
+Ainda não há APK oficial. O [plano para Android](docs/plans/android-apk.md) propõe primeiro um aplicativo para conta, amigos e catálogo, aproveitando Svelte e Tauri 2. Executar Minecraft Java no celular exige também JVM, componentes gráficos nativos, controles de toque e validação dos loaders em aparelhos reais.
 
 ## Amigos e aparência
 

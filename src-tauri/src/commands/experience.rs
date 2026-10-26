@@ -71,6 +71,28 @@ fn checked_pack_path(root: &std::path::Path, path: &std::path::Path) -> AppResul
     Ok(target)
 }
 
+#[tauri::command]
+pub async fn discard_pack_download(state: tauri::State<'_, crate::state::AppState>, path: String, operation_id: Option<String>) -> AppResult<()> {
+    discard_pack_download_core(&state, path, operation_id.as_deref()).await
+}
+
+pub async fn discard_pack_download_core(state: &crate::state::AppState, path: String, operation_id: Option<&str>) -> AppResult<()> {
+    super::instances::instance_check_import_job(state, operation_id).await?;
+    let _import = state.import_lock.try_lock().map_err(|_| AppError::InvalidState("Outra instalação está em andamento.".into()))?;
+    let base = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| AppError::InvalidState("Cache indisponível".into()))?;
+    let cache = base.cache_dir().join("modpacks");
+    tokio::task::spawn_blocking(move || discard_cached_package(&cache, std::path::Path::new(&path))).await.map_err(|error| AppError::Internal(error.to_string()))??;
+    crate::commands::storage::invalidate_report().await;
+    Ok(())
+}
+
+fn discard_cached_package(root: &std::path::Path, path: &std::path::Path) -> AppResult<()> {
+    let target = checked_pack_path(root, path)?;
+    if !matches!(target.file_name().and_then(|name| name.to_str()), Some("package.zip" | "package.mrpack")) { return Err(AppError::InvalidInput("Arquivo temporário de modpack inválido".into())); }
+    std::fs::remove_file(target)?;
+    Ok(())
+}
+
 #[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Compatibility {
@@ -215,6 +237,24 @@ pub async fn theme_import(path: String) -> AppResult<Value> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn completed_package_cleanup_preserves_instances_and_rejects_other_cache_files() {
+        let temporary = tempfile::tempdir().unwrap();
+        let cache = temporary.path().join("cache");
+        let package = cache.join("job/package.mrpack");
+        std::fs::create_dir_all(package.parent().unwrap()).unwrap();
+        std::fs::write(&package,b"download").unwrap();
+        let world = temporary.path().join("package.mrpack");
+        std::fs::write(&world,b"world").unwrap();
+        let partial = cache.join("job/package.mrpack.part");
+        std::fs::write(&partial,b"partial").unwrap();
+        assert!(super::discard_cached_package(&cache,&world).is_err());
+        assert!(super::discard_cached_package(&cache,&partial).is_err());
+        super::discard_cached_package(&cache,&package).unwrap();
+        assert!(!package.exists());
+        assert_eq!(std::fs::read(world).unwrap(),b"world");
+        assert_eq!(std::fs::read(partial).unwrap(),b"partial");
+    }
     #[tokio::test]
     #[ignore = "Downloads a real provider archive for an explicit integration check"]
     async fn fabulously_optimized_download_passes_native_integrity_check() {

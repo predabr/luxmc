@@ -24,11 +24,14 @@ function fixture(t) {
     const env={SOCIAL_DB:db,MICROSOFT_CLIENT_ID:'9750ebbe-21e9-4a4d-b808-f451a3e0af7f',MICROSOFT_CLIENT_SECRET:'server-only-test-secret',AUTH_PEPPER:'test-pepper-not-for-production-1234567890123456789'};
     const jar=new Map(), calls=[], logs=[], now=Math.floor(Date.now()/1000);
     let claims={}, signingKey=pair.privateKey;
+    let joinedProfile={id:'1234567890abcdef1234567890abcdef',name:'Spect3rBW'};
     t.mock.method(console,'error',(...values)=>logs.push(values));
     t.mock.method(globalThis,'fetch',async (target, options={})=>{
         const url=target instanceof Request?target.url:String(target);
         calls.push(url);
         if(url==='https://login.microsoftonline.com/consumers/discovery/v2.0/keys')return Response.json({keys:[publicKey]});
+        if(url==='https://user.auth.xboxlive.com/user/authenticate') return Response.json({error:'provider_unavailable'},{status:403});
+        if(url.startsWith('https://sessionserver.mojang.com/session/minecraft/hasJoined?'))return Response.json(joinedProfile);
         assert.equal(url,'https://login.microsoftonline.com/consumers/oauth2/v2.0/token');
         assert.equal(options.body.get('client_secret'),env.MICROSOFT_CLIENT_SECRET);
         assert.match(options.body.get('code_verifier'),/^[a-f0-9]{64}$/);
@@ -48,7 +51,7 @@ function fixture(t) {
     async function pending(){return (await call('link_status')).json();}
     async function confirm(){const status=await pending();return call('link',{body:{confirmation:status.confirmation}});}
     t.after(()=>sqlite.close());
-    return {sqlite,db,env,jar,calls,logs,now,call,start,callback,profile,scoped,pending,confirm,setClaims(value){claims=value;},badSignature(){signingKey=otherPair.privateKey;}};
+    return {sqlite,db,env,jar,calls,logs,now,call,start,callback,profile,scoped,pending,confirm,setClaims(value){claims=value;},badSignature(){signingKey=otherPair.privateKey;},setJoinedProfile(value){joinedProfile=value;},async nativeToken(verifier,overrides={}){return new SignJWT({iss:issuer,aud:env.MICROSOFT_CLIENT_ID,sub:'verified-microsoft-subject',tid:tenant,iat:now,exp:now+3600,nonce:sha('luxmc-microsoft-launcher:'+verifier),...overrides}).setProtectedHeader({alg:'RS256',kid:publicKey.kid}).sign(pair.privateKey);}};
 }
 
 test('configuration, method and origin are mandatory',async t=>{
@@ -64,7 +67,7 @@ test('configuration, method and origin are mandatory',async t=>{
 test('OIDC request binds PKCE, nonce and independent HttpOnly cookies',async t=>{
     const f=fixture(t),url=await f.start();
     const row=f.sqlite.prepare('SELECT * FROM lux_microsoft_pending').get();
-    assert.equal(url.searchParams.get('scope'),'openid profile');
+    assert.equal(url.searchParams.get('scope'),'openid profile XboxLive.signin');
     assert.equal(url.searchParams.get('code_challenge_method'),'S256');
     assert.equal(url.searchParams.get('nonce'),await microsoftNonce(row.verifier));
     assert.equal(url.searchParams.get('code_challenge'),createHash('sha256').update(row.verifier).digest('base64url'));
@@ -81,7 +84,7 @@ test('verified Microsoft identity alone cannot create or claim a Luxmc profile',
     assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS n FROM lux_sessions').get().n,0);
     assert.equal((await f.pending()).profile,null);
     assert.equal((await f.confirm()).status,401);
-    assert.ok(f.calls.every(url=>url.startsWith('https://login.microsoftonline.com/')));
+    assert.ok(f.calls.every(url=>url.startsWith('https://login.microsoftonline.com/') || url === 'https://user.auth.xboxlive.com/user/authenticate'));
     assert.equal(f.sqlite.prepare('SELECT plan FROM lux_memberships').get().plan,'pro');
 });
 
@@ -112,7 +115,7 @@ test('returning Microsoft login reuses the linked account without Xbox or Minecr
     assert.equal((await f.callback(await f.start())).headers.get('Location'),'/conta');
     assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS n FROM lux_accounts').get().n,1);
     assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS n FROM lux_sessions').get().n,2);
-    assert.ok(f.calls.every(url=>url.startsWith('https://login.microsoftonline.com/')));
+    assert.ok(f.calls.every(url=>url.startsWith('https://login.microsoftonline.com/') || url === 'https://user.auth.xboxlive.com/user/authenticate'));
     assert.doesNotMatch(JSON.stringify(f.sqlite.prepare('SELECT * FROM lux_accounts').get()),/unused-private-access-token|test-authorization-code/);
 });
 
@@ -187,4 +190,64 @@ test('Microsoft-only profiles cannot change or recover a local password',async t
     const recover=await f.call('recover',{handler:accountHandler,body:{username:'Spect3rBW',password:'New-test-password',recoveryCode:'0'.repeat(64)}});
     assert.equal(recover.status,401);
     assert.match((await recover.json()).error,/Microsoft/);
+});
+
+test('launcher proof finishes website sign-in and keeps the original friends and Pro plan',async t=>{
+    const f=fixture(t), id=f.profile(), friend=f.profile('friend','Friend');
+    const bearer=sha('native-owner');
+    f.sqlite.prepare('UPDATE social_users SET token_hash=? WHERE id=?').run(sha(bearer),id);
+    f.sqlite.prepare('INSERT INTO lux_memberships(social_id,plan,expires_at) VALUES(?,?,?)').run(id,'pro',f.now+86400);
+    f.sqlite.prepare('INSERT INTO social_relationships(sender,recipient,pair_key,accepted,created_at) VALUES(?,?,?,?,?)').run(id,friend,'pair',1,f.now);
+    await f.callback(await f.start());
+    const verifier='n'.repeat(43), idToken=await f.nativeToken(verifier);
+    const headers={Authorization:'Bearer '+bearer};
+    const start=await f.call('launcher_start',{headers,body:{verifier,idToken,uuid:'1234567890abcdef1234567890abcdef',username:'Spect3rBW'}});
+    assert.equal(start.status,200);
+    const challenge=await start.json();
+    assert.match(challenge.serverId,/^[a-f0-9]{40}$/);
+    assert.equal((await f.call('launcher_complete',{headers,body:{ticket:challenge.ticket}})).status,200);
+    assert.deepEqual(await f.pending(),{pending:false,linked:true});
+    const account=await authenticate(new Request(origin,{headers:{Cookie:'__Host-luxmc='+f.jar.get('__Host-luxmc')}}),f.db);
+    assert.equal(account.social_id,id);
+    assert.equal(f.sqlite.prepare('SELECT plan FROM lux_memberships').get().plan,'pro');
+    assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS n FROM social_relationships').get().n,1);
+    assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS n FROM lux_accounts').get().n,1);
+    assert.equal((await f.call('launcher_complete',{headers,body:{ticket:challenge.ticket}})).status,503);
+    const me=await f.call('me',{handler:accountHandler,body:{}});
+    assert.equal((await me.json()).account.minecraftUuid,'1234567890abcdef1234567890abcdef');
+    const nativeAccount=await authenticate(new Request(origin,{headers}),f.db);
+    assert.equal(nativeAccount.social_id,id);
+    const secondId=f.profile('second-device','Spect3rBW'), secondBearer=sha('second-native-device');
+    f.sqlite.prepare('UPDATE social_users SET token_hash=? WHERE id=?').run(sha(secondBearer),secondId);
+    const nextHeaders={Authorization:'Bearer '+secondBearer};
+    const next=await (await f.call('launcher_start',{headers:nextHeaders,body:{verifier,idToken,uuid:'1234567890abcdef1234567890abcdef',username:'Spect3rBW'}})).json();
+    assert.equal((await f.call('launcher_complete',{headers:nextHeaders,body:{ticket:next.ticket}})).status,200);
+    const secondAccount=await authenticate(new Request(origin,{headers:nextHeaders}),f.db);
+    assert.equal(secondAccount.social_id,id);
+    assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS n FROM lux_accounts').get().n,1);
+    assert.ok(f.sqlite.prepare('SELECT removed_at FROM social_users WHERE id=?').get(secondId).removed_at>0);
+    assert.doesNotMatch(JSON.stringify(f.logs),new RegExp(idToken));
+});
+
+test('a valid Microsoft token cannot claim a Minecraft profile without the matching session proof',async t=>{
+    const f=fixture(t), id=f.profile(), bearer=sha('native-owner');
+    f.sqlite.prepare('UPDATE social_users SET token_hash=? WHERE id=?').run(sha(bearer),id);
+    const verifier='n'.repeat(43), idToken=await f.nativeToken(verifier), headers={Authorization:'Bearer '+bearer};
+    const body={verifier,idToken,uuid:'1234567890abcdef1234567890abcdef',username:'Spect3rBW'};
+    assert.equal((await f.call('launcher_start',{headers,body:{...body,verifier:'x'.repeat(43)}})).status,503);
+    assert.equal((await f.call('launcher_start',{body})).status,503);
+    const challenge=await (await f.call('launcher_start',{headers,body})).json();
+    f.setJoinedProfile({id:'ffffffffffffffffffffffffffffffff',name:'Spect3rBW'});
+    assert.equal((await f.call('launcher_complete',{headers,body:{ticket:challenge.ticket}})).status,503);
+    assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS n FROM lux_microsoft_subjects').get().n,0);
+    assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS n FROM lux_accounts').get().n,0);
+    f.sqlite.prepare('UPDATE lux_microsoft_launcher_pending SET expires_at=0').run();
+    assert.equal((await f.call('launcher_complete',{headers,body:{ticket:challenge.ticket}})).status,503);
+});
+
+test('onboarding polling does not consume the authorization attempt limit',async t=>{
+    const f=fixture(t);
+    for(let index=0;index<30;index++)assert.equal((await f.call('link_status')).status,200);
+    assert.equal((await f.call('link_status')).status,429);
+    assert.equal((await f.call('start')).status,200);
 });

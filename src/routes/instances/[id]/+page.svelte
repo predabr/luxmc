@@ -7,6 +7,7 @@
     import ModpackVersions from "$lib/components/instances/ModpackVersions.svelte";
 	import { runtimePlatform } from "$lib/stores/platform.svelte";
 	import { pageMotion } from "$lib/actions/pageMotion";
+    import { loadersVersions } from '$lib/api/launch';
     import { button as launcherButton } from "$lib/components/ui/button";
 	import { backOut, quintOut } from "svelte/easing";
     import InstanceHero from "$lib/components/instances/InstanceHero.svelte";
@@ -281,6 +282,24 @@
 	let instanceJvmArgs = $state("");
 	let instanceLoaderType = $state<string>("vanilla");
 	let instanceLoaderVersion = $state<string>("0.15.11");
+    let instanceLoaderHint = $state('');
+    let instanceLoaderError = $state('');
+    let instanceLoaderChecking = $state(false);
+    let instanceLoaderChoices = $state<Array<{id:string;stable:boolean}>>([]);
+    $effect(() => {
+        const loader = instanceLoaderType;
+        const version = activeProfile?.mcVersion;
+        instanceLoaderHint = ''; instanceLoaderError = ''; instanceLoaderChecking = false; instanceLoaderChoices = [];
+        if (!settingsVisible || !version || !['legacyfabric','babric'].includes(loader)) return;
+        let active = true;
+        instanceLoaderChecking = true;
+        void loadersVersions(loader,version).then(result => {
+            if (!active) return;
+            instanceLoaderChoices = result.versions;
+            if (!result.versions.length) instanceLoaderHint = uiText('loaderCompatibility.unavailable',{loader:loader === 'legacyfabric' ? 'Legacy Fabric' : 'Babric',version}) + (result.supportedGameVersions?.length ? ` ${uiText('loaderCompatibility.supported')}: ${result.supportedGameVersions.slice(0,5).join(', ')}.` : '');
+        }).catch(() => { if (active) instanceLoaderError = uiText('loaderCompatibility.requestFailed'); }).finally(() => { if (active) instanceLoaderChecking = false; });
+        return () => { active = false; };
+    });
 	let instanceWindowWidth = $state(1280);
 	let instanceWindowHeight = $state(720);
 	let instanceStartFullscreen = $state(false);
@@ -428,6 +447,13 @@
             };
 			savingInstanceSettings = true;
             try {
+                if (changes.loader !== profile.loader || (changes.loaderVersion || '') !== (profile.loaderVersion || '')) {
+                    if (changes.loader !== 'vanilla') {
+                        const available = await loadersVersions(changes.loader,profile.mcVersion);
+                        if (!available.versions.length) throw new Error(uiText('loaderCompatibility.unavailable',{loader:changes.loader === 'legacyfabric' ? 'Legacy Fabric' : changes.loader === 'babric' ? 'Babric' : changes.loader,version:profile.mcVersion}));
+                        if (changes.loaderVersion && !available.versions.some(version => version.id === changes.loaderVersion)) throw new Error(uiText('loaderCompatibility.selectLoaderVersion'));
+                    }
+                }
                 await profilesUpdate(changes);
                 profiles.update(profile.id, {
                     ...changes,
@@ -2052,7 +2078,7 @@
 													src={mod.icon}
 													alt={displayName}
 													loading="eager"
-													class="relative z-10 w-full h-full object-contain"
+													class="relative z-10 w-full h-full object-contain p-1"
 												/>
 											{/if}
 										</div>
@@ -2567,7 +2593,7 @@
 
         {:else if mainTab === "configuracoes"}
         <div use:pageMotion={mainTab} id="instance-configuracoes" role="tabpanel" aria-labelledby="instance-tab-configuracoes" class="instance-overview-section">
-            <section aria-label={uiText("ui.6c5b8d86c6726795")} class="rounded-2xl border border-border bg-bg-elevated p-5 sm:p-6 space-y-6">
+            <section aria-label={uiText("ui.6c5b8d86c6726795")} class="instance-settings-editor rounded-2xl border border-border bg-bg-elevated p-5 sm:p-6">
             <header class="relative shrink-0 overflow-hidden rounded-2xl border border-border bg-bg-subtle">
                 <img loading="lazy" decoding="async" src={instanceBanner || heroBanner} alt="" class="absolute inset-0 h-full w-full object-cover opacity-30" />
                 <div class="relative flex items-center gap-4 bg-gradient-to-r from-bg-elevated via-bg-elevated/80 to-transparent p-5">
@@ -2641,9 +2667,9 @@
 											type="button"
 											aria-pressed={instanceLoaderType === loader}
                                             class={button({ variant: instanceLoaderType === loader ? "primary" : "secondary", class: "justify-between" })}
-											onclick={() => instanceLoaderType = loader}
+											onclick={() => { if (instanceLoaderType !== loader) instanceLoaderVersion = ''; instanceLoaderType = loader; }}
 										>
-											<span class="capitalize">{loader}</span>
+											<span class="capitalize">{loader === 'legacyfabric' ? 'Legacy Fabric' : loader === 'neoforge' ? 'NeoForge' : loader}</span>
 											{#if instanceLoaderType === loader}<Check class="w-4 h-4" />{/if}
 										</button>
 									{/each}
@@ -2652,7 +2678,12 @@
 
 							<div class="space-y-2">
 								<span class="text-xs font-bold text-fg/70 block">{uiText("ui.b927179f42538736")}</span>
+                                {#if instanceLoaderChecking}<p role="status" class="text-xs text-fg-muted">{uiText('ui.39928af4a13cacba')}</p>{/if}
+                                {#if instanceLoaderHint}<p role="status" class="rounded-xl border border-border bg-bg-subtle p-4 text-xs leading-relaxed text-fg-muted">{instanceLoaderHint}</p>{/if}
+                                {#if instanceLoaderError}<p role="alert" class="text-xs text-danger">{instanceLoaderError}</p>{/if}
+                                {#if instanceLoaderChoices.length}<select aria-label={uiText('instances.loaderVersion')} bind:value={instanceLoaderVersion} class="w-full rounded-xl border border-border bg-bg-elevated px-4 py-3 text-sm text-fg"><option value="">{uiText('loaderCompatibility.automatic')}</option>{#each instanceLoaderChoices as version}<option value={version.id}>{version.id}</option>{/each}</select>{:else}
 								<input type="text" bind:value={instanceLoaderVersion} class="w-full bg-bg-elevated border border-fg/10 rounded-2xl px-4 py-2.5 text-xs text-fg font-mono outline-none focus:border-brand-500" />
+                                {/if}
 							</div>
 						</div>
 
@@ -3081,9 +3112,10 @@
 				</div>
 			</div>
 
-			<div class="instance-settings-save flex items-center justify-end gap-3 rounded-2xl border border-border bg-bg-elevated p-3">
+			<footer class="instance-settings-save flex items-center justify-end gap-3 rounded-2xl border border-border bg-bg-elevated p-4">
 				<button
 					type="button"
+					disabled={savingInstanceSettings}
 					class={button({ variant: "secondary" })}
 					onclick={() => { settingsModalSyncedFor = null; }}
 				>
@@ -3098,7 +3130,7 @@
 				>
 					<Check class="w-4 h-4 stroke-[3]" /> {uiText("ui.fdc83a1f4dac7cb0")}
 				</button>
-			</div>
+			</footer>
 
             </section>
 		</div>
