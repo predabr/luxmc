@@ -1,4 +1,4 @@
-use crate::error::{AppError, AppResult};
+use crate::error::AppResult;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 const PORT: u16 = 38457;
@@ -6,14 +6,19 @@ const ORIGINS: [&str; 3] = ["https://luxmc-r92.pages.dev", "https://luxmc.top", 
 
 pub(crate) async fn portal_url(path: &str) -> AppResult<String> {
     let base = format!("{}{}", super::lux_account::portal_base(), path);
-    let Some(account) = active_account().await? else { return Ok(base); };
-    let value = ticket(account, path).await?;
-    let code = value.get("ticket").and_then(|value|value.as_str()).filter(|value|value.len() == 64 && value.bytes().all(|byte|byte.is_ascii_hexdigit()))
-        .ok_or_else(|| AppError::InvalidState("Sessão do site indisponível.".into()))?;
-    let mut url = url::Url::parse(&base).map_err(|_| AppError::InvalidInput("Página inválida.".into()))?;
+    let value = tokio::time::timeout(std::time::Duration::from_secs(3), async {
+        let account = active_account().await.ok()??;
+        ticket(account, path).await.ok()
+    }).await.ok().flatten();
+    Ok(transfer_url(&base, value.as_ref()))
+}
+
+fn transfer_url(base: &str, value: Option<&serde_json::Value>) -> String {
+    let Some(code) = value.and_then(|value|value.get("ticket")).and_then(|value|value.as_str()).filter(|value|value.len() == 64 && value.bytes().all(|byte|byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))) else { return base.into(); };
+    let Ok(mut url) = url::Url::parse(base) else { return base.into(); };
     let anchor = url.fragment().unwrap_or_default().to_owned();
     url.set_fragment(Some(&format!("launcher_ticket={code}{}", if anchor.is_empty() { String::new() } else { format!("&section={anchor}") })));
-    Ok(url.to_string())
+    url.to_string()
 }
 
 async fn active_account() -> AppResult<Option<String>> {
@@ -111,6 +116,16 @@ pub(crate) async fn serve() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn portal_preserves_public_access_when_session_transfer_is_unavailable() {
+        let base = "https://luxmc-r92.pages.dev/#mods";
+        assert_eq!(transfer_url(base, None), base);
+        assert_eq!(transfer_url(base, Some(&serde_json::json!({"ticket":"invalid"}))), base);
+        assert_eq!(transfer_url(base, Some(&serde_json::json!({"ticket":"A".repeat(64)}))), base);
+        let ticket = "a".repeat(64);
+        assert_eq!(transfer_url(base, Some(&serde_json::json!({"ticket":ticket}))), format!("https://luxmc-r92.pages.dev/#launcher_ticket={ticket}&section=mods"));
+    }
 
     #[test]
     fn local_connector_accepts_only_the_official_site_and_explicit_json_requests() {

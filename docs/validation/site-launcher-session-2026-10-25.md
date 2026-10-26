@@ -6,14 +6,20 @@ A resposta contém um ticket de uso único, válido por 60 segundos. O site troc
 
 O botão Portal Luxmc usa o mesmo mecanismo pelo fragmento do endereço. O script remove o ticket do histórico antes da troca. Isso também oferece um caminho quando o navegador bloqueia conexões locais. O acesso direto ao site pode exigir a permissão de rede local do navegador; essa permissão não é contornada.
 
+A transferência pelo Portal tem um prazo de três segundos. Sessão ausente, expirada, resposta inválida ou serviço indisponível fazem o botão abrir a página pública, preservando o acesso ao site. O teste nativo verifica a preservação do endereço e a inclusão do fragmento apenas com um ticket válido.
+
 Sair do site guarda a escolha de não reconectar automaticamente. A página Conta oferece uma reconexão explícita. Uma sessão já aberta pelo usuário no site é preservada ao visitar o endereço diretamente; abrir o Portal pelo launcher transfere explicitamente a conta escolhida nele.
 
 ## Verificação local
 
 - Svelte/TypeScript: zero erros e zero avisos.
 - Frontend: 230 testes aprovados e compilação de produção concluída.
-- Backend: `cargo check` aprovado; 292 testes aprovados e 12 testes dependentes de fixtures externas ignorados.
+- Backend: `cargo check` aprovado; 293 testes aprovados e 12 testes dependentes de fixtures externas ignorados.
 - Site: 142 testes aprovados; compilação TypeScript e geração dos arquivos concluídas.
 - Testes de transferência verificam uso único, cookies privados, conta cadastrada, abertura pelo fragmento, descoberta local e respeito ao logout.
+- Navegador: cinco cenários do site e os 45 cenários de conteúdo do launcher aprovados, incluindo catálogo, configurações, planos, atualização, retomada de download e imagens. Os testes usam fixtures, sem iniciar o jogo.
+- Manifestos, assinaturas e proteção de expansão de padrões: 16 testes aprovados.
+
+O site foi publicado em `https://31ea9f52.luxmc-r92.pages.dev`. No domínio de produção, a página Conta, o script de sessão e a API responderam HTTP 200. O botão de conexão e a regra CSP do conector local estavam presentes; a API sem autenticação retornou uma sessão vazia.
 
 Os testes usam identidades simuladas. O agente não entrou na conta Microsoft pessoal nem iniciou Minecraft. A revisão exige instalar o launcher correspondente para ativar o conector local; apenas atualizar o site não acrescenta esse serviço a um executável antigo.

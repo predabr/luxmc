@@ -302,10 +302,16 @@ mod fixed_loader_cache_tests {
             while paths.len() < 2 && started.elapsed() < std::time::Duration::from_secs(5) {
                 match listener.accept() {
                     Ok((mut stream,_)) => {
+                        stream.set_nonblocking(false).unwrap();
                         stream.set_read_timeout(Some(std::time::Duration::from_secs(2))).unwrap();
-                        let mut buffer = [0;4096];
-                        let size = stream.read(&mut buffer).unwrap();
-                        let request = String::from_utf8_lossy(&buffer[..size]);
+                        let mut data = Vec::new();
+                        while !data.windows(4).any(|part| part == b"\r\n\r\n") {
+                            let mut buffer = [0;1024];
+                            let size = stream.read(&mut buffer).unwrap();
+                            assert!(size > 0 && data.len() + size <= 8192);
+                            data.extend_from_slice(&buffer[..size]);
+                        }
+                        let request = String::from_utf8_lossy(&data);
                         let path = request.lines().next().unwrap().split_whitespace().nth(1).unwrap().to_owned();
                         let body = match path.as_str() {
                             "/v2/versions/game" => r#"[{"version":"1.8.9","stable":true}]"#,
