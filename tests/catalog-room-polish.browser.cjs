@@ -39,7 +39,7 @@ const base = process.env.LUXMC_BROWSER_BASE_URL || 'http://127.0.0.1:1420';
         await card.waitFor();
         await page.waitForFunction(() => {
             const image = document.querySelector('.catalog-card img.relative');
-            return image?.complete && image.naturalWidth > 0 && image.style.opacity === '1' && getComputedStyle(image).objectFit === 'cover';
+            return image?.complete && image.naturalWidth > 0 && image.style.opacity === '0.4' && getComputedStyle(image).objectFit === 'cover';
         });
         assert.equal(await page.evaluate(() => window.polishAnimations.some(animation => animation.id === 'luxmc-catalog-reveal')), true);
         fs.mkdirSync('docs/validation/local-polish', { recursive: true });
