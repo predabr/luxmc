@@ -1,15 +1,15 @@
 <div align="center">
   <img src="static/logo.png" alt="Luxmc" width="80" />
-  <h1>Luxmc 4.0 — Do Seu Jeito</h1>
-  <p>Seu Minecraft, suas instâncias e sua turma.</p>
+  <h1>Luxmc 4.0</h1>
+  <p>Minecraft, modpacks e amigos. Cada aventura na sua própria instância.</p>
   <p><a href="https://luxmc-r92.pages.dev">Site oficial</a> · <a href="https://github.com/predabr/luxmc/releases/latest">Downloads</a> · <a href="SECURITY.md">Segurança</a></p>
 </div>
 
-![Luxmc 4.0: instâncias, modpacks, personalização e amigos em um launcher para desktop](docs/media/readme/hero.svg)
+![Biblioteca real do Luxmc 4.0: suas instâncias, modpacks e amigos](website/assets/captures-4.0/home.png)
 
 <p align="center">
   <a href="https://github.com/predabr/luxmc/releases/latest"><img src="https://img.shields.io/badge/vers%C3%A3o-4.0.0-blue?style=flat-square" alt="Versão 4.0.0" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/licen%C3%A7a-GPL--3.0--only-informational?style=flat-square" alt="Licença vigente: GPL-3.0-only" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/c%C3%B3digo-dispon%C3%ADvel_%C2%B7_n%C3%A3o_comercial-informational?style=flat-square" alt="Código disponível sob licença Luxmc não comercial 2.0" /></a>
   <img src="https://img.shields.io/badge/desktop-Windows%20%2B%20Linux-lightgrey?style=flat-square" alt="Desktop Windows e Linux" />
 </p>
 
@@ -17,7 +17,7 @@ Luxmc reúne versões Java, modpacks, organização de instâncias, personaliza�
 
 **Versão atual: 4.0.0.** As correções da linha 4.0 recebem uma identificação própria de build. O código em `main` pode conter mudanças ainda não incluídas nos instaladores públicos; confira a [última release publicada](https://github.com/predabr/luxmc/releases/latest) antes de baixar.
 
-**Licenciamento:** a [proposta de licença própria não comercial 2.0](docs/licensing/proposed/LUXMC-NONCOMMERCIAL-2.0-DRAFT.md) está publicada para revisão. Ela ainda não substitui a GPL vigente; veja o [status e o plano de adoção](docs/licensing/proposed/README.md).
+**Código disponível, com condições claras.** Uso pessoal, estudo e forks gratuitos não comerciais são permitidos pela [licença Luxmc 2.0](LICENSE). Exploração comercial por terceiros exige autorização escrita. Esta política não é uma licença Open Source OSI e não revoga permissões de versões anteriores ou de componentes de terceiros.
 
 ## Escolha seu próximo mundo
 
@@ -44,8 +44,6 @@ Baixe apenas dos canais oficiais. O atualizador verifica o manifesto assinado e 
 
 Capturas da revisão local 4.0, enviadas pelo autor em 25/10/2026. A disponibilidade das mudanças nos downloads acompanha a build publicada.
 
-![Biblioteca do Luxmc 4.0, com modpacks instalados, acesso rápido e painel de amigos](website/assets/captures-4.0/home.png)
-
 <details>
 <summary>Explorar modpacks e reunir a turma</summary>
 
@@ -56,6 +54,21 @@ Capturas da revisão local 4.0, enviadas pelo autor em 25/10/2026. A disponibili
 </details>
 
 ## Biblioteca e conteúdo
+
+### Servidores locais: o próximo passo
+
+A revisão local experimental já cria um servidor Vanilla no PC de quem hospeda. Os testes do usuário encontraram falhas de acesso e compartilhamento; a correção e a validação entre dois PCs ainda estão pendentes. O novo painel não foi entregue nos instaladores públicos.
+
+O objetivo é entrar pelo endereço no Multijogador, **sem convite obrigatório** em servidores abertos. O dono terá nome, imagem, descrição, conteúdo, console, backups e gestão de jogadores no mesmo painel. Online agora, jogadores únicos que já entraram e conhecidos offline serão contados separadamente; expulsar, banir e desbanir farão parte do controle do dono.
+
+| Próxima revisão | Plus | Pro |
+| --- | --- | --- |
+| Mundo aberto por LAN | Até 10 participantes | Até 20 participantes |
+| Servidor dedicado pelo Luxmc | — | Até 20 participantes, incluindo o dono |
+| Memória do servidor gerenciado | — | Até 8 GiB do PC de quem hospeda |
+| Mods, modpack, datapacks, resource packs e mundos do servidor | — | Gestão pelo painel planejada |
+
+Essas funções estão **em desenvolvimento**. Não são benefícios já entregues para justificar uma compra. A LAN existente também está em revisão para os modpacks relatados. Entrada pública só pelo endereço exige DNS e transporte TCP alcançável; um domínio sozinho não cria o acesso P2P. Nenhum domínio é oferecido neste anúncio, e não há promessa de desempenho para vinte pessoas em qualquer PC. Veja [o escopo e os critérios de entrega](docs/roadmap/servidores-e-android.md).
 
 Cada instância Java conserva seus mods, mundos e configurações em sua própria pasta. Crie pastas com nome e imagem para organizar a biblioteca e arraste as instâncias para dentro delas.
 
@@ -83,9 +96,9 @@ Os favoritos do perfil exibem capas sincronizadas. O NameMC abre em uma janela p
 
 A revisão mostra loaders e versões por arquivo publicado, com histórico paginado do CurseForge, e mantém as ações das configurações abaixo dos campos. Um port mantido em outro projeto não é tratado como compatibilidade automática. Resource packs, shaders, datapacks e mundos podem ser adicionados com o Minecraft aberto; a troca de mods continua exigindo fechar o jogo. O mundo ou pacote recém-instalado pode exigir atualização da lista ou recarregamento dentro do Minecraft.
 
-## Android no futuro
+## Android está nos planos
 
-Ainda não há APK oficial. O [plano para Android](docs/plans/android-apk.md) propõe primeiro um aplicativo para conta, amigos e catálogo, aproveitando Svelte e Tauri 2. Executar Minecraft Java no celular exige também JVM, componentes gráficos nativos, controles de toque e validação dos loaders em aparelhos reais.
+Estamos planejando uma versão Android. **Ainda não há APK oficial nem data anunciada.** O [plano técnico](docs/plans/android-apk.md) começa por conta, amigos e catálogo; executar Minecraft Java no celular é uma etapa própria de runtime, gráficos, controles de toque e testes dos loaders em aparelhos reais. Acompanhe [servidores e Android](docs/roadmap/servidores-e-android.md) e as releases oficiais para distinguir planejamento de funções publicadas.
 
 ## Amigos e aparência
 
@@ -142,9 +155,9 @@ O site usa fontes TypeScript em `site-client/` e `site-server/`; `pnpm build:web
 
 ## Licença e identidade
 
-O código original do Luxmc é distribuído sob [GNU GPLv3](LICENSE), com identificador `GPL-3.0-only`. A licença permite cópia, modificação, redistribuição e uso comercial; quem distribui o programa ou versões derivadas deve cumprir suas obrigações de disponibilizar o código correspondente e preservar os avisos. Versões modificadas devem ser identificadas como modificadas. Consulte [BRANDING.md](BRANDING.md) e [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+O código original das novas distribuições que incluem a [licença Luxmc não comercial 2.0](LICENSE) pode ser estudado, modificado e redistribuído gratuitamente para finalidades não comerciais, respeitando suas condições. Revenda, serviço comercial ou incorporação em produto comercial por terceiros exigem autorização escrita dos titulares. Os planos oficiais Plus/Pro são oferecidos pelos próprios titulares sobre material que controlam.
 
-A publicação da proposta não concede autorização adicional para oferecer o código original do projeto sob MIT ou outra licença alternativa. Bibliotecas e arquivos de terceiros que já usam MIT ou outras licenças conservam seus próprios termos. Qualquer futura restrição não comercial só poderá alcançar material cujos titulares concedam os direitos necessários; permissões das cópias anteriormente distribuídas sob GPL não são revogadas.
+Uma restrição comercial torna o projeto **código disponível**, não Open Source conforme a OSI. A mudança não revoga a GPL de cópias anteriores, não reescreve releases antigas e não altera licenças de terceiros. O instalador público conserva os termos da versão com que foi distribuído. Consulte [o registro de adoção](docs/licensing/adoption-2026-10-26.md), [BRANDING.md](BRANDING.md), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) e [CONTRIBUTING.md](CONTRIBUTING.md). Não há autorização adicional para terceiros oferecerem o código original sob MIT.
 
 Bibliotecas, componentes de rede, conteúdo dos packs, imagens dos usuários e marcas de terceiros mantêm suas licenças e titulares. Luxmc não é um produto oficial de Minecraft nem é aprovado ou associado à Mojang ou à Microsoft.
 

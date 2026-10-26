@@ -75,7 +75,8 @@
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "BRL" }
       }
     </script>
-  <link rel="stylesheet" href="/session.css?v=3.9.0-identity"></head>
+  <link rel="stylesheet" href="/session.css?v=3.9.0-identity"><link rel="stylesheet" href="/roadmap.css?v=20261026">
+</head>
   <body class="home-page">
     <a class="skip-link" href="#main">Ir para o conteúdo</a>
     <div class="reading-progress" aria-hidden="true"></div>
@@ -789,6 +790,7 @@
           <a class="text-link" href="/benchmarks/windows-3.6-idle.json" target="_blank" rel="noopener"><span data-i18n="performance.report">Ver dados e condições da medição</span><span aria-hidden="true">↗</span></a>
         </div>
       </section>
+      <section id="proximos-passos" class="roadmap-section" aria-labelledby="proximos-passos-title"><div class="container"><header class="roadmap-heading"><p class="eyebrow" data-i18n="roadmap.label">O QUE ESTAMOS PREPARANDO</p><h2 id="proximos-passos-title" data-i18n="roadmap.title">Mais mundos para jogar juntos.</h2><p data-i18n="roadmap.intro">Servidores no seu PC e uma versão Android nos planos. Aqui você acompanha o que está sendo construído e o que ainda precisa de validação.</p></header><div class="roadmap-grid"><article class="roadmap-card"><span class="roadmap-card-label" data-i18n="roadmap.proLabel">PRO / EM DESENVOLVIMENTO</span><h3 data-i18n="roadmap.proTitle">Seu servidor. Seu endereço.</h3><p data-i18n="roadmap.proBody">Servidor dedicado com até 20 participantes e até 8 GiB da RAM do seu PC. Entrada por endereço sem convite obrigatório, gestão de mods, mundos, jogadores e banimentos. DNS e transporte público ainda precisam ser definidos e validados.</p></article><article class="roadmap-card"><span class="roadmap-card-label" data-i18n="roadmap.plusLabel">PLUS / LAN EM REVISÃO</span><h3 data-i18n="roadmap.plusTitle">Abra o mundo e reúna a turma.</h3><p data-i18n="roadmap.plusBody">O Plus mantém a hospedagem de mundos por LAN, com até 10 participantes. Estamos revisando descoberta e conexão em modpacks; a correção precisa de teste entre dois PCs. Servidor dedicado será exclusivo do Pro.</p></article><article class="roadmap-card"><span class="roadmap-card-label" data-i18n="roadmap.androidLabel">ANDROID / PLANEJADO</span><h3 data-i18n="roadmap.androidTitle">O Luxmc também no celular.</h3><p data-i18n="roadmap.androidBody">Uma versão Android está nos planos, começando por conta, amigos e catálogo. Executar Minecraft Java exige uma etapa própria de runtime, gráficos e controles. Ainda não há APK oficial nem data anunciada.</p></article></div><p class="roadmap-status" data-i18n="roadmap.status">Planejamento não é função entregue. O novo servidor está em revisão local experimental e estes recursos ainda não fazem parte dos downloads públicos. Não escolha um plano contando com uma função futura. Hospedagem usa o PC ligado do dono; não inclui servidor em nuvem.</p><a class="roadmap-details" href="https://github.com/predabr/luxmc/blob/main/docs/roadmap/servidores-e-android.md" target="_blank" rel="noopener noreferrer" data-i18n="roadmap.details">Ver o escopo e acompanhar o desenvolvimento ↗</a></div></section>
       <section id="download" class="download-section">
         <div class="container">
           <div class="section-heading">
@@ -1004,12 +1006,7 @@
         <div>
           <details class="faq-item">
             <summary data-i18n="faq.q1">O LuxMC é gratuito?</summary>
-            <p data-i18n="faq.a1">
-              Sim. O código original atual usa GPLv3, que permite cópia,
-              modificação e uso comercial conforme seus termos. Consulte a
-              licença da versão distribuída; componentes de terceiros mantêm
-              seus próprios direitos.
-            </p>
+            <p data-i18n="faq.a1">O uso pessoal é gratuito. O código original das novas distribuições usa a licença Luxmc não comercial 2.0: estudo e forks gratuitos não comerciais são permitidos nas suas condições; exploração comercial por terceiros exige autorização escrita. Versões anteriores e componentes de terceiros mantêm suas licenças.</p>
           </details>
           <details class="faq-item">
             <summary data-i18n="faq.q2">
@@ -1033,11 +1030,7 @@
           </details>
           <details class="faq-item">
             <summary data-i18n="faq.q4">Como funciona o multiplayer?</summary>
-            <p data-i18n="faq.a4">
-              Abra um mundo para LAN no Minecraft e compartilhe um convite do
-              LuxMC. O túnel conecta os participantes diretamente ou por relay,
-              conforme as condições da rede.
-            </p>
+            <p data-i18n="faq.a4">Na versão atual, o anfitrião abre o mundo para LAN e compartilha a sala pelo Luxmc. A conexão tenta P2P direto e pode usar relay. Estamos revisando falhas em modpacks. Servidor aberto por endereço, sem convite obrigatório, é um objetivo da próxima revisão e ainda depende de implementação e validação.</p>
           </details>
           <details class="faq-item">
             <summary data-i18n="faq.q5">
@@ -1160,7 +1153,7 @@
       </div>
     </dialog>
     <div id="toastContainer" class="toast-container" aria-live="polite"></div>
-    <script defer="" src="i18n.js?v=20261004"></script>
+    <script defer="" src="i18n.js?v=20261026-roadmap"></script>
     <script defer="" src="app.js?v=20261004"></script>
     <script type="module" src="cinematic.js?v=20261020-motion"></script>
   <script type="module" src="/session.js?v=3.9.0-identity"></script></body>

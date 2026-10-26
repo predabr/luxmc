@@ -1,6 +1,6 @@
 # Segurança do Luxmc
 
-Baixe o launcher pelo [site oficial](https://luxmc-r92.pages.dev/download/windows) ou pelas [releases de predabr/luxmc](https://github.com/predabr/luxmc/releases). O código original é distribuído sob GPLv3 e pode ser copiado, modificado e redistribuído segundo seus termos. A origem oficial é identificada pelos canais do mantenedor e pelas assinaturas verificáveis, conforme [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md).
+Baixe o launcher pelo [site oficial](https://luxmc-r92.pages.dev/download/windows) ou pelas [releases de predabr/luxmc](https://github.com/predabr/luxmc/releases). O código original das novas distribuições que incluem a licença 2.0 é oferecido para uso não comercial, conforme LICENSE. As licenças dos artefatos anteriores e dos componentes de terceiros permanecem aplicáveis. A origem oficial é identificada pelos canais do mantenedor e pelas assinaturas verificáveis, conforme [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md).
 
 Desde a versão 3.6, o atualizador verifica a assinatura Ed25519 de `SHA256SUMS` usando uma chave pública incluída no executável. Em seguida, confere o SHA-256 do instalador. Uma assinatura inválida, arquivo alterado ou origem não permitida impede a execução da atualização. `latest.json` também recebe uma assinatura para conferência independente. A chave privada não faz parte do repositório.
 

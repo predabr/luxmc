@@ -1,6 +1,6 @@
 # Third-party notices — Luxmc
 
-The GPL-3.0-only grant applies to original Luxmc code. It does not replace third-party licenses or claim ownership of third-party content.
+New distributions carrying the Luxmc Noncommercial License 2.0 apply it only to original Luxmc code owned by its licensors. Third-party code, dependencies, runtimes and artwork retain their own licenses. Previously distributed GPL copies retain their grants; the historical GPL text is archived under docs/licensing/archive/.
 
 ## Source dependencies
 
@@ -26,4 +26,8 @@ Microsoft WebView2 is a separately licensed Windows runtime. The installer may e
 
 ## Historical distribution
 
-The prior Luxmc usage license is archived at `docs/licensing/archive/luxmc-license-1.0-2026.txt`. Existing release tags and previously published artifacts were not rewritten by this migration. Their license files and distribution records remain available in Git history. Future signing candidates are built from the source commit carrying the GPLv3 migration.
+The prior Luxmc usage license is archived at `docs/licensing/archive/luxmc-license-1.0-2026.txt`. Existing release tags and previously published artifacts were not rewritten by this migration. Their license files and distribution records remain available in Git history. The 26 October 2026 change adopts the noncommercial terms for original source in subsequent distributions; it does not rewrite those artifacts. Eligibility for signing programs that require an Open Source license must be reassessed before applying under the new terms.
+
+## Noncommercial license adoption, 26 October 2026
+
+The maintainer explicitly confirmed ownership of the original Luxmc code and absence of unapproved external launcher code or contributions. Git history was reviewed for author identities. Cargo metadata for 891 resolved packages was inventoried: non-root packages exposing LGPL alternatives also offer MIT or Apache alternatives. This metadata review is not proof of authorship for every file or a legal opinion; upstream license files remain authoritative. Original-source terms do not override dependency or asset permissions. New external contributions require the explicit agreement described in CONTRIBUTING.md.

@@ -77,7 +77,7 @@
       }
     ]
   },
-  "license": "GPL-3.0-only",
+  "license": "SEE LICENSE IN LICENSE",
   "dependencies": {
     "@codemirror/state": "^6.7.4",
     "@codemirror/view": "^6.43.11",

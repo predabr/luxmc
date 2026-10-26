@@ -1,6 +1,6 @@
 # Identidade oficial
 
-A distribuição oficial usa o nome Luxmc, o repositório `predabr/luxmc` e o site `luxmc-r92.pages.dev`. A GPLv3 permite forks, modificações e redistribuição comercial. Preserve os avisos de autoria e identifique as alterações conforme a licença em `LICENSE`.
+A distribuição oficial usa o nome Luxmc, o repositório `predabr/luxmc` e o site `luxmc-r92.pages.dev`. A licença 2.0 permite uso pessoal e forks gratuitos não comerciais nas suas condições; exploração comercial por terceiros exige autorização escrita dos titulares. Cópias publicadas anteriormente sob GPL mantêm suas permissões. Preserve os avisos de autoria e identifique as alterações conforme a licença em `LICENSE`.
 
 O licenciamento do código não autoriza alegar falsamente que uma distribuição modificada é um lançamento oficial ou foi aprovada pelo mantenedor. Identifique claramente o responsável pela distribuição e seus próprios canais de atualização e suporte. Referências ao projeto original para atribuição e descrição de compatibilidade são preservadas.
 

@@ -1,6 +1,6 @@
 # Preparação da licença não comercial do Luxmc
 
-Status em 25/10/2026: publicação da proposta autorizada pelo mantenedor; minuta para revisão, sem vigência. A licença vigente continua sendo GPL-3.0-only. Não substituir LICENSE ou os metadados antes de resolver os pontos abaixo. Publicação do launcher continua cancelada.
+Atualização de 26/10/2026: o mantenedor confirmou expressamente a titularidade do código original e autorizou a adoção da licença não comercial. O texto vigente nas novas distribuições que o incluem está em [LICENSE](../../../LICENSE); a minuta abaixo permanece como registro histórico, sem vigência própria. GPL de versões anteriores e licenças de terceiros são preservadas. Veja [o registro de adoção](../adoption-2026-10-26.md). As etapas abaixo documentam o planejamento original e não devem ser lidas como o status atual.
 
 ## Material preparado
 
