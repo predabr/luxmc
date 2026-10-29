@@ -162,6 +162,7 @@ pub async fn changelog_get() -> AppResult<Vec<ChangelogEntry>> {
     		},
         ];
         for (version, notes) in [
+            ("4.0.1", include_str!("../../../docs/releases/v4.0.1.md")),
             ("4.0.0", include_str!("../../../docs/releases/v4.0.0.md")),
             ("3.9.5", include_str!("../../../docs/releases/v3.9.5.md")),
             ("3.9.2", include_str!("../../../docs/releases/v3.9.2.md")),

@@ -190,7 +190,7 @@ pub async fn ping_async(_http: &reqwest::Client, host: &str, port: u16) -> AppRe
     };
 
     let start_time = Instant::now();
-    let addr_str = format!("{}:{}", host, port);
+    let addr_str = if host.contains(':') && !host.starts_with('[') { format!("[{host}]:{port}") } else { format!("{host}:{port}") };
 
     let connect_res = tokio::time::timeout(
         Duration::from_millis(1500),

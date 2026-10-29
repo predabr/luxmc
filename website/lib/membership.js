@@ -2,8 +2,8 @@ import { authenticate, digest, sessionToken } from "./accounts.js";
 import { profileBenefits } from "./profile-style.js";
 const COMMERCE_COOKIE = "__Host-luxmc-commerce";
 const catalog = {
-  plus: { name: "Luxmc Plus", amount: 990, days: 30, collections: 12, presets: 6, profile: profileBenefits.plus },
-  pro: { name: "Luxmc Pro", amount: 1990, days: 30, collections: 24, presets: 20, profile: profileBenefits.pro }
+  plus: { name: "Luxmc Plus", amount: 2e3, days: 30, collections: 12, presets: 6, profile: profileBenefits.plus },
+  pro: { name: "Luxmc Pro", amount: 3e3, days: 30, collections: 24, presets: 20, profile: profileBenefits.pro }
 };
 const nowSeconds = () => Math.floor(Date.now() / 1e3);
 const fail = (message, status = 400) => {

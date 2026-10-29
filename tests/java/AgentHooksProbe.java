@@ -5,6 +5,15 @@ import java.util.*;
 import org.objectweb.asm.*;
 
 public class AgentHooksProbe {
+    static byte[] transform(List<ClassFileTransformer> transformers, String name, byte[] source) throws Exception {
+        byte[] result = source;
+        for (ClassFileTransformer transformer : transformers) {
+            byte[] changed = transformer.transform(AgentHooksProbe.class.getClassLoader(), name, null, null, result);
+            if (changed != null) result = changed;
+        }
+        return result == source ? null : result;
+    }
+
     static byte[] fixture(String message, boolean login) {
         ClassWriter writer = new ClassWriter(0);
         writer.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC, "fixture/IntegratedServer", null, "net/minecraft/server/MinecraftServer", null);
@@ -46,7 +55,7 @@ public class AgentHooksProbe {
         Method contains = hints.getMethod("contains", byte[].class, hintType);
         for (String message : new String[] {"Started serving on {}", "Published LAN server on port {}", "Started on {}"}) {
             byte[] source = fixture(message, false);
-            byte[] result = transformers.get(0).transform(AgentHooksProbe.class.getClassLoader(), "fixture/IntegratedServer", null, null, source);
+            byte[] result = transform(transformers, "fixture/IntegratedServer", source);
             if (result == null || !new String(result, StandardCharsets.ISO_8859_1).contains("opened") || !new String(result, StandardCharsets.ISO_8859_1).contains("prepare")) throw new AssertionError("LAN hook lost: " + message);
             Object hint = hintType.getConstructor(String.class).newInstance(message);
             if (!Boolean.TRUE.equals(contains.invoke(null, source, hint))) throw new AssertionError("Constant hint missing");
@@ -64,8 +73,8 @@ public class AgentHooksProbe {
             if (found != text.toString().contains("Started on ")) throw new AssertionError("Skipped overlapping marker");
         }
         byte[] unrelated = fixture("unrelated", false);
-        if (transformers.get(0).transform(AgentHooksProbe.class.getClassLoader(), "fixture/Unrelated", null, null, unrelated) != null) throw new AssertionError("Unrelated class transformed");
-        byte[] login = transformers.get(1).transform(AgentHooksProbe.class.getClassLoader(), "fixture/Login", null, null, fixture("login", true));
+        if (transform(transformers, "fixture/Unrelated", unrelated) != null) throw new AssertionError("Unrelated class transformed");
+        byte[] login = transform(transformers, "fixture/Login", fixture("login", true));
         if (login == null || !new String(login, StandardCharsets.ISO_8859_1).contains("authenticate")) throw new AssertionError("Private LAN login hook lost");
         System.out.println("LAN discovery and private login transformations preserved; bounded constant scanning verified");
     }

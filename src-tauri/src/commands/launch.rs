@@ -335,7 +335,7 @@ async fn launch_game_inner(
 
     let game_dir = std::path::PathBuf::from(&profile.game_dir);
     tokio::fs::create_dir_all(&game_dir).await?;
-    if let Err(error)=crate::core::luxmc_pack::prepare_java(&game_dir,&profile.mc_version).await {tracing::warn!(%error,"Luxmc Essentials preparation skipped");}
+    crate::core::luxmc_pack::prepare_java(&game_dir,&profile.mc_version).await?;
 
 
     if !account.refresh_token.is_empty() && account.expires_at.map_or(true, |expiry| expiry <= chrono::Utc::now() + chrono::Duration::minutes(10)) {

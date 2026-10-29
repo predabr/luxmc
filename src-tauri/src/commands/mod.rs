@@ -11,6 +11,7 @@ pub mod instance_tools;
 pub mod instances;
 pub mod java;
 pub mod launch;
+pub mod local_servers;
 pub mod launch_log_session;
 pub mod launch_logs;
 pub mod loaders;

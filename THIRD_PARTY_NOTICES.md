@@ -31,3 +31,7 @@ The prior Luxmc usage license is archived at `docs/licensing/archive/luxmc-licen
 ## Noncommercial license adoption, 26 October 2026
 
 The maintainer explicitly confirmed ownership of the original Luxmc code and absence of unapproved external launcher code or contributions. Git history was reviewed for author identities. Cargo metadata for 891 resolved packages was inventoried: non-root packages exposing LGPL alternatives also offer MIT or Apache alternatives. This metadata review is not proof of authorship for every file or a legal opinion; upstream license files remain authoritative. Original-source terms do not override dependency or asset permissions. New external contributions require the explicit agreement described in CONTRIBUTING.md.
+
+## Optional Playit public Minecraft tunnel
+
+The optional Playit agent 1.0.10 is downloaded from the official playit-cloud/playit-agent release only when the user connects a public address. Its Windows x64 signed executable and Linux x64 binary are pinned by SHA-256. Upstream BSD-2-Clause terms are preserved in `src-tauri/licenses/playit-BSD-2-Clause.txt` and accompany the downloaded agent. User linking uses the official claim flow; private agent keys are not included in exported server backups. The service and domain are supplied by Playit under its own terms; Luxmc does not purchase a paid allocation automatically.

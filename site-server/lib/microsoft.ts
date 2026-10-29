@@ -18,7 +18,7 @@ export async function microsoftJson(url: string, options: RequestInit): Promise<
     let response: Response;
     const headers = new Headers(options.headers);
     headers.set('Accept', 'application/json');
-    headers.set('User-Agent', 'Luxmc-Website/4.0.0 (+https://luxmc-r92.pages.dev)');
+    headers.set('User-Agent', 'Luxmc-Website/4.0.1 (+https://luxmc-r92.pages.dev)');
     try { response = await fetch(url, { ...options, headers, redirect: 'manual', signal: AbortSignal.timeout(10000) }); }
     catch { throw Object.assign(new Error('Microsoft authentication unavailable'), { reason: 'unavailable', service, status: 0 }); }
     if (!response.ok) {

@@ -390,11 +390,11 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	const storageReport = $derived(storageActivity.report);
     const applicationBytes = $derived(storageReport?.categories.filter(category => category.category === 'application').reduce((sum,category) => sum + category.bytes,0) ?? 0);
-    const gameContentBytes = $derived(storageReport?.categories.filter(category => ['instances','external_instances','mods','assets','libraries','versions','java'].includes(category.category)).reduce((sum,category) => sum + category.bytes,0) ?? 0);
+    const gameContentBytes = $derived(storageReport?.categories.filter(category => ['instances','external_instances','mods','assets','libraries','versions','java','local-servers'].includes(category.category)).reduce((sum,category) => sum + category.bytes,0) ?? 0);
 	const storageLoading = $derived(storageActivity.loading);
     const storageCleanup = $derived(storageActivity.cleanup);
     const storageError = $derived(storageActivity.error);
-    const storageLabels: Record<string, string> = $derived({ libraries: uiText("settings.catLibraries"), assets: uiText("ui.beb65d096de336b3"), versions: uiText("settings.catVersions"), instances: uiText("instances.title"), mods: "Mods", logs: "Logs", cache: uiText("ui.ca803301db3bf0aa"), downloads: "Downloads", java: "Java do launcher", launcher_data: uiText("ui.2b5c717f30be9c31"), configuration: uiText("ui.76b0fb6ad18939ac"), launcher_cache: "Cache do launcher", application: uiText("ui.4fe101016fd71f92"), external_instances: uiText("ui.b59623f79c0f2cf9") });
+    const storageLabels: Record<string, string> = $derived({ 'local-servers': uiText('localServer.storage'), libraries: uiText("settings.catLibraries"), assets: uiText("ui.beb65d096de336b3"), versions: uiText("settings.catVersions"), instances: uiText("instances.title"), mods: "Mods", logs: "Logs", cache: uiText("ui.ca803301db3bf0aa"), downloads: "Downloads", java: "Java do launcher", launcher_data: uiText("ui.2b5c717f30be9c31"), configuration: uiText("ui.76b0fb6ad18939ac"), launcher_cache: "Cache do launcher", application: uiText("ui.4fe101016fd71f92"), external_instances: uiText("ui.b59623f79c0f2cf9") });
 	let deletingInstanceId = $state<string | null>(null);
 	let confirmingDeleteInstance = $state<InstanceStorageInfo | null>(null);
 

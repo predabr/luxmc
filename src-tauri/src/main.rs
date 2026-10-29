@@ -134,7 +134,9 @@ fn main() {
         .build()
         .expect("failed to build tokio runtime");
 
-    if is_daemon {
+    if luxmc_lib::server_worker::is_worker() {
+        if let Err(error) = runtime.block_on(luxmc_lib::server_worker::run()) { eprintln!("{error}"); }
+    } else if is_daemon {
         runtime.block_on(luxmc_lib::daemon::run_daemon());
     } else {
         tauri::async_runtime::set(runtime.handle().clone());

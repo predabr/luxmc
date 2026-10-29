@@ -103,13 +103,17 @@ pub async fn fetch_versions(
     http: &reqwest::Client,
     mc_version: &str,
 ) -> AppResult<Vec<LoaderVersion>> {
+    fetch_versions_from(http, mc_version, FORGE_PROMOTIONS, FORGE_METADATA).await
+}
+
+async fn fetch_versions_from(http: &reqwest::Client, mc_version: &str, promotions_url: &str, metadata_url: &str) -> AppResult<Vec<LoaderVersion>> {
     let mut versions = Vec::new();
     let mut seen = std::collections::HashSet::new();
 
     let rec_key = format!("{}-recommended", mc_version);
     let lat_key = format!("{}-latest", mc_version);
 
-    if let Ok(resp) = http.get(FORGE_PROMOTIONS).send().await {
+    if let Ok(resp) = http.get(promotions_url).timeout(std::time::Duration::from_secs(12)).send().await.and_then(reqwest::Response::error_for_status) {
         if let Ok(data) = resp.json::<ForgePromotions>().await {
             if let Some(lat) = data.promos.get(&lat_key) {
                 if seen.insert(lat.clone()) {
@@ -130,8 +134,15 @@ pub async fn fetch_versions(
         }
     }
 
-    if let Ok(resp) = http.get(FORGE_METADATA).send().await {
-        if let Ok(text) = resp.text().await {
+    let metadata = async {
+        http.get(metadata_url).timeout(std::time::Duration::from_secs(12)).send().await?.error_for_status()?.text().await
+    }.await;
+    match metadata {
+        Ok(text) => {
+            if !text.contains("<metadata") || !(text.contains("</metadata>") || text.contains("<metadata/>") || text.contains("<metadata />")) {
+                if versions.is_empty() { return Err(AppError::InvalidState("O serviço do Forge retornou metadados inválidos. Tente novamente.".into())); }
+                return Ok(versions);
+            }
             for forge_ver in versions_from_metadata(&text, mc_version) {
                 if seen.insert(forge_ver.clone()) {
                     versions.push(LoaderVersion {
@@ -141,6 +152,8 @@ pub async fn fetch_versions(
                 }
             }
         }
+        Err(error) if versions.is_empty() => return Err(error.into()),
+        Err(_) => {}
     }
 
     Ok(versions)
@@ -599,6 +612,35 @@ async fn get_latest_loader_version(http: &reqwest::Client, mc_version: &str) -> 
 
 #[cfg(test)]
 mod tests {
+    #[tokio::test]
+    async fn metadata_outages_are_not_reported_as_incompatibility_and_promotions_remain_a_fallback() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        for (promotions, metadata, expected) in [
+            ("503 Unavailable", "503 Unavailable", None),
+            ("200 OK", "503 Unavailable", Some(vec!["47.4.10"])),
+            ("503 Unavailable", "200 OK", Some(vec!["47.4.11"])),
+            ("503 Unavailable", "200 OK", Some(vec![])),
+        ] {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let address = listener.local_addr().unwrap();
+            let matching = expected.as_ref().is_some_and(|items| !items.is_empty());
+            let server = tokio::spawn(async move {
+                for (status, body) in [(promotions, r#"{"promos":{"1.20.1-recommended":"47.4.10"}}"#.to_string()), (metadata, format!("<metadata><version>{}</version></metadata>", if matching { "1.20.1-47.4.11" } else { "1.12.2-14.23.5.2860" }))] {
+                    let (mut socket, _) = listener.accept().await.unwrap();
+                    let mut request = [0; 2048];
+                    socket.read(&mut request).await.unwrap();
+                    socket.write_all(format!("HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).as_bytes()).await.unwrap();
+                }
+            });
+            let result = super::fetch_versions_from(&reqwest::Client::new(), "1.20.1", &format!("http://{address}/promotions"), &format!("http://{address}/metadata")).await;
+            match expected {
+                Some(items) => assert_eq!(result.unwrap().iter().map(|version| version.id.as_str()).collect::<Vec<_>>(), items),
+                None => assert!(result.is_err()),
+            }
+            server.await.unwrap();
+        }
+    }
+
     #[test]
     fn installer_extraction_preserves_verified_files_and_repairs_modified_files() {
         use std::io::Write;

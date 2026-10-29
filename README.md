@@ -8,14 +8,14 @@
 ![Biblioteca real do Luxmc 4.0: suas instâncias, modpacks e amigos](website/assets/captures-4.0/home.png)
 
 <p align="center">
-  <a href="https://github.com/predabr/luxmc/releases/latest"><img src="https://img.shields.io/badge/vers%C3%A3o-4.0.0-blue?style=flat-square" alt="Versão 4.0.0" /></a>
+  <a href="https://github.com/predabr/luxmc/releases/latest"><img src="https://img.shields.io/badge/vers%C3%A3o-4.0.1-blue?style=flat-square" alt="Versão 4.0.1" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/c%C3%B3digo-dispon%C3%ADvel_%C2%B7_n%C3%A3o_comercial-informational?style=flat-square" alt="Código disponível sob licença Luxmc não comercial 2.0" /></a>
   <img src="https://img.shields.io/badge/desktop-Windows%20%2B%20Linux-lightgrey?style=flat-square" alt="Desktop Windows e Linux" />
 </p>
 
 Luxmc reúne versões Java, modpacks, organização de instâncias, personalização e recursos sociais. O backend usa Rust e Tauri 2; a interface usa Svelte 5 e TypeScript. O projeto tem raízes no Linux e instalador nativo para Windows.
 
-**Versão atual: 4.0.0.** As correções da linha 4.0 recebem uma identificação própria de build. O código em `main` pode conter mudanças ainda não incluídas nos instaladores públicos; confira a [última release publicada](https://github.com/predabr/luxmc/releases/latest) antes de baixar.
+**Linha atual: 4.0.1.** As correções da linha 4.0 recebem uma identificação própria de build. O código em `main` pode conter mudanças ainda não incluídas nos instaladores públicos; confira a [última release publicada](https://github.com/predabr/luxmc/releases/latest) antes de baixar.
 
 **Código disponível, com condições claras.** Uso pessoal, estudo e forks gratuitos não comerciais são permitidos pela [licença Luxmc 2.0](LICENSE). Exploração comercial por terceiros exige autorização escrita. Esta política não é uma licença Open Source OSI e não revoga permissões de versões anteriores ou de componentes de terceiros.
 
@@ -55,20 +55,22 @@ Capturas da revisão local 4.0, enviadas pelo autor em 25/10/2026. A disponibili
 
 ## Biblioteca e conteúdo
 
-### Servidores locais: o próximo passo
+### Servidores dedicados e salas P2P
 
-A revisão local experimental já cria um servidor Vanilla no PC de quem hospeda. Os testes do usuário encontraram falhas de acesso e compartilhamento; a correção e a validação entre dois PCs ainda estão pendentes. O novo painel não foi entregue nos instaladores públicos.
+Crie um servidor separado das suas instâncias: escolha Vanilla, um loader compatível ou um modpack do catálogo, configure o mundo e a memória e inicie pelo painel. O mundo roda no seu PC. Conteúdos, jogadores, console e configurações ficam juntos; a parada salva o mundo e a exclusão confirmada remove os arquivos próprios do servidor.
 
-O objetivo é entrar pelo endereço no Multijogador, **sem convite obrigatório** em servidores abertos. O dono terá nome, imagem, descrição, conteúdo, console, backups e gestão de jogadores no mesmo painel. Online agora, jogadores únicos que já entraram e conhecidos offline serão contados separadamente; expulsar, banir e desbanir farão parte do controle do dono.
+Para reunir amigos, use **Compartilhar por P2P → Copiar código**. O convidado entra em **Jogar juntos** no Luxmc, cola o convite e abre uma instância compatível. O servidor aparece na lista LAN do Minecraft, com alternativa para copiar o endereço ou adicionar à instância. Não é necessário abrir um mundo para LAN, cadastrar uma conta de túnel ou configurar portas manualmente. Todos mantêm o Luxmc conectado durante a partida.
 
-| Próxima revisão | Plus | Pro |
+| Recurso | Plus · R$ 20 / 30 dias | Pro · R$ 30 / 30 dias |
 | --- | --- | --- |
-| Mundo aberto por LAN | Até 10 participantes | Até 20 participantes |
-| Servidor dedicado pelo Luxmc | — | Até 20 participantes, incluindo o dono |
-| Memória do servidor gerenciado | — | Até 8 GiB do PC de quem hospeda |
-| Mods, modpack, datapacks, resource packs e mundos do servidor | — | Gestão pelo painel planejada |
+| Hospedar mundo aberto por LAN | Até 5 participantes | Até 10 participantes |
+| Hospedar servidor dedicado | — | Sim, com acesso Pro confirmado |
+| Capacidade da sala do servidor | — | Até 20 participantes, incluindo o dono |
+| Limite de memória do servidor | — | Até 8 GiB do PC de quem hospeda |
 
-Essas funções estão **em desenvolvimento**. Não são benefícios já entregues para justificar uma compra. A LAN existente também está em revisão para os modpacks relatados. Entrada pública só pelo endereço exige DNS e transporte TCP alcançável; um domínio sozinho não cria o acesso P2P. Nenhum domínio é oferecido neste anúncio, e não há promessa de desempenho para vinte pessoas em qualquer PC. Veja [o escopo e os critérios de entrega](docs/roadmap/servidores-e-android.md).
+A versão e os mods do cliente devem ser compatíveis com o servidor. Mods exclusivos do cliente não podem ser executados no servidor. A preparação usa os instaladores oficiais dos loaders; o suporte real depende do pacote. A sala usa transporte direto ou relay automático, conforme a rede. Foi verificada uma resposta de Minecraft real pelo relay com o transporte IP direto desativado; uma partida entre dois PCs em redes domésticas diferentes continua sendo uma validação necessária. Consulte [o fluxo dos servidores](docs/roadmap/servidores-e-android.md).
+
+O convite é para uma sala Luxmc, não um domínio público de Minecraft. O dono precisa manter o computador ligado. Hospedagem em nuvem e endereço público independente do launcher não estão incluídos.
 
 Cada instância Java conserva seus mods, mundos e configurações em sua própria pasta. Crie pastas com nome e imagem para organizar a biblioteca e arraste as instâncias para dentro delas.
 
@@ -78,13 +80,13 @@ Vanilla, Fabric, Forge, NeoForge, Quilt, Legacy Fabric e Babric têm fluxos de p
 
 ## Revisão 4.0
 
-A versão pública permanece **4.0.0**. Cada compilação tem uma revisão própria; o atualizador identifica builds novos mesmo sem mudar o número principal. Use a atualização sobre a instalação existente para conservar suas contas, instâncias e mundos.
+A linha de manutenção atual é **4.0.1**. Cada compilação tem uma revisão própria; o atualizador identifica builds novos mesmo sem mudar o número principal. Use a atualização sobre a instalação existente para conservar suas contas, instâncias e mundos.
 
 O catálogo prepara ícones em segundo plano com concorrência limitada. Arquivos auxiliares e pastas de metadados não aparecem como mods; os shaders extraídos continuam acessíveis. A atualização de modpacks separa consulta, revisão das mudanças e aplicação com backup dos mundos. Duplicatas reconhecidas em pacotes são guardadas em `.luxmc/removed-duplicates`, com registro da versão mantida.
 
 Wallpapers importados são copiados para a biblioteca interna. GIFs no perfil e nas pastas exigem Plus ou Pro; wallpapers continuam gratuitos. Pro também inclui fundo com imagem ou GIF nos cartões de amigos, contorno colorido, vitrine panorâmica ou pôsteres e brilho animado no perfil.
 
-As salas Java têm capacidade de 10 participantes, ou **20 incluindo o anfitrião com Pro confirmado**. Todos devem usar uma revisão atualizada do launcher e versões compatíveis do jogo e dos mods. A capacidade do túnel não garante desempenho para vinte jogadores em qualquer computador: o processamento do mundo continua no PC que o abriu. A descoberta LAN tem alternativa por endereço direto para redes que bloqueiam multicast. A validação entre dois PCs com o modpack do usuário continua necessária.
+As salas LAN do Plus permitem até 5 participantes; as do Pro, até 10. A sala de um servidor dedicado Pro comporta até 20 participantes, enquanto o limite de jogadores do Minecraft é configurado no próprio servidor. Capacidade de sala não garante desempenho: CPU, RAM, armazenamento, modpack e conexão do hospedeiro continuam determinantes.
 
 O site adapta o idioma inicial ao navegador e permite escolher português, inglês ou espanhol. O acesso Microsoft usa OpenID Connect, PKCE, nonce e validação da assinatura do ID token. Quando o serviço Minecraft bloqueia consultas da hospedagem, o site orienta a entrar com a mesma Microsoft no launcher. O launcher confirma a identidade oficial por um desafio de sessão e o site conclui o vínculo automaticamente, preservando o perfil, os amigos e o plano. Nomes e e-mails não são usados para juntar perfis.
 
@@ -95,6 +97,12 @@ A revisão mais recente encurta as transições de navegação, antecipa o códi
 Os favoritos do perfil exibem capas sincronizadas. O NameMC abre em uma janela própria com redução de elementos publicitários. O catálogo integrado concentra a busca no Modrinth e no CurseForge.
 
 A revisão mostra loaders e versões por arquivo publicado, com histórico paginado do CurseForge, e mantém as ações das configurações abaixo dos campos. Um port mantido em outro projeto não é tratado como compatibilidade automática. Resource packs, shaders, datapacks e mundos podem ser adicionados com o Minecraft aberto; a troca de mods continua exigindo fechar o jogo. O mundo ou pacote recém-instalado pode exigir atualização da lista ou recarregamento dentro do Minecraft.
+
+## Desempenho na 4.0.1
+
+As prévias 3D são inicializadas quando ficam visíveis. Os editores de perfil são carregados ao abrir, e os ciclos de animação compartilham o agendamento, preservando a frequência escolhida. A preparação local de ícones não espera consultas remotas de outra instância. O cache grava grupos de ícones em transações, sem manter a conexão do banco ocupada durante consultas de rede.
+
+Estas mudanças reduzem trabalho da interface e do cache; não prometem aumentar o FPS do Minecraft ou eliminar o tempo de preparação de qualquer modpack. Os testes e medições acompanham as notas da release.
 
 ## Android está nos planos
 

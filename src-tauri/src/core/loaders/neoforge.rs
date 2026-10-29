@@ -65,6 +65,10 @@ pub async fn fetch_versions(
     http: &reqwest::Client,
     mc_version: &str,
 ) -> AppResult<Vec<LoaderVersion>> {
+    fetch_versions_from(http, mc_version, NEOFORGE_METADATA).await
+}
+
+async fn fetch_versions_from(http: &reqwest::Client, mc_version: &str, metadata_url: &str) -> AppResult<Vec<LoaderVersion>> {
     let parts: Vec<&str> = mc_version.split('.').collect();
     let prefix = if parts.len() >= 2 && parts[0] == "1" {
         let minor = parts[1];
@@ -74,16 +78,15 @@ pub async fn fetch_versions(
         format!("{}.", mc_version)
     };
 
-    let resp_text = match http
-        .get(NEOFORGE_METADATA)
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Luxmc/1.6.5")
+    let resp_text = http
+        .get(metadata_url)
+        .timeout(std::time::Duration::from_secs(12))
         .header("Accept", "text/xml, application/xml, */*")
         .send()
-        .await
-    {
-        Ok(r) if r.status().is_success() => r.text().await.unwrap_or_default(),
-        _ => String::new(),
-    };
+        .await?.error_for_status()?.text().await?;
+    if !resp_text.contains("<metadata") || !(resp_text.contains("</metadata>") || resp_text.contains("<metadata/>") || resp_text.contains("<metadata />")) {
+        return Err(AppError::InvalidState("O serviço do NeoForge retornou metadados inválidos. Tente novamente.".into()));
+    }
 
     Ok(versions_from_metadata(&resp_text, &prefix))
 }
@@ -403,6 +406,30 @@ async fn get_latest_loader_version(http: &reqwest::Client, mc_version: &str) -> 
 
 #[cfg(test)]
 mod tests {
+    #[tokio::test]
+    async fn metadata_outages_and_html_errors_are_distinct_from_an_unsupported_version() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        for (status, body, valid, count) in [
+            ("503 Unavailable", "unavailable", false, 0),
+            ("200 OK", "<html>Temporary error</html>", false, 0),
+            ("200 OK", "<metadata><version>21.4.158</version></metadata>", true, 0),
+            ("200 OK", "<metadata><version>21.1.100</version></metadata>", true, 1),
+        ] {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let address = listener.local_addr().unwrap();
+            let server = tokio::spawn(async move {
+                let (mut socket, _) = listener.accept().await.unwrap();
+                let mut request = [0; 2048];
+                socket.read(&mut request).await.unwrap();
+                socket.write_all(format!("HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).as_bytes()).await.unwrap();
+            });
+            let result = super::fetch_versions_from(&reqwest::Client::new(), "1.21.1", &format!("http://{address}/metadata")).await;
+            assert_eq!(result.is_ok(), valid);
+            if valid { assert_eq!(result.unwrap().len(), count); }
+            server.await.unwrap();
+        }
+    }
+
     #[test]
     fn reads_compact_maven_metadata() {
         let xml = "<metadata><versions><version>21.4.157</version><version>21.4.158</version><version>21.4.159-beta</version></versions></metadata>";

@@ -5,6 +5,7 @@ pub mod downloader;
 pub mod hooks;
 pub mod java;
 pub mod launcher;
+pub mod local_server;
 pub mod linux;
 pub mod loaders;
 pub mod minecraft;
@@ -23,4 +24,5 @@ pub mod instance_paths;
 
 pub mod share_codes;
 pub mod luxmc_pack;
+pub mod managed_skin;
 pub mod uninstall;

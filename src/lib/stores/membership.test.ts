@@ -8,6 +8,20 @@ function response(plan: 'free'|'plus'|'pro' = 'plus', revision = 1, presets: App
     return { identity: { id: '22222222-2222-4222-8222-222222222222', username: 'Player', owner: false }, membership: { plan, expiresAt: Math.floor(Date.now()/1000)+86400, revision:1, collections: plan === 'pro' ? 24 : plan === 'plus' ? 12 : 6, presets: plan === 'pro' ? 20 : plan === 'plus' ? 6 : 0 }, settings: { preferences: {density:'compact' as const,motionStyle:'subtle' as const}, presets, revision } };
 }
 describe('membership synchronization', () => {
+    it('a failed appearance upload does not disable a verified unexpired Pro plan', async () => {
+        vi.mocked(membershipStatus).mockResolvedValue(response('pro'));
+        vi.mocked(membershipSync).mockRejectedValue(new Error('appearance offline'));
+        membershipState.connect('pro-account'); await vi.advanceTimersByTimeAsync(0);
+        settings.patch({density:'spacious'}); membershipState.schedule(appearanceSnapshot());
+        await vi.advanceTimersByTimeAsync(1000);
+        expect(membershipState.ready).toBe(true);
+        expect(membershipState.current?.plan).toBe('pro');
+        expect(membershipState.paid).toBe(true);
+        expect(membershipState.error).toContain('appearance offline');
+        membershipState.disconnect();
+        expect(membershipState.ready).toBe(false);
+        expect(membershipState.paid).toBe(false);
+    });
     it('owner privileges belong only to the verified current account and disappear on account change', async () => {
         vi.useFakeTimers();
         const verified = response('pro'); verified.identity.owner = true;

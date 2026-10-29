@@ -262,7 +262,7 @@ function sendToSidecar(command: string, args?: Record<string, unknown>): Promise
   return new Promise((resolve, reject) => {
     const id = nextRequestId++;
 
-    const timeoutMs = /^(instance_import|instance_repair|modpack_update|mods_download_to_temp|launch_game|versions_download|loaders_install)/.test(command) ? 3600000 : 30000;
+    const timeoutMs = /^(instance_import|instance_repair|modpack_update|mods_download_to_temp|launch_game|versions_download|loaders_install|local_server_create|local_server_share|local_server_manage)/.test(command) ? 3600000 : 30000;
     const timeout = setTimeout(() => {
       if (pendingRequests.has(id)) {
         pendingRequests.delete(id);
@@ -469,11 +469,23 @@ app.whenReady().then(() => {
   });
 });
 
-app.on("before-quit", () => {
-  if (sidecarProcess && !sidecarProcess.killed) {
-    sidecarProcess.kill("SIGTERM");
+let serverShutdownPending = false;
+let serverShutdownFinished = false;
+app.on("before-quit", event => {
+  if (!sidecarProcess || sidecarProcess.killed || serverShutdownFinished) return;
+  event.preventDefault();
+  if (serverShutdownPending) return;
+  serverShutdownPending = true;
+  void sendToSidecar("local_server_shutdown").then(() => {
+    serverShutdownFinished = true;
+    sidecarProcess?.kill("SIGTERM");
     sidecarProcess = null;
-  }
+    app.quit();
+  }).catch(error => {
+    serverShutdownPending = false;
+    if (!sidecarProcess) { serverShutdownFinished = true; app.quit(); return; }
+    dialog.showErrorBox("Luxmc", `Não foi possível encerrar o servidor local: ${String(error)}`);
+  });
 });
 
 app.on("window-all-closed", () => {

@@ -490,6 +490,7 @@ async fn confirm_windows_installer(child: &mut tokio::process::Child) -> AppResu
 }
 
 fn ensure_update_idle(game_pid: u32) -> AppResult<()> {
+    if crate::commands::local_servers::has_active() { return Err(AppError::InvalidState("Pare o servidor local antes de atualizar o Luxmc para salvar o mundo corretamente.".into())); }
     if game_pid != 0 {
         return Err(AppError::InvalidState("Feche o Minecraft antes de atualizar o Luxmc. Seu jogo continuará aberto.".into()));
     }

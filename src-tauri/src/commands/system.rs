@@ -126,7 +126,7 @@ pub async fn app_init_core(
 
     let profiles = crate::db::schema::profiles::list(&db).await?;
     let pack_profiles=profiles.clone();
-    tokio::spawn(async move {for profile in pack_profiles {if let Err(error)=crate::core::luxmc_pack::prepare_java(std::path::Path::new(&profile.game_dir),&profile.mc_version).await {tracing::warn!(%error,"Luxmc Essentials preparation skipped");}}});
+    tokio::spawn(async move {for profile in pack_profiles.into_iter().filter(|profile|profile.loader!="bedrock") {if let Err(error)=crate::core::luxmc_pack::prepare_java(std::path::Path::new(&profile.game_dir),&profile.mc_version).await {tracing::warn!(%error,"Luxmc Essentials preparation skipped");}}});
 
     let settings: serde_json::Value = {
         use sqlx::Row;

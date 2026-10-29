@@ -133,6 +133,19 @@ pub async fn instance_content_icons(state: tauri::State<'_, AppState>, profileId
     instance_content_icons_core(&state, profileId, subPath, fileNames, lookup.unwrap_or(false), cacheImages.unwrap_or(false)).await
 }
 
+type CacheUpdates=Vec<(String,String,bool)>;
+
+async fn save_icon_updates(pool:&sqlx::SqlitePool,updates:&mut CacheUpdates)->AppResult<()> {
+    if updates.is_empty(){return Ok(());}
+    let mut transaction=pool.begin().await?;
+    for (key,value,replace) in updates.drain(..) {
+        let query=if replace {"INSERT INTO mod_icons(key,icon_url) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET icon_url=excluded.icon_url"} else {"INSERT INTO mod_icons(key,icon_url) VALUES (?,?) ON CONFLICT(key) DO NOTHING"};
+        sqlx::query(query).bind(key).bind(value).execute(&mut *transaction).await?;
+    }
+    transaction.commit().await?;
+    Ok(())
+}
+
 pub async fn instance_content_icons_core(state: &AppState, profile_id: String, sub_path: String, names: Vec<String>, lookup: bool, cache_images: bool) -> AppResult<Vec<ContentIcon>> {
     if names.len() > 32 || !allowed(&sub_path) { return Err(AppError::InvalidInput("Invalid content thumbnail request".into())); }
     let db = crate::db::shared_db().await?;
@@ -141,6 +154,7 @@ pub async fn instance_content_icons_core(state: &AppState, profile_id: String, s
     let records = if sub_path == "mods" { crate::db::schema::mods::list_by_profile(&db, &profile_id).await? } else { Vec::new() };
     let mut known = HashMap::<(String, String), Vec<usize>>::new();
     let mut results = Vec::new();
+    let mut cache_updates=CacheUpdates::new();
     let mut hashes = HashMap::<String, Vec<usize>>::new();
     for name in names {
         if name.is_empty() || name.contains(['/', '\\']) || name == "." || name == ".." { return Err(AppError::InvalidInput("Invalid content filename".into())); }
@@ -159,14 +173,18 @@ pub async fn instance_content_icons_core(state: &AppState, profile_id: String, s
         if cached.is_none() && sub_path != "mods" && !metadata.is_dir() {
             let legacy_key = key.replacen("content:v3:", "content:", 1);
             if let Some(url) = sqlx::query_scalar::<_, String>("SELECT icon_url FROM mod_icons WHERE key = ?").bind(legacy_key).fetch_optional(db.pool()).await?.filter(|value| value.starts_with("https://")) {
-                sqlx::query("INSERT INTO mod_icons(key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url").bind(&key).bind(&url).execute(db.pool()).await?;
+                cache_updates.push((key.clone(),url.clone(),true));
                 cached = Some(url);
             }
         }
         if let Some(value) = cached.filter(|value| cache_is_resolved(value) && !(sub_path == "shaderpacks" && metadata.is_dir() && value.starts_with("missing:"))) {
-            sqlx::query("INSERT INTO mod_icons(key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO NOTHING").bind(&key).bind(&value).execute(db.pool()).await?;
+            cache_updates.push((key.clone(),value.clone(),false));
             results.push(ContentIcon { name, icon: (!value.starts_with("missing:")).then_some(value), icon_key: key, resolved: true });
             continue;
+        }
+        if let Some(record)=records.iter().find(|record|record.file_name.trim_end_matches(".disabled")==name.trim_end_matches(".disabled") && matches!(record.source.as_str(),"curseforge"|"modrinth"|"modrinth_fallback")) {
+            if lookup {known.entry((record.source.clone(),record.project_id.clone())).or_default().push(results.len());}
+            results.push(ContentIcon{name,icon:None,icon_key:key,resolved:false});continue;
         }
         let file = path.clone();
         let icon = {
@@ -177,7 +195,7 @@ pub async fn instance_content_icons_core(state: &AppState, profile_id: String, s
         let resolved = icon.is_some() || metadata.is_dir() && !shader_directory;
         if resolved {
             let value = icon.clone().unwrap_or_else(|| format!("missing:{}", now()));
-            sqlx::query("INSERT INTO mod_icons(key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url").bind(&key).bind(value).execute(db.pool()).await?;
+            cache_updates.push((key.clone(),value,true));
         } else if lookup && metadata.len() <= 256 * 1024 * 1024 {
             let path = if shader_directory {
                 let directory = path.clone();
@@ -216,6 +234,7 @@ pub async fn instance_content_icons_core(state: &AppState, profile_id: String, s
         }
         results.push(ContentIcon { name, icon, icon_key: key, resolved });
     }
+    save_icon_updates(db.pool(),&mut cache_updates).await?;
     if !known.is_empty() {
         let cf_ids: Vec<_> = known.keys().filter(|(source, _)| source == "curseforge").filter_map(|(_, id)| id.parse::<u64>().ok()).collect();
         let mr_ids: Vec<_> = known.keys().filter(|(source, _)| source != "curseforge").map(|(_, id)| id.clone()).collect();
@@ -238,7 +257,7 @@ pub async fn instance_content_icons_core(state: &AppState, profile_id: String, s
             if let Some(url) = url.filter(|url| url.starts_with("https://")) {
                 for index in indices {
                     let entry = &mut results[index]; entry.icon = Some(url.clone()); entry.resolved = true;
-                    sqlx::query("INSERT INTO mod_icons(key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url").bind(&entry.icon_key).bind(&url).execute(db.pool()).await?;
+                    cache_updates.push((entry.icon_key.clone(),url.clone(),true));
                 }
             } else if source == "curseforge" {
                 for index in indices {
@@ -260,7 +279,7 @@ pub async fn instance_content_icons_core(state: &AppState, profile_id: String, s
                         if let Some(indices) = hashes.remove(&hash) {
                           for index in indices {
                             let entry = &mut results[index]; entry.icon = Some(url.clone()); entry.resolved = true;
-                            sqlx::query("INSERT INTO mod_icons(key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url").bind(&entry.icon_key).bind(url).execute(db.pool()).await?;
+                            cache_updates.push((entry.icon_key.clone(),url.clone(),true));
                           }
                         }
                     }
@@ -289,7 +308,7 @@ pub async fn instance_content_icons_core(state: &AppState, profile_id: String, s
                             let entry = &mut results[index];
                             entry.icon = icon.clone();
                             entry.resolved = true;
-                            sqlx::query("INSERT INTO mod_icons(key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url").bind(&entry.icon_key).bind(entry.icon.clone().unwrap_or_else(|| format!("missing:{}", now()))).execute(db.pool()).await?;
+                            cache_updates.push((entry.icon_key.clone(),entry.icon.clone().unwrap_or_else(||format!("missing:{}",now())),true));
                             }
                         }
                     }
@@ -297,6 +316,7 @@ pub async fn instance_content_icons_core(state: &AppState, profile_id: String, s
             }
         }
     }
+    save_icon_updates(db.pool(),&mut cache_updates).await?;
     if cache_images {
         use futures_util::{StreamExt, stream};
         let sources = results.iter().enumerate().filter_map(|(index, entry)| entry.icon.as_ref().filter(|source| source.starts_with("https://")).map(|source| (index, source.clone()))).collect::<Vec<_>>();
@@ -306,18 +326,52 @@ pub async fn instance_content_icons_core(state: &AppState, profile_id: String, s
         for (index, image) in images {
             let entry = &mut results[index];
                 if let Some(image) = image {
-                    let _ = sqlx::query("UPDATE mod_icons SET icon_url = ? WHERE key = ?")
-                        .bind(&image).bind(&entry.icon_key).execute(db.pool()).await;
+                    cache_updates.push((entry.icon_key.clone(),image.clone(),true));
                     entry.icon = Some(image);
                 }
         }
     }
+    let _=save_icon_updates(db.pool(),&mut cache_updates).await;
     Ok(results)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn batched_icons_preserve_existing_values_and_commit_resolved_updates() {
+        let pool=sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
+        sqlx::query("CREATE TABLE mod_icons(key TEXT PRIMARY KEY,icon_url TEXT NOT NULL)").execute(&pool).await.unwrap();
+        let mut initial=vec![("kept".into(),"newer".into(),true),("changed".into(),"old".into(),true)];
+        save_icon_updates(&pool,&mut initial).await.unwrap();
+        let mut updates=vec![("kept".into(),"stale".into(),false),("changed".into(),"resolved".into(),true),("added".into(),"icon".into(),true)];
+        save_icon_updates(&pool,&mut updates).await.unwrap();
+        assert!(updates.is_empty());
+        let rows=sqlx::query_as::<_,(String,String)>("SELECT key,icon_url FROM mod_icons ORDER BY key").fetch_all(&pool).await.unwrap();
+        assert_eq!(rows,vec![("added".into(),"icon".into()),("changed".into(),"resolved".into()),("kept".into(),"newer".into())]);
+        pool.close().await;
+    }
+
+    #[tokio::test]
+    #[ignore = "Measures synchronous file-backed icon cache writes on the current machine"]
+    async fn benchmark_batched_icon_cache() {
+        let directory=tempfile::tempdir().unwrap();
+        let options=sqlx::sqlite::SqliteConnectOptions::new().filename(directory.path().join("cache.db")).create_if_missing(true).journal_mode(sqlx::sqlite::SqliteJournalMode::Delete).synchronous(sqlx::sqlite::SqliteSynchronous::Full);
+        let pool=sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect_with(options).await.unwrap();
+        sqlx::query("CREATE TABLE mod_icons(key TEXT PRIMARY KEY,icon_url TEXT NOT NULL)").execute(&pool).await.unwrap();
+        let mut measurements=Vec::new();
+        for repetition in 0..5 {
+            let started=std::time::Instant::now();
+            for index in 0..32 {sqlx::query("INSERT OR REPLACE INTO mod_icons(key,icon_url) VALUES (?,?)").bind(format!("serial-{index}")).bind(format!("{repetition}-{}","x".repeat(4096))).execute(&pool).await.unwrap();}
+            let serial=started.elapsed().as_secs_f64()*1000.;
+            let mut updates=(0..32).map(|index|(format!("batch-{index}"),format!("{repetition}-{}","x".repeat(4096)),true)).collect();
+            let started=std::time::Instant::now();save_icon_updates(&pool,&mut updates).await.unwrap();
+            measurements.push(serde_json::json!({"serialMs":serial,"batchedMs":started.elapsed().as_secs_f64()*1000.}));
+        }
+        eprintln!("ICON_CACHE_BENCHMARK {}",serde_json::json!({"rows":32,"samples":measurements}));
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM mod_icons").fetch_one(&pool).await.unwrap(),64);
+        pool.close().await;
+    }
     #[test]
     fn extracted_shader_metadata_identifies_patched_variants_without_guessing_the_folder_name() {
         let root = tempfile::tempdir().unwrap();

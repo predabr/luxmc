@@ -65,6 +65,7 @@ pub struct HealthCheckResult {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileTreeEntry {
+    pub managed: bool,
     pub name: String,
     pub path: String,
     pub is_dir: bool,
@@ -121,6 +122,7 @@ pub async fn instance_file_write(profileId: String, path: String, content: Strin
         return Err(AppError::InvalidInput("O conteúdo excede o limite do editor".into()));
     }
     let path = resolve_instance_existing_path(&profileId, &path).await?;
+    crate::core::managed_skin::guard_change(&path)?;
     tokio::task::spawn_blocking(move || -> AppResult<()> {
         if !std::fs::metadata(&path)?.is_file() {
             return Err(AppError::InvalidInput("Apenas arquivos podem ser editados".into()));
@@ -135,6 +137,7 @@ pub async fn instance_file_write(profileId: String, path: String, content: Strin
 #[allow(non_snake_case)]
 pub async fn instance_file_delete(profileId: String, path: String) -> AppResult<()> {
     let path = resolve_instance_existing_path(&profileId, &path).await?;
+    crate::core::managed_skin::guard_change(&path)?;
     tokio::task::spawn_blocking(move || -> AppResult<()> {
         let metadata = std::fs::metadata(&path)?;
         if metadata.is_dir() {
@@ -303,6 +306,7 @@ pub async fn instances_duplicate(id: String) -> AppResult<ProfileRow> {
         pre_launch_hook: existing.pre_launch_hook.clone(),
         post_exit_hook: existing.post_exit_hook.clone(),
     };
+    if row.loader != "bedrock" { crate::core::luxmc_pack::prepare_java(std::path::Path::new(&row.game_dir), &row.mc_version).await?; }
     crate::db::schema::profiles::upsert(&db, &row).await?;
     Ok(row)
 }
@@ -1711,7 +1715,7 @@ pub async fn instance_file_tree(
                 }
             }
             let icon_resolved = icon.is_some() || cached.is_some_and(|value| crate::commands::content_icons::cache_is_resolved(value) && (!value.starts_with("data:") || icon.is_some()));
-            FileTreeEntry { name, path: path.to_string_lossy().to_string(), is_dir, size: if is_dir && !is_content { compute_dir_size(&path) } else { metadata.len() }, icon, icon_key: Some(key), icon_resolved }
+            FileTreeEntry { managed:crate::core::managed_skin::is_managed(&path), name, path: path.to_string_lossy().to_string(), is_dir, size: if is_dir && !is_content { compute_dir_size(&path) } else { metadata.len() }, icon, icon_key: Some(key), icon_resolved }
         }).collect::<Vec<_>>()
     }).await.map_err(|error| AppError::Internal(error.to_string()))?;
 
@@ -3951,6 +3955,7 @@ pub async fn instance_pack_delete(
     let pack_dir = if packType == "datapacks" { super::mods::datapack_directory(&row.game_dir, worldName.as_deref()).await? } else { std::path::PathBuf::from(&row.game_dir).join(folder_name) };
     tokio::task::spawn_blocking(move || -> AppResult<()> {
         let target_path = pack_dir.join(&fileName);
+        crate::core::managed_skin::guard_change(&target_path)?;
         let canonical = match target_path.canonicalize() {
             Ok(canonical) => canonical,
             Err(_) => return Ok(()),

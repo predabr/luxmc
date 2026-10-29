@@ -243,7 +243,7 @@ pub async fn profiles_create(
     crate::db::schema::profiles::upsert(&db, &row).await?;
     let base = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| crate::error::AppError::InvalidState("Diretório de dados indisponível".into()))?;
     crate::core::instance_paths::isolate(&mut row, base.data_dir()).await?;
-    crate::core::luxmc_pack::prepare_java(std::path::Path::new(&row.game_dir),&row.mc_version).await?;
+    if row.loader!="bedrock" {crate::core::luxmc_pack::prepare_java(std::path::Path::new(&row.game_dir),&row.mc_version).await?;}
     Ok(row)
 }
 

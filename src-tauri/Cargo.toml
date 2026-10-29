@@ -1,6 +1,6 @@
 [package]
 name = "luxmc"
-version = "4.0.0"
+version = "4.0.1"
 description = "Linux-first Minecraft launcher"
 authors = ["Luxmc contributors"]
 edition = "2021"
@@ -87,7 +87,7 @@ cgroups-rs = "0.3"
 winreg = "0.52"
 same-file = "1.0.6"
 webview2-com = "0.38.2"
-windows = { version = "0.61", features = ["Win32_System_Com"] }
+windows = { version = "0.61", features = ["Win32_System_Com", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_Security"] }
 
 [profile.release]
 codegen-units = 1

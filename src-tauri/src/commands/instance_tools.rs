@@ -35,34 +35,18 @@ pub struct CrashSummary {
     pub hint: String,
 }
 
-fn tokenize_jvm_args(input: &str) -> Vec<String> {
-    let mut tokens = Vec::new();
-    let mut current = String::new();
-    let mut in_quotes = false;
-    for ch in input.chars() {
-        match ch {
-            '"' => {
-                in_quotes = !in_quotes;
-            }
-            ' ' | '\t' | '\n' if !in_quotes => {
-                if !current.is_empty() {
-                    tokens.push(current.clone());
-                    current.clear();
-                }
-            }
-            _ => current.push(ch),
-        }
-    }
-    if !current.is_empty() {
-        tokens.push(current);
-    }
-    tokens
-}
-
 #[tauri::command]
-pub async fn jvm_args_validate(input: String) -> AppResult<JvmValidationResult> {
+pub async fn jvm_args_validate(input: String, min_ram_mb: Option<u64>, ram_mb: Option<u64>) -> AppResult<JvmValidationResult> {
     tokio::task::spawn_blocking(move || -> AppResult<JvmValidationResult> {
-        let tokens = tokenize_jvm_args(&input);
+        let mut tokens = crate::core::launcher::jvm_arguments::parse(&input)?;
+        match (min_ram_mb, ram_mb) {
+            (Some(minimum), Some(maximum)) if minimum > 0 && maximum >= 256 && minimum <= maximum => {
+                tokens.retain(|arg| !arg.starts_with("-Xms") && !arg.starts_with("-Xmx"));
+                tokens.extend([format!("-Xms{minimum}M"), format!("-Xmx{maximum}M")]);
+            }
+            (None, None) => {}
+            _ => return Err(AppError::InvalidInput("A memória inicial deve ser positiva e não pode exceder a memória máxima do Minecraft.".into())),
+        }
         let mut rejected = Vec::new();
         let mut accepted = Vec::new();
         let mut suggestions = Vec::new();
@@ -90,7 +74,7 @@ pub async fn jvm_args_validate(input: String) -> AppResult<JvmValidationResult> 
             }
         }
 
-        let normalized = accepted.join(" ");
+        let normalized = crate::core::launcher::jvm_arguments::format(&accepted);
         Ok(JvmValidationResult {
             valid: rejected.is_empty(),
             rejected,
@@ -775,7 +759,7 @@ mod tests {
     async fn jvm_args_rejects_unsupported_flags() {
         let r = jvm_args_validate(
 			"-Xms2G -Xmx4G -XstartOnFirstThread -XX:HeapDumpPath=MojangTricksIntelDriversForPerformance_javaw.exe_minecraft.exe.heapdump".to_string(),
-		)
+            None, None)
 		.await
 		.unwrap();
         assert!(!r.valid);
@@ -792,7 +776,7 @@ mod tests {
 
     #[tokio::test]
     async fn jvm_args_keeps_safe_flags() {
-        let r = jvm_args_validate("-Xms2G -Xmx4G -Dfile.encoding=UTF-8".to_string())
+        let r = jvm_args_validate("-Xms2G -Xmx4G -Dfile.encoding=UTF-8".to_string(), None, None)
             .await
             .unwrap();
         assert!(r.valid);
@@ -803,14 +787,24 @@ mod tests {
     #[tokio::test]
     async fn jvm_args_handles_quoted_paths() {
         let r =
-            jvm_args_validate(r#"-Djava.library.path="/opt/mc with spaces/natives""#.to_string())
+            jvm_args_validate(r#"-Djava.library.path="/opt/mc with spaces/natives""#.to_string(), None, None)
                 .await
                 .unwrap();
         assert!(r.valid);
         assert_eq!(
             r.normalized,
-            "-Djava.library.path=/opt/mc with spaces/natives"
+            r#""-Djava.library.path=/opt/mc with spaces/natives""#
         );
+        assert_eq!(crate::core::launcher::jvm_arguments::parse(&r.normalized).unwrap(), vec!["-Djava.library.path=/opt/mc with spaces/natives"]);
+    }
+
+    #[tokio::test]
+    async fn jvm_args_memory_controls_preserve_quoted_properties_and_replace_only_heap_flags() {
+        let r = jvm_args_validate(r#"-Dpath="C:\Game  Data\natives" "-Dmessage=keep -Xmx8G here" -Xms8G -Xmx16G"#.into(), Some(512), Some(2048)).await.unwrap();
+        assert!(r.valid);
+        assert_eq!(crate::core::launcher::jvm_arguments::parse(&r.normalized).unwrap(), vec![r"-Dpath=C:\Game  Data\natives", "-Dmessage=keep -Xmx8G here", "-Xms512M", "-Xmx2048M"]);
+        assert!(jvm_args_validate(String::new(), Some(4096), Some(2048)).await.is_err());
+        assert!(jvm_args_validate(r#"-Dpath="missing closing quote"#.into(), None, None).await.is_err());
     }
 
     #[tokio::test]

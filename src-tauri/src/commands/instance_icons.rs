@@ -150,6 +150,7 @@ pub async fn delete_file_or_dir(path: String) -> AppResult<()> {
             return Err(AppError::Internal("Invalid path".to_string()));
         }
         let p = Path::new(&path);
+        crate::core::managed_skin::guard_change(p)?;
         if p.is_file() {
             std::fs::remove_file(p)?;
         } else if p.is_dir() {

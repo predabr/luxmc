@@ -82,7 +82,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	<nav class="min-h-0 overflow-y-auto custom-scrollbar flex-1 w-full flex flex-col items-center gap-2">
 		{#each items as item}
-			{@const active = page.url.pathname.startsWith(item.href) || (item.href === "/friends" && page.url.pathname === "/hosting")}
+			{@const active = page.url.pathname.startsWith(item.href) || (item.href === "/friends" && page.url.pathname.startsWith("/hosting"))}
 			<div class="relative group w-full flex justify-center">
 				<a
 					href={item.href}

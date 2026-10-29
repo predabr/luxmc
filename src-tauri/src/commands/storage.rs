@@ -176,7 +176,7 @@ fn collect_report(base: &Path, config: &Path, cache: &Path, local: Option<&Path>
         let bytes = scan.size(path);
         categories.push(StorageBreakdown { category: category.into(), bytes: bytes.min(i64::MAX as u64) as i64, path: path.to_string_lossy().into_owned() });
     };
-    let known = ["libraries", "assets", "versions", "instances", "mods", "logs", "cache", "downloads", "java"];
+    let known = ["libraries", "assets", "versions", "instances", "mods", "logs", "cache", "downloads", "java", "local-servers"];
     for category in known { add(&mut scan, category, &base.join(category)); }
     if let Ok(entries) = std::fs::read_dir(base) {
         for entry in entries.flatten() {
@@ -298,6 +298,7 @@ pub async fn storage_clear_logs() -> AppResult<u64> {
 pub async fn storage_clear_cache(state: tauri::State<'_,crate::state::AppState>) -> AppResult<u64> { storage_clear_cache_core(&state).await }
 
 pub async fn storage_clear_cache_core(state: &crate::state::AppState) -> AppResult<u64> {
+    if crate::commands::local_servers::has_active() { return Err(AppError::InvalidState("Pare o servidor local antes de limpar o cache para preservar a preparação do Java.".into())); }
     let _cleanup=CLEANUP.try_lock().map_err(|_|AppError::InvalidState("Uma limpeza já está em andamento.".into()))?;
     let _launch=state.launch_lock.try_lock().map_err(|_|AppError::InvalidState("Aguarde a abertura do Minecraft antes de limpar o cache.".into()))?;
     let _import=state.import_lock.try_lock().map_err(|_|AppError::InvalidState("Aguarde a instalação antes de limpar o cache.".into()))?;
@@ -329,6 +330,17 @@ pub async fn storage_delete_instance(id: String) -> AppResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn local_server_worlds_are_game_storage_and_survive_cache_cleanup() {
+        let root = tempfile::tempdir().unwrap();
+        file(root.path(), "local-servers/fixture/world/region/world.mca", 512);
+        file(root.path(), "local-servers/fixture/server.jar", 128);
+        file(root.path(), "cache/temporary.bin", 16);
+        let report = collect_report(root.path(), &root.path().join("configuration"), &root.path().join("cache"), None, None, Vec::new(), Vec::new());
+        assert_eq!(report.categories.iter().find(|category| category.category == "local-servers").unwrap().bytes, 640);
+        assert_eq!(clear_log_files(vec![root.path().join("cache")]), 16);
+        assert_eq!(std::fs::metadata(root.path().join("local-servers/fixture/world/region/world.mca")).unwrap().len(), 512);
+    }
     fn file(root: &Path, path: &str, bytes: usize) {
         let path = root.join(path); std::fs::create_dir_all(path.parent().unwrap()).unwrap(); std::fs::write(path, vec![0; bytes]).unwrap();
     }

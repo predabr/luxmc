@@ -46,7 +46,7 @@ async function save(run: number) {
         if (run !== generation) return;
         revision = result.revision; baseline = JSON.stringify(preferences); error = '';
     } catch (cause) {
-        if (run === generation) { error = String(cause); ready = false; pending = null; }
+        if (run === generation) { error = String(cause); pending = null; }
     } finally {
         if (run === generation) { busy = false; if (pending) saveTimer = setTimeout(() => void save(run), 900); }
     }

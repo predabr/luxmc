@@ -1,4 +1,5 @@
 mod loader_selection;
+pub(crate) mod jvm_arguments;
 mod quick_join;
 mod classpath_paths;
 mod presence;
@@ -24,7 +25,6 @@ const DEV_CLIENT_ID: &str = "00000000-0000-0000-0000-000000000002";
 const DEV_XUID: &str = "0";
 const LAUNCHER_NAME: &str = "Luxmc";
 const LAUNCHER_VERSION: &str = env!("CARGO_PKG_VERSION");
-static CLIENT_AGENT_JAR: &[u8] = include_bytes!("../../../assets/luxmc-client-agent.jar");
 static ACTIVE_CAPE_BYTES: tokio::sync::RwLock<Vec<u8>> = tokio::sync::RwLock::const_new(Vec::new());
 
 static ACTIVE_GAME_PID: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
@@ -684,8 +684,7 @@ impl GameLauncher {
         tokio::task::spawn_blocking(move || crate::core::launcher::launch_state::store(&verified_profile))
             .await.map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
         self.emit_stage(LaunchStage::ResolvingArgs);
-        let mut jvm_args = self.build_jvm_args(detail, &classpath, &natives_dir, game_dir, profile);
-        jvm_args.extend(extra_jvm_args);
+        let jvm_args = self.build_jvm_args(detail, &classpath, &natives_dir, game_dir, profile, &extra_jvm_args)?;
 
         let mut game_args = extra_game_args;
         game_args.extend(self.build_game_args(
@@ -787,10 +786,7 @@ impl GameLauncher {
         #[cfg(windows)]
         startup::append_counter_fallback(&mut safe_jvm_args, startup::windows_counters_unavailable());
         {
-            let agent_path = game_dir.join("luxmc-client-agent.jar");
-            if tokio::fs::read(&agent_path).await.ok().as_deref() != Some(CLIENT_AGENT_JAR) {
-                tokio::fs::write(&agent_path, CLIENT_AGENT_JAR).await?;
-            }
+            let agent_path = crate::core::managed_skin::prepare(game_dir,false).await?;
             safe_jvm_args.push(format!("-Dluxmc.appearance.uuid={uuid}"));
             safe_jvm_args.push(format!("-Dluxmc.lan.published={}", game_dir.join(".luxmc/lan-published.properties").display()));
             if let Some(path) = crate::network::p2p_tunnel::room_appearance_path() { safe_jvm_args.push(format!("-Dluxmc.appearance.room={}", path.display())); }
@@ -1744,8 +1740,10 @@ impl GameLauncher {
         natives_dir: &PathBuf,
         game_dir: &PathBuf,
         profile: &crate::db::models::ProfileRow,
-    ) -> Vec<String> {
+        loader_args: &[String],
+    ) -> AppResult<Vec<String>> {
         let mut args = Vec::new();
+        let custom_args = jvm_arguments::parse(profile.jvm_args.as_deref().unwrap_or_default())?;
 
         let cp_str = classpath
             .iter()
@@ -1823,6 +1821,8 @@ impl GameLauncher {
             args.push(cp_str.clone());
         }
 
+        args.extend_from_slice(loader_args);
+
         let actual_mods_count = if let Ok(entries) = std::fs::read_dir(game_dir.join("mods")) {
             entries.filter_map(|e| e.ok()).filter(|e| {
                 e.path().extension().map_or(false, |ext| {
@@ -1859,11 +1859,12 @@ impl GameLauncher {
             }
         } else {
             4096
-        };
+        }.max(256);
 
         // Apply Intelligent Luxmc Optimization (Aikar's Flags) or Standard Flags
-        let custom_collector = profile.jvm_args.as_deref().is_some_and(|args|
-            args.split_whitespace().any(|arg| matches!(arg, "-XX:+UseZGC" | "-XX:+UseShenandoahGC" | "-XX:+UseParallelGC" | "-XX:+UseSerialGC")));
+        jvm_arguments::constrain_inherited_heap(&mut args, ram_mb);
+        let custom_collector = custom_args.iter().any(|arg|
+            matches!(arg.as_str(), "-XX:+UseZGC" | "-XX:+UseShenandoahGC" | "-XX:+UseParallelGC" | "-XX:+UseSerialGC"));
         let mut generated_flags = if custom_collector {
             vec![format!("-Xms{}M", ram_mb.min(1024)), format!("-Xmx{}M", ram_mb)]
         } else if profile.auto_optimize {
@@ -1913,18 +1914,14 @@ impl GameLauncher {
         }
 
         // Apply user-specified custom JVM arguments (take precedence)
-        if let Some(ref custom_args) = profile.jvm_args {
-            if !custom_args.is_empty() {
-                for arg in custom_args.split_whitespace() {
+        for arg in custom_args {
                     // If user manually specifies -Xms or -Xmx, replace existing
-                    if arg.starts_with("-Xmx") {
-                        args.retain(|a| !a.starts_with("-Xmx"));
-                    } else if arg.starts_with("-Xms") {
-                        args.retain(|a| !a.starts_with("-Xms"));
-                    }
-                    args.push(arg.to_string());
-                }
+            if arg.starts_with("-Xmx") {
+                args.retain(|a| !a.starts_with("-Xmx"));
+            } else if arg.starts_with("-Xms") {
+                args.retain(|a| !a.starts_with("-Xms"));
             }
+            args.push(arg);
         }
 
         args.retain(|a| !a.starts_with("-Dneoforge.earlydisplay="));
@@ -1963,7 +1960,7 @@ impl GameLauncher {
             }
         }
 
-        args
+        Ok(args)
     }
 
     fn evaluate_jvm_rules(&self, rules: &[serde_json::Value]) -> bool {
@@ -2168,6 +2165,32 @@ async fn ensure_flite_library(natives_dir: &PathBuf) -> AppResult<bool> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn inherited_heap_respects_instance_ram_and_custom_paths_reach_java_intact() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().to_path_buf();
+        let http = reqwest::Client::new();
+        let launcher = super::GameLauncher::new(crate::core::downloader::DownloadManager::new(http.clone(), path.clone()), crate::core::java::JavaRuntimeManager::new(http, path.clone()));
+        let mut profile: crate::db::models::ProfileRow = serde_json::from_value(serde_json::json!({
+            "id":"fixture", "name":"Fixture", "icon":"grass_block", "mcVersion":"1.21.1", "loader":"vanilla",
+            "fullscreen":false, "gameDir":path, "createdAt":"2026-10-26T00:00:00Z", "updatedAt":"2026-10-26T00:00:00Z",
+            "ramMb":2048, "autoOptimize":false, "jvmArgs":r#"-Dpath="C:\Game  Data\natives""#
+        })).unwrap();
+        let detail: super::VersionDetail = serde_json::from_value(serde_json::json!({"id":"1.21.1", "type":"release", "arguments":{"jvm":["-Xms8G", "-Xmx16G"], "game":[]}})).unwrap();
+        let loader_args = vec!["-Xmx12G".into()];
+        let args = launcher.build_jvm_args(&detail, &[], &path, &path, &profile, &loader_args).unwrap();
+        assert_eq!(args.iter().filter(|arg| arg.starts_with("-Xmx")).collect::<Vec<_>>(), vec!["-Xmx2048M"]);
+        assert_eq!(args.iter().filter(|arg| arg.starts_with("-Xms")).collect::<Vec<_>>(), vec!["-Xms2048M"]);
+        assert!(args.iter().any(|arg| arg == r"-Dpath=C:\Game  Data\natives"));
+        assert!(!args.iter().any(|arg| arg == "Data\\natives"));
+        let args = launcher.build_jvm_args(&detail, &[], &path, &path, &profile, &["-Xms512M".into()]).unwrap();
+        assert!(args.iter().any(|arg| arg == "-Xms512M"));
+        profile.jvm_args = Some("-Xms1G -Xmx4G".into());
+        let args = launcher.build_jvm_args(&detail, &[], &path, &path, &profile, &loader_args).unwrap();
+        assert_eq!(args.iter().filter(|arg| arg.starts_with("-Xmx")).collect::<Vec<_>>(), vec!["-Xmx4G"]);
+        assert_eq!(args.iter().filter(|arg| arg.starts_with("-Xms")).collect::<Vec<_>>(), vec!["-Xms1G"]);
+    }
+
     #[cfg(windows)]
     #[tokio::test]
     async fn stale_log_reader_releases_locked_files() {

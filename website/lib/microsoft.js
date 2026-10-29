@@ -20,7 +20,7 @@ async function microsoftJson(url, options) {
   let response;
   const headers = new Headers(options.headers);
   headers.set("Accept", "application/json");
-  headers.set("User-Agent", "Luxmc-Website/4.0.0 (+https://luxmc-r92.pages.dev)");
+  headers.set("User-Agent", "Luxmc-Website/4.0.1 (+https://luxmc-r92.pages.dev)");
   try {
     response = await fetch(url, { ...options, headers, redirect: "manual", signal: AbortSignal.timeout(1e4) });
   } catch {

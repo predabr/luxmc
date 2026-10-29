@@ -412,7 +412,6 @@
         const profile = activeProfile;
 		if (profile) {
 			if (instanceMinRamMb > instanceRamMb || instanceRamMb > systemRamMb) { toast(uiText("ui.064548a1a2e44056"), "error"); return; }
-			instanceJvmArgs = instanceJvmArgs.split(/\s+/).filter(value => value && !/^-Xm[sx]/.test(value)).concat(`-Xms${instanceMinRamMb}M`, `-Xmx${instanceRamMb}M`).join(" ");
 
 			const bannerValue = instanceBanner.trim();
             const bannerChanged = bannerValue !== (profile.banner || "").trim();
@@ -447,6 +446,10 @@
             };
 			savingInstanceSettings = true;
             try {
+                const validation = await jvmArgsValidate(changes.jvmArgs, { minRamMb: instanceMinRamMb, ramMb: instanceRamMb });
+                if (!validation.valid) throw new Error(validation.rejected.join(', '));
+                changes.jvmArgs = validation.normalized;
+                instanceJvmArgs = validation.normalized;
                 if (changes.loader !== profile.loader || (changes.loaderVersion || '') !== (profile.loaderVersion || '')) {
                     if (changes.loader !== 'vanilla') {
                         const available = await loadersVersions(changes.loader,profile.mcVersion);
@@ -2069,7 +2072,7 @@
 											onchange={() => toggleModSelection(mod.name)}
 											class="w-4 h-4 rounded border border-fg/20 bg-bg-subtle accent-emerald-500 cursor-pointer shrink-0"
 										/>
-										<div use:loadContentIcon={{entry: mod, folder: "mods"}} class="mod-cover w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shrink-0 bg-bg-subtle border border-fg/10 relative shadow-sm {isDisabled ? 'grayscale opacity-60' : ''}">
+										<div use:loadContentIcon={{entry: mod, folder: "mods"}} class="mod-cover w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shrink-0 bg-bg-subtle relative {isDisabled ? 'grayscale opacity-60' : ''}">
 											<div class="absolute inset-0 bg-bg-subtle text-fg-muted flex items-center justify-center select-none">
 												<span class="text-xs font-black tracking-tight drop-shadow-sm">{badge.initials}</span>
 											</div>
@@ -2078,7 +2081,7 @@
 													src={mod.icon}
 													alt={displayName}
 													loading="eager"
-													class="relative z-10 w-full h-full object-contain p-1"
+													class="relative z-10 block w-full h-full rounded-[inherit] object-contain"
 												/>
 											{/if}
 										</div>
@@ -2233,9 +2236,9 @@
                                             <group.icon class="absolute h-5 w-5 text-fg-muted" />
                                             {#if pack.icon}<img use:contentImage={{ profileId: instanceId, folder: group.id === "shaders" ? "shaderpacks" : group.id === "datapacks" ? `saves/${datapackWorld}/datapacks` : "resourcepacks", name: pack.name, iconKey: pack.iconKey }} src={pack.icon} referrerpolicy="no-referrer" alt={pack.name} loading="eager" decoding="async" class="relative h-full w-full object-contain" />{/if}
                                         </div>
-                                        <div class="min-w-0 flex-1"><p class="truncate text-xs font-semibold text-fg" title={pack.name}>{pack.name}</p><p class="mt-1 text-[10px] text-fg-muted">{pack.isDir ? uiText('updateCenter.extractedPack') : `${(pack.size / 1048576).toFixed(2)} MB`}</p></div>
+                                        <div class="min-w-0 flex-1"><p class="truncate text-xs font-semibold text-fg" title={pack.name}>{pack.name}{#if pack.managed}<span class="ml-2 text-[10px] text-brand-400">{uiText('managedSkins.badge')}</span>{/if}</p><p class="mt-1 text-[10px] text-fg-muted">{pack.isDir ? uiText('updateCenter.extractedPack') : `${(pack.size / 1048576).toFixed(2)} MB`}</p></div>
                                         <button type="button" class={button({ variant: 'ghost', size: 'icon' })} aria-label={`${uiText("screenshots.openFolderBtn")}: ${pack.name}`} title={uiText("screenshots.openFolderBtn")} onclick={() => handleOpenPackFolder(group.type)}><FolderOpen class="h-4 w-4" /></button>
-                                        <button type="button" class={button({ variant: 'ghostDanger', size: 'icon' })} aria-label={uiText("ui.a03c3b676aa5e5d1", {arg0: (pack.name)})} onclick={() => handleDeletePack(pack.name, group.type)}><Trash2 class="h-4 w-4" /></button>
+                                        <button type="button" disabled={pack.managed} title={pack.managed ? uiText('managedSkins.required') : undefined} class={button({ variant: 'ghostDanger', size: 'icon' })} aria-label={uiText("ui.a03c3b676aa5e5d1", {arg0: (pack.name)})} onclick={() => handleDeletePack(pack.name, group.type)}><Trash2 class="h-4 w-4" /></button>
                                     </div>
                                 {/each}
                             </div>
@@ -2578,7 +2581,8 @@
 									<button
 										type="button"
 										class={launcherButton({ variant: "danger", size: "icon", class: "opacity-0 group-hover:opacity-100" })}
-										onclick={(e) => { e.stopPropagation(); handleDeleteFileEntry(file); }}
+										disabled={file.managed}
+                                        onclick={(e) => { e.stopPropagation(); handleDeleteFileEntry(file); }}
 										title={uiText("screenshots.deleteBtn")}
 									>
 										<Trash2 class="w-3.5 h-3.5" />

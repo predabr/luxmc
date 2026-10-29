@@ -3,6 +3,16 @@ pub const CREATE_NO_WINDOW: u32 = 0x08000000;
 #[cfg(windows)]
 pub const ABOVE_NORMAL_PRIORITY_CLASS: u32 = 0x00008000;
 
+pub fn java_working_directory(path: &std::path::Path) -> std::path::PathBuf {
+    #[cfg(windows)]
+    {
+        let value=path.to_string_lossy();
+        if let Some(rest)=value.strip_prefix(r"\\?\UNC\") {return std::path::PathBuf::from(format!(r"\\{rest}"));}
+        if let Some(rest)=value.strip_prefix(r"\\?\") {return std::path::PathBuf::from(rest);}
+    }
+    path.to_path_buf()
+}
+
 pub fn process_started_at(pid: u32) -> Option<u64> {
     if pid == 0 { return None; }
     #[cfg(windows)]
@@ -150,6 +160,14 @@ fn redact_log_line(line: &str) -> String {
 
 #[cfg(test)]
 mod log_tests {
+    #[cfg(windows)]
+    #[test]
+    fn java_working_directory_keeps_spaces_and_network_paths_without_verbatim_prefixes() {
+        use std::path::{Path,PathBuf};
+        assert_eq!(super::java_working_directory(Path::new(r"\\?\C:\Server Data")),PathBuf::from(r"C:\Server Data"));
+        assert_eq!(super::java_working_directory(Path::new(r"\\?\UNC\server\share\folder")),PathBuf::from(r"\\server\share\folder"));
+        assert_eq!(super::java_working_directory(Path::new("relative")),PathBuf::from("relative"));
+    }
     #[test]
     fn only_rendering_classes_confirm_a_game_window() {
         assert!(super::is_game_window_class("GLFW30"));

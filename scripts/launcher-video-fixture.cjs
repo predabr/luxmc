@@ -219,7 +219,7 @@ async function setupLauncherDemo(page, { login = false, room = false } = {}) {
             if (command === 'optimizer_detect_gpu') return { vendor: 'GPU de demonstração', renderer: 'GPU de demonstração', driver: 'Driver de demonstração', supportsZink: false };
             if (command === 'optimizer_get_flags') return ['-XX:+UseG1GC', '-XX:MaxGCPauseMillis=200'];
             if (command === 'optimizer_get_perf_pack') return { available: true, loader: args.loader || 'fabric', mcVersion: args.mcVersion || '1.21.1', reason: null, mods: [{ slug: 'sodium', title: 'Sodium', description: 'Renderização otimizada.' }, { slug: 'lithium', title: 'Lithium', description: 'Otimizações do jogo.' }] };
-            if (command === 'jvm_args_validate') return { valid: true, rejected: [], normalized: args.args || '', suggestions: [] };
+            if (command === 'jvm_args_validate') return { valid: true, rejected: [], normalized: args.input || args.args || '', suggestions: [] };
             if (command === 'storage_full_report') return storage();
             if (command === 'storage_breakdown') return storage().categories;
             if (command === 'app_data_directory') return 'C:\\Luxmc\\Demonstracao\\data';

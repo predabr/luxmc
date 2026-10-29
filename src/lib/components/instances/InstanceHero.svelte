@@ -47,7 +47,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <button type="button" class={button({ variant: 'secondary', size: 'icon' })} onclick={onSettings} aria-label={uiText("ui.6c5b8d86c6726795")}><Settings2 class="h-4 w-4" /></button>
-                <button type="button" class={button({ variant: 'secondary', size: 'icon' })} onclick={onHost} aria-label={uiText("ui.d5bb1349387bf3b9")}><Share2 class="h-4 w-4" /></button>
+                <button type="button" class={button({ variant: 'secondary' })} onclick={onHost}><Share2 class="h-4 w-4" />{uiText('serverPanel.lan')}</button>
+                <a class={button({ variant: 'primary' })} href={`/hosting/server?profile=${encodeURIComponent(profile?.id || '')}`}><Share2 class="h-4 w-4" />{uiText('localServer.open')}</a>
                 {#if running}
                     <button type="button" disabled={stopping} class={launcherButton({ variant: "danger", size: "lg", class: "inline-flex items-center justify-center gap-2 uppercase disabled:opacity-50" })} onclick={onStop}>
                         {#if stopping}

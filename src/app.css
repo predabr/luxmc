@@ -855,3 +855,23 @@ html.has-custom-wallpaper main .instance-mod-list .instance-mod-row { background
 
 .instance-mod-row { grid-template-columns:minmax(0,1fr) minmax(100px,168px) 216px; }
 @media (max-width:1100px) { .instance-mod-row { grid-template-columns:minmax(0,1fr) 216px; } }
+
+main[data-refined-ui="true"] .launcher-button { box-shadow:inset 0 1px 0 rgb(var(--fg)/.04); }
+main[data-refined-ui="true"] .launcher-button--primary { background:rgb(var(--brand-action)); color:rgb(var(--brand-foreground)); border-color:rgb(var(--brand-400)/.45); box-shadow:0 4px 14px rgb(var(--brand-500)/.13),inset 0 1px 0 rgb(var(--fg)/.12); }
+main[data-refined-ui="true"] :is(input:not([type=checkbox]):not([type=range]):not([type=radio]),select,textarea):focus-visible { outline:2px solid rgb(var(--brand-400)/.8); outline-offset:3px; }
+main[data-refined-ui="true"] :is(.settings-navigation,.instance-settings-navigation) { box-shadow:inset 0 1px 0 rgb(var(--fg)/.035); }
+main[data-refined-ui="true"] .server-workspace>header { padding:20px 22px; border:1px solid rgb(var(--border)); border-radius:20px; background:linear-gradient(115deg,rgb(var(--brand-500)/.09),transparent 65%),rgb(var(--bg-elevated)/.97); }
+main[data-refined-ui="true"] .server-shell { border-radius:20px; box-shadow:0 12px 36px rgb(var(--shadow-color)/.08); }
+main[data-refined-ui="true"] .server-list { background:rgb(var(--bg-subtle)/.8); }
+main[data-refined-ui="true"] .server-tab[aria-current=page] { box-shadow:inset 3px 0 0 rgb(var(--brand-400)); background:rgb(var(--brand-500)/.12); }
+main[data-refined-ui="true"] .server-item[aria-pressed=true] { border-color:rgb(var(--brand-400)/.5); box-shadow:inset 0 1px 0 rgb(var(--brand-400)/.08); }
+html:not(.no-ui-motion):not(.no-anim) main[data-refined-ui="true"] :is(.launcher-button,.server-tab,.creator-choice) { transition:background-color 160ms ease,border-color 160ms ease,box-shadow 180ms ease,transform 180ms cubic-bezier(.16,1,.3,1); }
+html:not(.no-ui-motion):not(.no-anim) main[data-refined-ui="true"] .server-content>div { animation:settings-panel-appear 210ms cubic-bezier(.16,1,.3,1) both; }
+@media(hover:hover) {
+    html:not(.no-ui-motion):not(.no-anim) main[data-refined-ui="true"] .launcher-button:hover:not(:disabled) { transform:translateY(-2px); }
+    html:not(.no-ui-motion):not(.no-anim) main[data-refined-ui="true"] .launcher-button:active:not(:disabled) { transform:translateY(0) scale(.98); }
+}
+html.no-ui-motion :is(.creator,.creator-choice,.creator-result),html.no-anim :is(.creator,.creator-choice,.creator-result) { animation:none!important; transition:none!important; transform:none!important; }
+@media(prefers-reduced-motion:reduce) {
+    html:not(.force-ui-motion) main[data-refined-ui="true"] :is(.launcher-button,.server-tab,.server-content>div) { animation:none!important; transition:none!important; transform:none!important; }
+}

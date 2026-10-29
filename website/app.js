@@ -107,8 +107,8 @@ async function initGitHubRelease() {
     }
     if (!data)
       throw new Error("Release indisponível");
-    const initialTag = document.querySelector(".live-version-tag")?.textContent?.trim() || "v4.0.0";
-    const siteTag = /^v\d+\.\d+\.\d+$/.test(initialTag) ? initialTag : "v4.0.0";
+    const initialTag = document.querySelector(".live-version-tag")?.textContent?.trim() || "v4.0.1";
+    const siteTag = /^v\d+\.\d+\.\d+$/.test(initialTag) ? initialTag : "v4.0.1";
     const remoteTag = typeof data.tag_name === "string" ? data.tag_name : siteTag;
     const revisionMatch = /^v?(\d+)\.(\d+)\.(\d+)-revision\.(\d+)$/.exec(remoteTag);
     const buildMatch = /^v?(\d+\.\d+\.\d+)-build\.(\d+)\.(\d+)$/.exec(remoteTag);

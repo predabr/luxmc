@@ -17,6 +17,8 @@ const downloaded = new Set<string>();
 const images: string[] = [];
 let downloading = 0;
 let prefetchTail = Promise.resolve();
+const providerLanes=[Promise.resolve(),Promise.resolve()];
+let providerLane=0;
 function drainImages() {
     while (images.length && downloading < 4 && settings.value.preloadContentIcons !== false && !document.hidden && !appState.isLaunching && !appState.isGameRunning) {
         const source = images.shift()!;
@@ -79,20 +81,20 @@ export function prefetchInstanceContent(profileId: string, refresh = false): Pro
     if (pending.has(profileId)) return pending.get(profileId)!;
     if (pending.size >= 20) return Promise.resolve();
     if (typeof window === 'undefined' || !profileId || settings.value.preloadContentIcons === false || document.hidden || appState.isLaunching || appState.isGameRunning || !refresh && Date.now() - (warmed.get(profileId) || 0) < 120000) return Promise.resolve();
-    const request = prefetchTail.then(async () => {
-        const remote = [Promise.resolve(), Promise.resolve()];
-        let nextLane = 0;
-        let incomplete = false;
+    const remote:Promise<void>[]=[];
+    let incomplete=false;
+    const local = prefetchTail.then(async () => {
         function lookup(folder: string, names: string[]) {
-            const lane = nextLane++ % remote.length;
-            remote[lane] = remote[lane].then(async () => {
+            const lane = providerLane++ % providerLanes.length;
+            providerLanes[lane] = providerLanes[lane].then(async () => {
                 if (document.hidden || appState.isLaunching || appState.isGameRunning) { incomplete = true; return; }
                 try { rememberContentIcons(await instanceContentIcons(profileId, folder, names, true)); }
                 catch { incomplete = true; }
             });
+            remote.push(providerLanes[lane]);
         }
         for (const folder of ['mods', 'resourcepacks', 'shaderpacks']) {
-            if (document.hidden || appState.isLaunching || appState.isGameRunning) return;
+            if (document.hidden || appState.isLaunching || appState.isGameRunning) {incomplete=true;return;}
             const entries = instanceContentEntries(await instanceFileTree(profileId, folder), folder);
             warmContentImages(entries);
             const missing = entries.filter(entry => entry.iconKey && (!icons.has(entry.iconKey) || icons.get(entry.iconKey)!.expires <= Date.now()) && !entry.icon);
@@ -109,12 +111,14 @@ export function prefetchInstanceContent(profileId: string, refresh = false): Pro
                 }
             }));
         }
+    });
+    prefetchTail=local.catch(()=>{});
+    const request=local.then(async()=>{
         await Promise.all(remote);
         if (incomplete) return;
         warmed.set(profileId, Date.now());
         if (warmed.size > 20) warmed.delete(warmed.keys().next().value!);
     }).catch(() => {}).finally(() => pending.delete(profileId));
-    prefetchTail = request;
     pending.set(profileId, request);
     return request;
 }

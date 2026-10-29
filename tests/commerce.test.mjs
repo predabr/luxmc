@@ -51,7 +51,7 @@ test('owner panel rejects another account, spoofed role, missing credentials and
 });
 test('checkout trusts server prices, is idempotent and preserves the payment destination', async t => {
     const f=fixture();t.after(()=>f.sqlite.close());
-    const created=await f.call('create',alice,{plan:'plus',amount:1,socialId:bob}); assert.equal(created.status,200); assert.equal(created.body.order.amount,990);assert.equal(created.body.order.socialId,alice);
+    const created=await f.call('create',alice,{plan:'plus',amount:1,socialId:bob}); assert.equal(created.status,200); assert.equal(created.body.order.amount,2000);assert.equal(created.body.order.socialId,alice);
     assert.equal((await f.call('create',alice,{plan:'plus'})).body.order.id,created.body.order.id);
     assert.equal((await f.call('create',alice,{plan:'pro'})).status,409);
     f.sqlite.prepare("UPDATE lux_commerce_config SET pix_key = 'other@example.test'").run();
@@ -245,7 +245,7 @@ test('Pix payload follows the BCB published vector and carries authoritative amo
     assert.equal(pixPayload({key:'123e4567-e12b-12d1-a456-426655440000',name:'Fulano de Tal',city:'BRASILIA'}),'00020126580014br.gov.bcb.pix0136123e4567-e12b-12d1-a456-4266554400005204000053039865802BR5913Fulano de Tal6008BRASILIA62070503***63041D3D');
     assert.throws(()=>pixPayload({key:'invalid',amount:1990})); assert.throws(()=>pixPayload({key:'test@example.test',amount:19.9}));
     const f=fixture();t.after(()=>f.sqlite.close());const created=(await f.call('create',alice,{plan:'pro',amount:1,pixKey:'evil@example.test'})).body.order;
-    assert.match(created.pixCode,/540519.90/);assert.ok(created.pixCode.includes(created.pixKey));assert.equal(created.pixReference,orderTxid(created.id));assert.match(created.pixReference,/^[a-z0-9]{25}$/);
+    assert.match(created.pixCode,/540530.00/);assert.ok(created.pixCode.includes(created.pixKey));assert.equal(created.pixReference,orderTxid(created.id));assert.match(created.pixReference,/^[a-z0-9]{25}$/);
     assert.equal((await f.call('create',alice,{plan:'pro'})).body.order.pixCode,created.pixCode);
     const other=(await f.call('create',bob,{plan:'pro'})).body.order;assert.notEqual(other.pixReference,created.pixReference);
 });
@@ -255,12 +255,24 @@ test('service receipt requires approved bank credit, stays private and totals co
     assert.equal((await f.serviceReceipt(alice,order)).status,409);assert.equal((await f.call('owner_queue',owner)).body.stats.approvedAmount,0);
     const row=f.sqlite.prepare('SELECT version FROM lux_purchase_orders WHERE id=?').get(order);
     const body={id:order,version:row.version,receiptHash:hash(png),decision:'approve',creditConfirmed:true,transactionId:'E12345678202009091221abcdef12345',receivedAmount:100,note:''};
-    assert.equal((await f.call('owner_review',owner,body)).status,400);assert.equal((await f.call('owner_review',owner,{...body,receivedAmount:1990,transactionId:'arbitrary-reference'})).status,400);
+    assert.equal((await f.call('owner_review',owner,body)).status,400);assert.equal((await f.call('owner_review',owner,{...body,receivedAmount:3000,transactionId:'arbitrary-reference'})).status,400);
     assert.equal((await f.approve(order)).status,200);assert.equal((await f.approve(order)).status,409);
-    const stats=(await f.call('owner_queue',owner)).body.stats;assert.equal(stats.approvedAmount,1990);assert.equal(stats.approved,1);
+    const stats=(await f.call('owner_queue',owner)).body.stats;assert.equal(stats.approvedAmount,3000);assert.equal(stats.approved,1);
     assert.equal((await f.serviceReceipt(bob,order)).status,404);assert.equal((await f.serviceReceipt('unknown',order)).status,401);assert.equal((await f.serviceReceipt(owner,order,{'Sec-Fetch-Site':'cross-site'})).status,403);
-    const response=await f.serviceReceipt(alice,order);assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store');assert.match(response.headers.get('content-security-policy'),/script-src 'none'/);const html=await response.text();assert.match(html,/19,90/);assert.ok(html.includes(order));assert.ok(html.includes('Alice#22222222'));
+    const response=await f.serviceReceipt(alice,order);assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store');assert.match(response.headers.get('content-security-policy'),/script-src 'none'/);const html=await response.text();assert.match(html,/30,00/);assert.ok(html.includes(order));assert.ok(html.includes('Alice#22222222'));
     f.sqlite.prepare('UPDATE social_users SET username=? WHERE id=?').run('<script>alert(1)</script>',alice);const safe=await(await f.serviceReceipt(owner,order)).text();assert.ok(!safe.includes('<script>'));assert.ok(safe.includes('&lt;script&gt;'));
     const rejected=(await f.call('create',bob,{plan:'plus'})).body.order.id;await f.upload(bob,rejected);const version=f.sqlite.prepare('SELECT version FROM lux_purchase_orders WHERE id=?').get(rejected).version;await f.call('owner_review',owner,{id:rejected,version,receiptHash:hash(png),decision:'reject',note:'Sem crédito no banco'});
-    assert.equal((await f.serviceReceipt(bob,rejected)).status,409);assert.equal((await f.call('owner_queue',owner)).body.stats.approvedAmount,1990);
+    assert.equal((await f.serviceReceipt(bob,rejected)).status,409);assert.equal((await f.call('owner_queue',owner)).body.stats.approvedAmount,3000);
+});
+
+
+test('new prices apply to new orders while an existing unpaid order keeps its quoted amount', async t => {
+    const f=fixture(); t.after(()=>f.sqlite.close());
+    const first=(await f.call('create',alice,{plan:'plus'})).body.order;
+    assert.equal(first.amount,2000);
+    f.sqlite.prepare('UPDATE lux_purchase_orders SET amount = 990 WHERE id = ?').run(first.id);
+    const existing=(await f.call('create',alice,{plan:'plus'})).body.order;
+    assert.equal(existing.id,first.id); assert.equal(existing.amount,990);
+    const fresh=(await f.call('create',bob,{plan:'pro'})).body.order;
+    assert.equal(fresh.amount,3000);
 });

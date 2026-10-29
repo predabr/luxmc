@@ -29,6 +29,7 @@ fn enable_java(existing: &str, legacy: bool) -> AppResult<String> {
 }
 
 pub async fn prepare_java(root:&Path,version:&str) -> AppResult<bool> {
+    crate::core::managed_skin::prepare(root,false).await?;
     let clean=crate::core::launcher::extract_mc_version(version);
     if clean.starts_with(['a','b','c']) || clean.starts_with("rd-") || clean.strip_prefix("1.").and_then(|value|value.split('.').next()).and_then(|value|value.parse::<u32>().ok()).is_some_and(|minor|minor<6) {return Ok(false);}
     prepare_java_format(root,crate::core::launcher::get_pack_format_for_version(version)).await
@@ -45,7 +46,7 @@ async fn prepare_java_format(root:&Path,format:u32) -> AppResult<bool> {
         write_changed(&path,&bytes).await?;
     }
     let activated=destination(root,".luxmc/essentials-installed")?;
-    if tokio::fs::read(&activated).await.ok().as_deref() != Some(b"2\n") {
+    {
         let options=destination(root,"options.txt")?;
         let mut existing=match tokio::fs::read_to_string(&options).await {Ok(value)=>value,Err(error) if error.kind()==std::io::ErrorKind::NotFound=>String::new(),Err(error)=>return Err(error.into())};
         if existing.is_empty() || existing.lines().all(|line| line.starts_with("resourcePacks:") || line.trim().is_empty()) {
@@ -72,7 +73,7 @@ pub async fn prepare_bedrock(root:&Path) -> AppResult<()> {
 mod tests {
     use super::*;
     #[tokio::test]
-    async fn preserves_packs_options_worlds_and_user_disabled_selection() {
+    async fn preserves_personal_packs_and_worlds_and_restores_required_luxmc_activation() {
         let root=tempfile::tempdir().unwrap();
         tokio::fs::write(root.path().join("options.txt"),"lang:pt_br\nresourcePacks:[\"vanilla\",\"file/MyPack.zip\"]\n").await.unwrap();
         tokio::fs::create_dir_all(root.path().join("saves/Keep")).await.unwrap();
@@ -82,7 +83,7 @@ mod tests {
         assert!(options.contains("lang:pt_br"));assert!(options.contains("file/MyPack.zip"));assert!(options.contains("file/LuxmcEssentials"));
         tokio::fs::write(root.path().join("options.txt"),"resourcePacks:[\"vanilla\"]\n").await.unwrap();
         prepare_java_format(root.path(),65).await.unwrap();
-        assert_eq!(tokio::fs::read_to_string(root.path().join("options.txt")).await.unwrap(),"resourcePacks:[\"vanilla\"]\n");
+        assert_eq!(tokio::fs::read_to_string(root.path().join("options.txt")).await.unwrap(),"resourcePacks:[\"vanilla\",\"file/LuxmcEssentials\"]\n");
         assert_eq!(tokio::fs::read(root.path().join("saves/Keep/level.dat")).await.unwrap(),b"world");
         let metadata:serde_json::Value=serde_json::from_slice(&tokio::fs::read(root.path().join("resourcepacks/LuxmcEssentials/pack.mcmeta")).await.unwrap()).unwrap();
         assert_eq!(metadata["pack"]["min_format"],65);

@@ -1,40 +1,34 @@
-# Servidores e Android: próximos passos do Luxmc
+# Servidores, salas P2P e Android
 
-Atualizado em 26/10/2026. Este documento descreve trabalho em desenvolvimento e planejamento; não anuncia uma nova release ou APK.
+## Servidores no seu PC
 
-## Jogar pelo endereço
+A linha 4.0.1 inclui o painel de servidores dedicados. Escolha Vanilla, um loader ou um modpack compatível, configure o mundo e inicie o servidor. Ele tem uma pasta e um mundo separados das instâncias usadas para jogar. Conteúdos, jogadores, console e configurações são administrados pelo painel.
 
-O objetivo do servidor aberto é simples: informar o endereço em **Multijogador → Adicionar servidor** e entrar, sem convite obrigatório do Luxmc. O dono poderá escolher nome, imagem e descrição do servidor, acompanhar jogadores e administrar acesso. Servidores privados poderão usar whitelist e convites opcionais.
+O dono usa **Compartilhar por P2P → Copiar código**. O amigo abre **Jogar juntos** no Luxmc, cola o convite e inicia uma instância com a versão e os mods necessários. O servidor aparece na lista LAN do Minecraft, com alternativa de copiar o endereço ou adicioná-lo à instância. Não é necessário abrir um mundo para LAN ou criar conta em um provedor de túnel.
 
-Um nome como `owner.<domínio-do-projeto>` é apenas um exemplo. Nenhum domínio está sendo oferecido ou reservado por este documento. Entrada direta em Minecraft padrão exige DNS e uma entrada TCP pública que realmente alcance o PC de quem hospeda. O túnel P2P atual, com proxy local e launcher do participante aberto, não se transforma nesse serviço apenas por receber um nome. A definição de infraestrutura e sua validação fazem parte do trabalho pendente.
+Todos mantêm o Luxmc conectado durante a partida. O mundo continua no computador do dono, que precisa permanecer ligado. Encerrar apenas o compartilhamento desconecta os amigos sem parar o processo do servidor. A opção **Parar e salvar** encerra o servidor; a exclusão confirmada remove os arquivos próprios dele.
 
-## Plus e Pro
-
-| Recurso planejado | Plus | Pro |
+| Recurso | Plus · R$ 20 / 30 dias | Pro · R$ 30 / 30 dias |
 | --- | --- | --- |
-| Hospedar mundo aberto por LAN | Até 10 participantes | Até 20 participantes |
-| Hospedar servidor dedicado pelo Luxmc | — | Até 20 participantes, incluindo o dono |
-| Heap Java do servidor gerenciado | — | Configurável até 8 GiB, usando a RAM do PC |
-| Administrar mods, modpack, datapacks, resource packs e mundos do servidor | — | Incluído no escopo em desenvolvimento |
+| Hospedar mundo aberto por LAN | Até 5 participantes | Até 10 participantes |
+| Hospedar servidor dedicado | — | Acesso Pro confirmado |
+| Capacidade da sala do servidor | — | Até 20 participantes, incluindo o dono |
+| Memória configurável do servidor | — | Até 8 GiB do computador do dono |
 
-Jogadores autorizados não precisam ter Pro para entrar em um servidor Pro. A assinatura do anfitrião não inclui um computador em nuvem, armazenamento de mundos ou garantia de desempenho. O PC que hospeda precisa permanecer ligado.
+O limite de jogadores do Minecraft é configurado no servidor. A capacidade da sala não garante que todo computador sustente o mesmo modpack ou número de jogadores. CPU, RAM disponível para servidor e cliente, disco, conteúdo e conexão influenciam a experiência.
 
-A LAN existente está em revisão, incluindo os problemas relatados em modpacks. Antes de anunciar a correção como concluída, é necessário validar descoberta e conexão direta, Vanilla e modpacks, entre dois computadores. A implementação de servidor dedicado já existe em uma revisão local experimental, com falhas relatadas em acesso e compartilhamento; o novo painel e os benefícios acima ainda não foram entregues nos downloads públicos. Não escolha um plano contando com uma função futura como se já estivesse disponível.
+## O que foi verificado
 
-## Controle do servidor
+Um servidor Minecraft Vanilla 1.21.1 temporário respondeu pelo relay público com o transporte IP direto desativado nos endpoints de teste. Foram verificados metadados da sala, resposta do protocolo Minecraft, comandos, salvamento e parada normal. Há testes da descoberta LAN, transporte de bytes, controles da sala, distribuição do resource pack e encerramento do compartilhamento sem parar o servidor.
 
-O painel planejado reúne a lista de servidores, estado, endereço e abas de conteúdo, jogadores, console, configurações e backups. O dono poderá buscar ou importar conteúdo compatível, revisar dependências e aplicar mudanças com backup e reinício quando necessário. Resource packs serão distribuídos aos clientes por um mecanismo acessível e validado; não são mods executados no servidor.
+Uma partida entre dois PCs em redes domésticas diferentes continua sendo uma validação necessária. O funcionamento depende da disponibilidade do transporte direto ou do relay e das condições da rede. Modpacks exigem loaders, dependências e arquivos próprios para servidor; mods exclusivos do cliente não são executados nele. A distribuição de um resource pack não instala mods nem faz clientes sem suporte renderizarem skins personalizadas.
 
-O painel de jogadores distinguirá **online agora**, **perfis únicos que já entraram** e **jogadores conhecidos offline**. Haverá ações de expulsar, banir e desbanir, com identidade Minecraft validada e persistência após reinício. Pessoas que nunca entraram não poderão ser contadas como jogadores offline conhecidos.
+## Endereço público independente do Luxmc
 
-Autosave, parada limpa, cópias consistentes e retenção de backups fazem parte dos critérios de entrega. A revisão também deve preservar a instância original e os mundos ao preparar um servidor de modpack.
+Esta modalidade usa uma sala P2P do Luxmc. O convite não é um domínio público que qualquer Minecraft possa acessar sozinho. Hospedagem em nuvem, disponibilidade com o PC desligado e endereço público independente do launcher não estão incluídos. Esses recursos exigiriam infraestrutura adicional.
 
 ## Android
 
-Uma versão Android está planejada, sem data anunciada e sem APK oficial disponível. O [plano técnico](../plans/android-apk.md) prevê começar com conta, amigos e catálogo; executar Minecraft Java no celular exige uma etapa própria de runtime, gráficos, controles de toque e testes de loaders em aparelhos reais.
+Android continua planejado, sem data anunciada ou APK oficial. A primeira etapa proposta reúne conta, amigos e catálogo. Executar Minecraft Java no celular exige runtime, gráficos, controles de toque e testes próprios de loaders em aparelhos reais.
 
-O site continuará mostrando Android como planejamento até existir um pacote oficial verificado. APKs de terceiros não são distribuídos nem endossados pelo projeto.
-
-## Como acompanhar
-
-Consulte as [releases oficiais](https://github.com/predabr/luxmc/releases) para saber o que foi efetivamente publicado. Um item só muda de planejado para disponível após implementação e validação. Resultados de conectividade dependem da rede, do firewall e de serviços de relay; não há promessa de funcionamento universal ou de zero erros.
+Consulte as [releases oficiais](https://github.com/predabr/luxmc/releases) para identificar os instaladores disponíveis. O código em desenvolvimento pode estar à frente dos pacotes publicados.

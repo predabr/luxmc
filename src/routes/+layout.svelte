@@ -29,7 +29,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { page } from "$app/state";
 	import { afterNavigate } from "$app/navigation";
 	import Sidebar from "$lib/components/layout/Sidebar.svelte";
-	import PublicProfileModal from "$lib/components/friends/PublicProfileModal.svelte";
+    import { publicProfile } from '$lib/stores/publicProfile.svelte';
+    let publicProfileLoaded=$state(false);
+    function loadPublicProfile() {return import('$lib/components/friends/PublicProfileModal.svelte').then(module=>{publicProfileLoaded=true;return module;});}
 	import BedrockDownloadStatus from "$lib/components/instances/BedrockDownloadStatus.svelte";
     import ModpackDownloadStatus from "$lib/components/mods/ModpackDownloadStatus.svelte";
     import ModpackUpdateStatus from "$lib/components/mods/ModpackUpdateStatus.svelte";
@@ -45,7 +47,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import MiniPlayer from "$lib/components/ui/MiniPlayer.svelte";
 	import LiveWallpaper from "$lib/components/visuals/LiveWallpaper.svelte";
 	import ClientOverlayModal from "$lib/components/ui/ClientOverlayModal.svelte";
-	import ProfileModal from "$lib/components/profile/ProfileModal.svelte";
 	import { listenOverlayToggle } from "$lib/api/events";
 	import { startSoundscape, stopSoundscape, destroyAudio } from "$lib/utils/sound";
 	import { bootstrapSettings, schedulePersist, startAutoPersist } from "$lib/stores/persistence.svelte";
@@ -909,7 +910,13 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 <MiniPlayer />
 <ClientOverlayModal />
 {#if appState.showProfileModal}
-	<ProfileModal onClose={() => appState.showProfileModal = false} />
+    {#await import('$lib/components/profile/ProfileModal.svelte')}
+        <div role="status" class="fixed right-5 top-5 z-[100] flex items-center gap-4 rounded-xl border border-border bg-bg-elevated p-4 text-sm text-fg">{uiText('performance.profileLoading')}<button type="button" onclick={()=>appState.showProfileModal=false}>{uiText('performance.close')}</button></div>
+    {:then module}
+        <module.default onClose={() => appState.showProfileModal = false} />
+    {:catch}
+        <div role="alert" class="fixed right-5 top-5 z-[100] flex items-center gap-4 rounded-xl border border-border bg-bg-elevated p-4 text-sm text-fg">{uiText('performance.profileFailed')}<button type="button" onclick={()=>appState.showProfileModal=false}>{uiText('performance.close')}</button></div>
+    {/await}
 {/if}
 
 </ErrorBoundary>
@@ -919,4 +926,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 <BedrockDownloadStatus />
 <RoomPreparationStatus />
 
-<PublicProfileModal />
+{#if publicProfile.open || publicProfileLoaded}
+    {#await loadPublicProfile()}
+        {#if publicProfile.open}<div role="status" class="fixed right-5 top-5 z-[100] flex items-center gap-4 rounded-xl border border-border bg-bg-elevated p-4 text-sm text-fg">{uiText('performance.profileLoading')}<button type="button" onclick={()=>publicProfile.close()}>{uiText('performance.close')}</button></div>{/if}
+    {:then module}
+        <module.default />
+    {:catch}
+        {#if publicProfile.open}<div role="alert" class="fixed right-5 top-5 z-[100] flex items-center gap-4 rounded-xl border border-border bg-bg-elevated p-4 text-sm text-fg">{uiText('performance.profileFailed')}<button type="button" onclick={()=>publicProfile.close()}>{uiText('performance.close')}</button></div>{/if}
+    {/await}
+{/if}

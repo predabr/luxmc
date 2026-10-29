@@ -22,6 +22,43 @@ struct RpcResponse {
     error: Option<String>,
 }
 
+pub(crate) async fn dispatch_local_server(command: &str, args: Value, state: &AppState) -> crate::error::AppResult<Value> {
+    use crate::commands::local_servers;
+    let http = &state.http;
+    let manager = local_servers::manager(http)?;
+    let id = args.get("id").and_then(Value::as_str).unwrap_or_default().to_owned();
+    let account = args.get("accountId").and_then(Value::as_str).map(str::to_owned);
+    if matches!(command, "local_server_create" | "local_server_update" | "local_server_start") { local_servers::require_pro(account.as_deref()).await?; }
+    match command {
+        "local_server_list" => Ok(serde_json::to_value(manager.list(args.get("after").and_then(Value::as_u64).unwrap_or(0)).await?)?),
+        "local_server_manage" => local_servers::manage(http, account, serde_json::from_value(args["request"].clone())?).await,
+        "local_server_create" => Ok(serde_json::to_value(manager.create(serde_json::from_value(args["input"].clone())?).await?)?),
+        "local_server_update" => {
+            let ram = args.get("ramMb").and_then(Value::as_u64).and_then(|value| u32::try_from(value).ok()).ok_or_else(|| crate::error::AppError::InvalidInput("Memória inválida.".into()))?;
+            let players = args.get("maxPlayers").and_then(Value::as_u64).and_then(|value| u16::try_from(value).ok()).ok_or_else(|| crate::error::AppError::InvalidInput("Capacidade inválida.".into()))?;
+            Ok(serde_json::to_value(manager.update(&id, args.get("name").and_then(Value::as_str).unwrap_or_default().into(), ram, players).await?)?)
+        }
+        "local_server_start" => {
+            local_servers::include_owner(http, &id, account.as_deref()).await?;
+            let _guard = state.launch_lock.try_lock().map_err(|_| crate::error::AppError::InvalidState("Aguarde a preparação do Minecraft ou a atualização do launcher.".into()))?;
+            Ok(serde_json::to_value(manager.start(id, 20).await?)?)
+        }
+        "local_server_stop" => { manager.stop(&id).await?; Ok(Value::Null) }
+        "local_server_console" => { let text = args.get("text").and_then(Value::as_str).unwrap_or_default(); local_servers::allow_console(account.as_deref(), text).await?; manager.console(&id, text.into()).await?; Ok(Value::Null) }
+        "local_server_open_folder" => { local_servers::open_folder(http, id).await?; Ok(Value::Null) }
+        "local_server_share" | "local_server_share_existing" => {
+            let identity = args.get("identity").cloned().map(serde_json::from_value).transpose()?;
+            let status = if command == "local_server_share" { local_servers::share(http, id, identity, account).await? } else {
+                let port = args.get("port").and_then(Value::as_u64).and_then(|value| u16::try_from(value).ok()).filter(|port| *port != 0).ok_or_else(|| crate::error::AppError::InvalidInput("Porta local inválida.".into()))?;
+                local_servers::share_existing(http, port, identity, account).await?
+            };
+            Ok(serde_json::to_value(status)?)
+        }
+        "local_server_shutdown" => { local_servers::shutdown().await?; Ok(Value::Null) }
+        _ => Err(crate::error::AppError::InvalidInput("Comando de servidor desconhecido.".into())),
+    }
+}
+
 pub async fn run_daemon() {
     let _ = tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("warn")))
@@ -91,6 +128,7 @@ pub async fn run_daemon() {
             }
         });
     }
+    let _ = crate::commands::local_servers::shutdown().await;
 }
 
 async fn dispatch_command(
@@ -98,6 +136,7 @@ async fn dispatch_command(
     args: Value,
     state: Arc<AppState>,
 ) -> Result<Value, String> {
+    if cmd.starts_with("local_server_") { return crate::server_worker::invoke(cmd, args).await.map_err(|error| error.to_string()); }
     match cmd {
         "discard_pack_download" => { crate::commands::experience::discard_pack_download_core(&state,args["path"].as_str().unwrap_or_default().into(),args.get("operationId").and_then(Value::as_str)).await.map_err(|e| e.to_string())?; Ok(Value::Null) },
         "verify_pack_download" => { crate::commands::instances::instance_check_import_job(&state,args.get("operationId").and_then(Value::as_str)).await.map_err(|e|e.to_string())?; let _import = state.import_lock.lock().await; crate::commands::experience::verify_pack_download_core(args["path"].as_str().unwrap_or_default().into(),args["size"].as_u64().unwrap_or(0),args["sha1"].as_str().unwrap_or_default().into(),Some(state.import_cancel.clone())).await.map_err(|e| e.to_string())?; Ok(Value::Null) },
@@ -1208,8 +1247,10 @@ async fn dispatch_command(
         },
 
         "jvm_args_validate" => {
-            let args_str = args.get("jvmArgs").or_else(|| args.get("jvm_args")).and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let res = crate::commands::instance_tools::jvm_args_validate(args_str).await.map_err(|e| e.to_string())?;
+            let args_str = args.get("input").or_else(|| args.get("jvmArgs")).or_else(|| args.get("jvm_args")).and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let minimum = args.get("minRamMb").and_then(|v| v.as_u64());
+            let maximum = args.get("ramMb").and_then(|v| v.as_u64());
+            let res = crate::commands::instance_tools::jvm_args_validate(args_str, minimum, maximum).await.map_err(|e| e.to_string())?;
             Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
         },
         "java_runtime_status" => {

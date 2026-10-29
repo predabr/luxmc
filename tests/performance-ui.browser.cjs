@@ -6,6 +6,8 @@ const { setupLauncherDemo } = require('../scripts/launcher-video-fixture.cjs');
 (async () => {
     const browser = await chromium.launch({headless: true, executablePath: process.env.LUXMC_CHROMIUM_EXECUTABLE});
     const report = [];
+    const output=process.env.LUXMC_ARTIFACT_DIR || 'docs/validation/performance-oct11';
+    fs.mkdirSync(output,{recursive:true});
     try {
         for (const theme of ['dark', 'light']) {
             const page = await browser.newPage({viewport: {width: 1440, height: 960}});
@@ -41,6 +43,7 @@ const { setupLauncherDemo } = require('../scripts/launcher-video-fixture.cjs');
             assert.equal(await page.evaluate(() => document.documentElement.classList.contains('light')), theme === 'light');
             const routes = ['/', '/instances', '/instances/demo-vp', '/friends', '/hosting', '/settings', '/skins', '/mods', '/workshop', '/news', '/screenshots', '/boost', '/logs', '/logs-history', '/organizer'];
             for (const route of routes) {
+                console.log(`Checking ${theme} route ${route}`);
                 const link = page.locator(`.launcher-sidebar a[href="${route}"]`).first();
                 if (await link.count()) await link.click();
                 else await page.goto(`http://127.0.0.1:1420${route}`);
@@ -53,7 +56,7 @@ const { setupLauncherDemo } = require('../scripts/launcher-video-fixture.cjs');
             }
             await page.goto('http://127.0.0.1:1420/mods');
             await page.locator('.catalog-card').first().waitFor();
-            await page.screenshot({path:`docs/validation/performance-oct11/catalog-${theme}.png`});
+            await page.screenshot({path:`${output}/catalog-${theme}.png`});
             await page.setViewportSize({width:960, height:760});
             assert.ok(await page.locator('main').evaluate(node => node.scrollWidth <= node.clientWidth + 1));
             await page.setViewportSize({width:1440, height:960});
@@ -108,7 +111,7 @@ const { setupLauncherDemo } = require('../scripts/launcher-video-fixture.cjs');
             await page.waitForFunction(() => window.installationFixture.importing);
             await page.evaluate(() => window.launcherDemo.emit('modpack-progress', {phase:'validation', current:20, total:60, percent:96, status:'Conferindo arquivos: 20 de 60…'}));
             await page.locator('[data-installation-status] [aria-current="step"]').getByText('Conferência', {exact:true}).waitFor();
-            await page.screenshot({path:`docs/validation/performance-oct11/installation-${theme}.png`});
+            await page.screenshot({path:`${output}/installation-${theme}.png`});
             await page.locator('[data-installation-status]').getByRole('button', {name:'Cancelar', exact:true}).click();
             await page.waitForFunction(() => window.installationFixture.cancelled);
             await page.waitForFunction(async () => { const {modpackInstallation} = await import('/src/lib/stores/modpackInstallation.svelte.ts'); return !modpackInstallation.state.busy; });
@@ -129,7 +132,7 @@ const { setupLauncherDemo } = require('../scripts/launcher-video-fixture.cjs');
             report.push({theme, routes, compactCatalog:true, motion, cancellation:true, reducedMotion:true, pageErrors:errors});
             await page.close();
         }
-        fs.writeFileSync('docs/validation/performance-oct11/browser.json', JSON.stringify({fixtureOnly:true, passed:true, scenarios:report}, null, 2));
+        fs.writeFileSync(`${output}/browser.json`, JSON.stringify({fixtureOnly:true, passed:true, scenarios:report}, null, 2));
         console.log(JSON.stringify(report));
     } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

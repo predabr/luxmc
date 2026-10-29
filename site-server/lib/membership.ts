@@ -4,8 +4,8 @@ import { profileBenefits } from './profile-style.js';
 
 export const COMMERCE_COOKIE = '__Host-luxmc-commerce';
 export const catalog = {
-    plus: { name: 'Luxmc Plus', amount: 990, days: 30, collections: 12, presets: 6, profile: profileBenefits.plus },
-    pro: { name: 'Luxmc Pro', amount: 1990, days: 30, collections: 24, presets: 20, profile: profileBenefits.pro }
+    plus: { name: 'Luxmc Plus', amount: 2000, days: 30, collections: 12, presets: 6, profile: profileBenefits.plus },
+    pro: { name: 'Luxmc Pro', amount: 3000, days: 30, collections: 24, presets: 20, profile: profileBenefits.pro }
 };
 export type PaidPlan = keyof typeof catalog;
 export const nowSeconds = () => Math.floor(Date.now() / 1000);

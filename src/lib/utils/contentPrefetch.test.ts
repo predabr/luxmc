@@ -10,6 +10,21 @@ beforeEach(() => {
 });
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
+it('prepares another instance while a provider for the first one is slow',async()=>{
+    let release!:()=>void;
+    const slow=new Promise<void>(resolve=>{release=resolve;});
+    mocks.tree.mockImplementation(async(id:string,folder:string)=>[{name:`${id}-${folder}.jar`,isDir:false,iconKey:`${id}:${folder}`,icon:null,iconResolved:false}]);
+    mocks.icons.mockImplementation(async(id:string,folder:string,names:string[],lookup:boolean)=>{
+        if(lookup)await slow;
+        return names.map(name=>({name,iconKey:`${id}:${folder}`,icon:null,resolved:false}));
+    });
+    const {prefetchInstanceContent}=await import('./contentPrefetch');
+    const first=prefetchInstanceContent('first');
+    const second=prefetchInstanceContent('second');
+    try {await vi.waitFor(()=>expect(mocks.tree.mock.calls.filter(([id])=>id==='second')).toHaveLength(3));}
+    finally {release();await Promise.all([first,second]);}
+});
+
 it('prepares local content while provider requests run and retains newer file-tree icons', async () => {
     const calls: string[] = [];
     let release!: () => void;

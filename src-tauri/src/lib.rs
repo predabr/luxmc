@@ -2,6 +2,7 @@ mod commands;
 pub mod network;
 pub mod core;
 pub mod daemon;
+pub mod server_worker;
 pub mod db;
 pub mod error;
 mod state;
@@ -392,7 +393,7 @@ pub async fn run() {
     let initial_settings = commands::settings::settings_get().await.unwrap_or_default();
     set_close_to_tray(initial_settings.get("closeToTray").and_then(serde_json::Value::as_bool).unwrap_or(true));
     let tray_language = initial_settings.get("language").and_then(serde_json::Value::as_str).unwrap_or("pt-BR").to_string();
-    tauri::Builder::default()
+    let application = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
@@ -699,6 +700,16 @@ pub async fn run() {
             commands::instance_icons::write_text_file,
             commands::instance_icons::delete_file_or_dir,
             commands::servers::server_ping,
+            commands::local_servers::local_server_list,
+            commands::local_servers::local_server_manage,
+            commands::local_servers::local_server_create,
+            commands::local_servers::local_server_update,
+            commands::local_servers::local_server_start,
+            commands::local_servers::local_server_stop,
+            commands::local_servers::local_server_console,
+            commands::local_servers::local_server_open_folder,
+            commands::local_servers::local_server_share,
+            commands::local_servers::local_server_share_existing,
             commands::servers::server_add,
             commands::servers::server_list,
             commands::servers::server_remove,
@@ -782,6 +793,23 @@ pub async fn run() {
             commands::world_backup::instance_list_world_backups,
             commands::p2p::p2p_scan_lan_worlds,
         ])
-        .run(tauri::generate_context!())
+        .build(tauri::generate_context!())
         .expect("error while running tauri application");
+    static STOPPING_SERVERS: AtomicBool = AtomicBool::new(false);
+    application.run(|handle, event| {
+        if let tauri::RunEvent::ExitRequested { api, code, .. } = event {
+            if commands::local_servers::has_active() {
+                api.prevent_exit();
+                if !STOPPING_SERVERS.swap(true, Ordering::AcqRel) {
+                    let handle = handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        match commands::local_servers::shutdown().await {
+                            Ok(()) => handle.exit(code.unwrap_or(0)),
+                            Err(error) => { tracing::error!(%error, "Local server shutdown incomplete"); STOPPING_SERVERS.store(false, Ordering::Release); }
+                        }
+                    });
+                }
+            }
+        }
+    });
 }

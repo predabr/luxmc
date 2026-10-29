@@ -177,6 +177,7 @@ export interface HealthCheckResult {
 }
 
 export interface FileTreeEntry {
+    managed?: boolean;
     iconKey?: string;
     iconResolved?: boolean;
 	name: string;

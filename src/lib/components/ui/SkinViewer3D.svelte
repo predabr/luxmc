@@ -45,6 +45,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	let viewer = $state.raw<SkinViewer | null>(null);
 	let library = $state.raw<typeof import("skinview3d") | null>(null);
 	let visible = $state(false);
+    let mounted=$state(false);
+    let importing=false;
 	let foreground = $state(true);
 	let ready = $state(false);
 	let hasMountedViewer = $state(false);
@@ -63,6 +65,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	onMount(() => {
 		let disposed = false;
+        mounted=true;
 		const visibility = () => {
 			foreground = !document.hidden;
 			if (!foreground) stopDragging();
@@ -102,16 +105,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		});
 		if (containerEl) resize.observe(containerEl);
 
-		void import("skinview3d").then((module) => {
-			if (disposed || !canvasEl || !containerEl) return;
-			library = module;
-			createViewer();
-		}).catch(() => {
-			if (!disposed) unavailable = true;
-		});
-
 		return () => {
 			disposed = true;
+            mounted=false;
 			intersection.disconnect();
 			resize.disconnect();
 			document.removeEventListener("visibilitychange", visibility);
@@ -122,6 +118,14 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			disposeViewer();
 		};
 	});
+
+    $effect(()=>{
+        if(!mounted || !active || !visible || viewer || unavailable)return;
+        if(library){createViewer();return;}
+        if(importing)return;
+        importing=true;
+        void import('skinview3d').then(module=>{if(mounted)library=module;}).catch(()=>{if(mounted)unavailable=true;}).finally(()=>{importing=false;});
+    });
 
 	function renderViewer(target: SkinViewer): boolean {
 		if (target.disposed) return false;

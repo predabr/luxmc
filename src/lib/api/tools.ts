@@ -45,8 +45,8 @@ export async function launchLogClose(logId: number, exitCode: number | null, sum
 	return api.invoke("launch_log_close", { logId, exitCode, summary, errorClassification });
 }
 
-export async function jvmArgsValidate(input: string): Promise<JvmValidationResult> {
-	return api.invoke<JvmValidationResult>("jvm_args_validate", { input });
+export async function jvmArgsValidate(input: string, heap?: { minRamMb: number; ramMb: number }): Promise<JvmValidationResult> {
+	return api.invoke<JvmValidationResult>("jvm_args_validate", { input, ...heap });
 }
 
 export async function javaRuntimeStatus(major: number): Promise<JavaRuntimeInfo> {
