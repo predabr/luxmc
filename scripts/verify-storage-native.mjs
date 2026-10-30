@@ -3,10 +3,13 @@ import {createInterface} from 'node:readline';
 import {mkdir,writeFile,readFile,link,stat} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
 import assert from 'node:assert/strict';
+import {nativeBuildIdentity} from './native-build-identity.mjs';
 
 if(process.env.GITHUB_ACTIONS!=='true'||process.platform!=='win32') throw Error('This destructive fixture validation runs only on an ephemeral Windows CI runner.');
 const binary=resolve(process.env.LUXMC_NATIVE_BINARY||'');
 assert.ok(binary.toLowerCase().endsWith('luxmc.exe'));
+const [run,attempt]=process.env.LUXMC_BUILD_ID.split('.').map(Number);
+const environment=await nativeBuildIdentity(binary,run*1000+attempt);
 const daemon=spawn(binary,['--daemon'],{windowsHide:true,stdio:['pipe','pipe','pipe']});
 const requests=new Map();
 let sequence=0;
@@ -29,10 +32,6 @@ function call(command,args={}) {
 }
 let profile;
 try {
-    const environment=await call('app_update_environment');
-    const [run,attempt]=process.env.LUXMC_BUILD_ID.split('.').map(Number);
-    assert.equal(environment.revision,run*1000+attempt);
-    assert.equal(environment.mode,'windows');
     const base=await call('app_data_directory');
     profile=await call('profiles_create',{input:{name:'CI storage fixture',mcVersion:'1.21.1',loader:'vanilla'}});
     assert.match(profile.id,/^[a-f0-9-]{36}$/);

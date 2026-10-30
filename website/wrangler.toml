@@ -4,6 +4,7 @@ pages_build_output_dir = "."
 
 [vars]
 WINDOWS_LOCAL_VERSION = "4.0.1"
+WINDOWS_LOCAL_BUILD = "4.0.1-build.40981660048.1"
 OWNER_SOCIAL_ID = "43d26fda-6fbd-4727-8680-f96aca47dcf3"
 SOCIAL_STREAM_URL = "wss://luxmc-social-stream.waydroid917.workers.dev/connect"
 
