@@ -18,7 +18,7 @@ function rangeValidatorMatches(request, source) {
   const validator = request.headers.get("If-Range");
   return !validator || !validator.startsWith("W/") && (validator.startsWith('"') ? validator === source.headers.get("ETag") : Number.isFinite(Date.parse(validator)) && Date.parse(validator) === Date.parse(source.headers.get("Last-Modified") || ""));
 }
-async function localInstaller(request, assets) {
+async function localInstaller(request, assets, expectedLength) {
   const controller = new AbortController();
   let timer;
   const init = {
@@ -50,7 +50,11 @@ async function localInstaller(request, assets) {
   headers.set("Content-Disposition", 'attachment; filename="Lux MC Launcher.exe"');
   headers.set("Cache-Control", "no-store");
   headers.set("X-Content-Type-Options", "nosniff");
-  const length = Number(source.headers.get("Content-Length"));
+  let length = Number(source.headers.get("Content-Length"));
+  if ((!Number.isSafeInteger(length) || length <= 0) && source.status === 200 && typeof expectedLength === "number" && Number.isSafeInteger(expectedLength) && expectedLength > 0) {
+    length = expectedLength;
+    headers.set("Content-Length", String(length));
+  }
   const range = request.headers.get("Range");
   const rangeAllowed = rangeValidatorMatches(request, source);
   if (range && !rangeAllowed && source.status === 206) {
@@ -58,7 +62,7 @@ async function localInstaller(request, assets) {
     const fullHeaders = new Headers(request.headers);
     fullHeaders.delete("Range");
     fullHeaders.delete("If-Range");
-    return localInstaller(new Request(request, { headers: fullHeaders }), assets);
+    return localInstaller(new Request(request, { headers: fullHeaders }), assets, expectedLength);
   }
   if (Number.isSafeInteger(length) && length > 0)
     headers.set("Accept-Ranges", "bytes");
@@ -121,7 +125,7 @@ async function onRequest({ request, params, env }) {
     const data = await latestRelease();
     const asset = assetFor(data.assets, platform);
     if ((platform === "windows" || platform === "exe") && localIsCurrent(localRelease, data.tag_name)) {
-      const local = await localInstaller(request, env?.ASSETS);
+      const local = await localInstaller(request, env?.ASSETS, asset?.size);
       if (local.status !== 502) return local;
     }
     if (asset && (platform === "windows" || platform === "exe")) {

@@ -4,6 +4,21 @@ import { onRequest } from '../website/functions/download/[platform].js';
 
 const asset = { name: 'Lux.MC.Launcher.exe', browser_download_url: 'https://github.com/predabr/luxmc/releases/download/v3.0.0/Lux.MC.Launcher.exe' };
 
+for (const method of ['GET', 'HEAD']) {
+    test(`hosted ${method} resumes from release metadata when Pages omits Content-Length`, async () => {
+        const original = globalThis.fetch;
+        globalThis.fetch = async () => Response.json({ tag_name: 'v3.0.0', assets: [{ ...asset, size: 10 }] });
+        try {
+            const response = await onRequest({ request: new Request('https://luxmc.test/download/windows', { method, headers: { Range: 'bytes=2-5', 'If-Range': '"current"' } }), params: { platform: 'windows' }, env: { WINDOWS_LOCAL_VERSION: '3.0.0', ASSETS: { fetch: async () => new Response(method === 'HEAD' ? null : 'MZ01234567', { headers: { ETag: '"current"' } }) } } });
+            assert.equal(response.status, 206);
+            assert.equal(response.headers.get('Content-Range'), 'bytes 2-5/10');
+            assert.equal(response.headers.get('Content-Length'), '4');
+            assert.equal(response.headers.get('Accept-Ranges'), 'bytes');
+            assert.equal(await response.text(), method === 'HEAD' ? '' : '0123');
+        } finally { globalThis.fetch = original; }
+    });
+}
+
 test('a stalled hosted installer falls back to the published GitHub asset', async t => {
     const original = globalThis.fetch;
     t.mock.timers.enable({apis:['setTimeout']});
