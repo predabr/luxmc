@@ -56,3 +56,10 @@ jobs:
           LUXMC_NATIVE_BINARY: native-artifact/luxmc.exe
           LUXMC_BUILD_ID: ${{ steps.provenance.outputs.build_id }}
         run: node scripts/verify-storage-native.mjs
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: native-ui-diagnostics
+          path: ${{ runner.temp }}/luxmc-native-ui
+          if-no-files-found: ignore
+          retention-days: 3

@@ -1,4 +1,5 @@
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { createServer } from 'node:net';
 import { setTimeout } from 'node:timers/promises';
 import { chromium } from 'playwright-core';
@@ -33,6 +34,9 @@ export async function nativeBuildIdentity(binary, expectedRevision) {
                 if (response.ok) { ready = true; break; }
             } catch {}
             await setTimeout(200);
+        }
+        if (!ready && process.env.GITHUB_ACTIONS === 'true') {
+            execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', fileURLToPath(new URL('./capture-ci-native-ui.ps1', import.meta.url))], { stdio: 'inherit', windowsHide: true });
         }
         assert.ok(ready, `Native WebView2 did not expose its debugging endpoint: ${stderr}`);
         browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { timeout: 10000 });
