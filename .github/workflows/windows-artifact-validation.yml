@@ -1,0 +1,55 @@
+name: Verify Windows native artifact
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: CI run that produced the native Windows artifact
+        required: true
+      source_sha:
+        description: Exact source commit of the artifact
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify-storage:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+      - run: pnpm install --frozen-lockfile
+      - name: Verify artifact provenance
+        id: provenance
+        uses: actions/github-script@v7
+        env:
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        with:
+          script: |
+            const id = process.env.BUILD_RUN_ID;
+            const sha = process.env.SOURCE_SHA;
+            if (!/^\d+$/.test(id) || !/^[a-f0-9]{40}$/.test(sha)) throw new Error('Invalid artifact identity');
+            const {data: run} = await github.rest.actions.getWorkflowRun({...context.repo, run_id: Number(id)});
+            const repository = `${context.repo.owner}/${context.repo.repo}`;
+            if (run.head_sha !== sha || run.head_branch !== 'main' || run.event !== 'push' || run.head_repository?.full_name !== repository || run.path !== '.github/workflows/ci.yml') throw new Error('Artifact must come from the trusted main CI workflow');
+            core.setOutput('build_id', `${run.id}.${run.run_attempt}`);
+      - uses: actions/download-artifact@v4
+        with:
+          name: luxmc-validation-windows-${{ inputs.source_sha }}
+          path: native-artifact
+          run-id: ${{ inputs.build_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify actual native build and storage
+        env:
+          LUXMC_NATIVE_BINARY: native-artifact/luxmc.exe
+          LUXMC_BUILD_ID: ${{ steps.provenance.outputs.build_id }}
+        run: node scripts/verify-storage-native.mjs
