@@ -22,8 +22,11 @@ const assert = require('node:assert/strict');
             await page.goto(`${process.env.LUXMC_BROWSER_BASE_URL || 'http://127.0.0.1:1420'}/`);
             await page.locator('aside button').filter({ hasText: 'LuxPlayer' }).click();
             await page.getByRole('heading', { name: 'Seu perfil', exact: true }).waitFor();
-            const central = page.getByRole('button', { name: 'Central do dono · aprovar planos', exact: true });
-            if (role === 'owner') await central.waitFor();
+            const central = page.getByRole('dialog').getByRole('link', { name: 'Diagnósticos e manutenção', exact: true });
+            if (role === 'owner') {
+                await central.waitFor();
+                assert.equal(await central.getAttribute('href'), '/owner-tools');
+            }
             else {
                 await page.getByText('Perfis sincronizados de aparência · 0/20', { exact: true }).waitFor();
                 assert.equal(await central.count(), 0);
