@@ -32,6 +32,7 @@ const fs = require('node:fs');
                     }
                     if (command === 'mods_search') return [];
                     if (command === 'java_scan') return { runtimes: [{ path: '/java/21', major: 21, versionString: '21', installed: true }] };
+                    if (command === 'jvm_args_validate') return { valid: true, rejected: [], suggestions: [], normalized: `${args.input} -Xms${args.minRamMb}M -Xmx${args.ramMb}M`.trim() };
                     if (command === 'profiles_update') { await new Promise(resolve => setTimeout(resolve, 200)); if (window.rejectSettingsSave) throw new Error('Falha simulada'); Object.assign(profile, args.input); return profile; }
                     if (command === 'mods_check_updates') return [{ projectId: 'mod-0', projectName: 'project 0000', fileName: 'project-0000-1.0.jar', currentVersionId: 'one', latestVersionId: 'two', latestVersionNumber: '2.0' }];
                     if (command === 'keybinds_list') return { keybinds: [{ id: 'key_key.forward', label: 'Andar para frente', category: 'Movimento', rawKey: 'key.keyboard.w', displayKey: 'W', isConflict: false, conflictingWith: [] }], totalConflicts: 0 };
