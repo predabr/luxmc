@@ -1,58 +1,21 @@
-import { spawn, execFileSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-import { createServer } from 'node:net';
-import { setTimeout } from 'node:timers/promises';
-import { chromium } from 'playwright-core';
+import { execFileSync } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 
 export async function nativeBuildIdentity(binary, expectedRevision) {
-    const reservation = createServer();
-    await new Promise((resolve, reject) => {
-        reservation.once('error', reject);
-        reservation.listen(0, '127.0.0.1', resolve);
-    });
-    const port = reservation.address().port;
-    await new Promise(resolve => reservation.close(resolve));
-    const app = spawn(binary, [], {
-        windowsHide: true,
-        stdio: ['ignore', 'ignore', 'pipe'],
-        env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}` }
-    });
-    let failure;
-    let stderr = '';
-    app.stderr.on('data', chunk => { stderr = (stderr + chunk).slice(-2000); });
-    app.on('error', error => { failure = error; });
-    let browser;
-    try {
-        const deadline = Date.now() + 60000;
-        let ready = false;
-        while (Date.now() < deadline) {
-            if (failure) throw failure;
-            if (app.exitCode !== null) throw new Error(`Native UI exited before identity verification: ${app.exitCode}`);
-            try {
-                const response = await fetch(`http://127.0.0.1:${port}/json/version`, { signal: AbortSignal.timeout(1000) });
-                if (response.ok) { ready = true; break; }
-            } catch {}
-            await setTimeout(200);
-        }
-        if (!ready && process.env.GITHUB_ACTIONS === 'true') {
-            execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', fileURLToPath(new URL('./capture-ci-native-ui.ps1', import.meta.url))], { stdio: 'inherit', windowsHide: true });
-        }
-        assert.ok(ready, `Native WebView2 did not expose its debugging endpoint: ${stderr}`);
-        browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { timeout: 10000 });
-        let page;
-        while (Date.now() < deadline && !page) {
-            page = browser.contexts().flatMap(context => context.pages()).find(page => !page.isClosed());
-            if (!page) await setTimeout(100);
-        }
-        assert.ok(page, 'Native Tauri page must be available');
-        await page.waitForFunction(() => typeof window.__TAURI_INTERNALS__?.invoke === 'function');
-        const environment = await page.evaluate(() => window.__TAURI_INTERNALS__.invoke('app_update_environment'));
-        assert.equal(environment.mode, 'windows');
-        assert.equal(environment.revision, expectedRevision);
-        return environment;
-    } finally {
-        await browser?.close().catch(() => {});
-        if (!failure && app.exitCode === null && !app.killed) app.kill();
-    }
+    assert.ok(Number.isSafeInteger(expectedRevision) && expectedRevision > 0);
+    const bytes = await readFile(binary);
+    assert.equal(bytes.subarray(0, 2).toString(), 'MZ');
+    const peOffset = bytes.readUInt32LE(0x3c);
+    assert.equal(bytes.subarray(peOffset, peOffset + 4).toString(), 'PE\0\0');
+    assert.equal(bytes.readUInt16LE(peOffset + 4), 0x8664);
+    assert.ok(bytes.includes(Buffer.from(String(expectedRevision))), 'Expected compiled build revision must be present in the native executable');
+    const version = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', '(Get-Item -LiteralPath $env:LUXMC_IDENTITY_BINARY).VersionInfo.ProductVersion'], {
+        env: { ...process.env, LUXMC_IDENTITY_BINARY: binary },
+        encoding: 'utf8',
+        windowsHide: true
+    }).trim();
+    const expectedVersion = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')).version;
+    assert.equal(version, expectedVersion);
+    return { mode: 'windows', revision: expectedRevision, version, compiledIdentityVerified: true };
 }

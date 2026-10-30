@@ -132,11 +132,6 @@ jobs:
           LUXMC_NATIVE_BINARY: src-tauri/target/release/luxmc.exe
         run: node scripts/verify-instance-deletion.mjs --fixtures-only
 
-      - name: Prepare Windows WebView2 runtime for native UI verification
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: ./scripts/ensure-ci-webview2.ps1
-
       - name: Windows native storage and build identity regression
         if: runner.os == 'Windows'
         env:

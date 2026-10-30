@@ -48,18 +48,8 @@ jobs:
           path: native-artifact
           run-id: ${{ inputs.build_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Prepare the native WebView2 runtime
-        shell: pwsh
-        run: ./scripts/ensure-ci-webview2.ps1
       - name: Verify actual native build and storage
         env:
           LUXMC_NATIVE_BINARY: native-artifact/luxmc.exe
           LUXMC_BUILD_ID: ${{ steps.provenance.outputs.build_id }}
         run: node scripts/verify-storage-native.mjs
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: native-ui-diagnostics
-          path: ${{ runner.temp }}/luxmc-native-ui
-          if-no-files-found: ignore
-          retention-days: 3

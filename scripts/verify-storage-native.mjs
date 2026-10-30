@@ -67,7 +67,7 @@ try {
     assert.deepEqual(await readFile(options).catch(()=>Buffer.alloc(0)),oldOptions);
     const after=await call('storage_full_report',{refresh:true});
     assert.equal(after.instances.find(item=>item.id===profile.id).bytes,before+1033);
-    console.log(JSON.stringify({nativeStorage:true,buildRevision:environment.revision,sharedFilesCountedOnce:true,cleanupPreservesWorldsModsAndOptions:true,measurementAndCleanupMs:Math.round(performance.now()-measuredAt)}));
+    console.log(JSON.stringify({nativeStorage:true,compiledIdentityVerified:environment.compiledIdentityVerified,buildRevision:environment.revision,sharedFilesCountedOnce:true,cleanupPreservesWorldsModsAndOptions:true,measurementAndCleanupMs:Math.round(performance.now()-measuredAt)}));
 } finally {
     if(profile) await call('profiles_delete',{id:profile.id}).catch(()=>{});
     daemon.stdin.end();
