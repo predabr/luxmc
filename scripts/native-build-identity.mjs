@@ -14,23 +14,27 @@ export async function nativeBuildIdentity(binary, expectedRevision) {
     await new Promise(resolve => reservation.close(resolve));
     const app = spawn(binary, [], {
         windowsHide: true,
-        stdio: 'ignore',
+        stdio: ['ignore', 'ignore', 'pipe'],
         env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}` }
     });
     let failure;
+    let stderr = '';
+    app.stderr.on('data', chunk => { stderr = (stderr + chunk).slice(-2000); });
     app.on('error', error => { failure = error; });
     let browser;
     try {
         const deadline = Date.now() + 60000;
+        let ready = false;
         while (Date.now() < deadline) {
             if (failure) throw failure;
             if (app.exitCode !== null) throw new Error(`Native UI exited before identity verification: ${app.exitCode}`);
             try {
                 const response = await fetch(`http://127.0.0.1:${port}/json/version`, { signal: AbortSignal.timeout(1000) });
-                if (response.ok) break;
+                if (response.ok) { ready = true; break; }
             } catch {}
             await setTimeout(200);
         }
+        assert.ok(ready, `Native WebView2 did not expose its debugging endpoint: ${stderr}`);
         browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { timeout: 10000 });
         let page;
         while (Date.now() < deadline && !page) {
