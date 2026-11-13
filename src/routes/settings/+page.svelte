@@ -266,19 +266,35 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		} catch {}
 	});
 
-    const settingsTabs = $derived([
-        { id: "general", label: t("settings.tabs.general"), icon: Home },
-        { id: "accounts", label: t("settings.tabs.accounts"), icon: Users },
-        { id: "language", label: t("settings.tabs.language"), icon: Globe },
-        { id: "appearance", label: t("settings.tabs.appearance"), icon: Palette },
-        { id: "interface", label: t("extendedSettings.interface"), icon: Sparkles },
-        { id: "wallpaper", label: t("extendedSettings.wallpaper"), icon: Layers },
-        { id: "catalog", label: t("extendedSettings.catalog"), icon: Download },
-        { id: "java", label: t("settings.tabs.java"), icon: Coffee },
-        { id: "commands", label: t("settings.tabs.commands"), icon: Terminal },
-        { id: "privacy", label: t("settings.tabs.privacy"), icon: ShieldCheck },
-        { id: "runtime", label: t("settings.tabs.runtime"), icon: FolderOpen }
+    const settingsTabGroups = $derived([
+        {
+            label: "Launcher",
+            tabs: [
+                { id: "general", label: t("settings.tabs.general"), icon: Home },
+                { id: "language", label: t("settings.tabs.language"), icon: Globe },
+                { id: "appearance", label: t("settings.tabs.appearance"), icon: Palette },
+                { id: "interface", label: t("extendedSettings.interface"), icon: Sparkles },
+                { id: "wallpaper", label: t("extendedSettings.wallpaper"), icon: Layers },
+                { id: "catalog", label: t("extendedSettings.catalog"), icon: Download }
+            ]
+        },
+        {
+            label: "Conta",
+            tabs: [
+                { id: "accounts", label: t("settings.tabs.accounts"), icon: Users },
+                { id: "privacy", label: t("settings.tabs.privacy"), icon: ShieldCheck }
+            ]
+        },
+        {
+            label: "Minecraft",
+            tabs: [
+                { id: "java", label: t("settings.tabs.java"), icon: Coffee },
+                { id: "commands", label: t("settings.tabs.commands"), icon: Terminal },
+                { id: "runtime", label: t("settings.tabs.runtime"), icon: FolderOpen }
+            ]
+        }
     ]);
+    const settingsTabs = $derived(settingsTabGroups.flatMap((group) => group.tabs));
     function handleSettingsTabKeys(event: KeyboardEvent) {
         if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
         const tabs = Array.from((event.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>("[role='tab']"));
@@ -482,9 +498,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         <a href="/workshop" class={launcherButton({variant:"secondary",class:"ml-auto"})}>{uiText("workshop.title")}</a>
     </header>
     <div class="settings-workspace grid items-start gap-5 lg:grid-cols-[190px_minmax(0,1fr)]">
-    <div class="settings-navigation surface-glass grid grid-cols-2 gap-2 p-2 sm:grid-cols-4 lg:grid-cols-1 lg:sticky lg:top-3" role="tablist" aria-label={uiText("settings.refinement.settingsTitle")} tabindex="-1" onkeydown={handleSettingsTabKeys}>
-        {#each settingsTabs as tab}
-            <button type="button" role="tab" id={`settings-tab-${tab.id}`} aria-controls="settings-panel" aria-selected={activeTab === tab.id} tabindex={activeTab === tab.id ? 0 : -1} onclick={() => activeTab = tab.id as SettingsTab} class={launcherButton({ variant: activeTab === tab.id ? "primary" : "ghost", class: "h-auto min-h-14 w-full gap-3 px-3 py-3 justify-start" })}><tab.icon class="h-5 w-5" /><span>{tab.label}</span></button>
+    <div class="settings-navigation grid grid-cols-2 gap-1 sm:grid-cols-4 lg:grid-cols-1 lg:sticky lg:top-3" role="tablist" aria-label={uiText("settings.refinement.settingsTitle")} tabindex="-1" onkeydown={handleSettingsTabKeys}>
+        {#each settingsTabGroups as group}
+            <span class="settings-nav-group">{group.label}</span>
+            {#each group.tabs as tab}
+                <button type="button" role="tab" id={`settings-tab-${tab.id}`} aria-controls="settings-panel" aria-selected={activeTab === tab.id} tabindex={activeTab === tab.id ? 0 : -1} onclick={() => activeTab = tab.id as SettingsTab} class={launcherButton({ variant: activeTab === tab.id ? "tinted" : "ghost", class: "settings-nav-item h-auto min-h-10 w-full gap-3 px-3 justify-start text-[13px]" })}><tab.icon class="h-4 w-4" /><span>{tab.label}</span></button>
+            {/each}
         {/each}
     </div>
     <div use:pageMotion={activeTab} id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${activeTab}`} class="min-w-0 space-y-6">

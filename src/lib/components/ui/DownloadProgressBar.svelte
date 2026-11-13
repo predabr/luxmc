@@ -3,14 +3,16 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { button as launcherButton } from "$lib/components/ui/button";
 	import { quintOut } from "svelte/easing";
 	import { onMount, onDestroy } from "svelte";
-	import { fade, slide, scale } from "svelte/transition";
-	import { Download, CheckCircle2, Clock, Zap, X, HardDrive } from "lucide-svelte";
+	import { slide } from "svelte/transition";
+	import { Download, CheckCircle2, Clock, Zap, X, ChevronDown, ChevronUp } from "lucide-svelte";
 	import { listenDownloadProgress, type DownloadProgress } from "$lib/api";
 	import { appState } from "$lib/stores/app.svelte";
+	import { modpackInstallation } from "$lib/stores/modpackInstallation.svelte";
     import { transferComplete } from '$lib/utils/installProgress';
 
 	let progress = $state<DownloadProgress | null>(null);
 	let isVisible = $state(false);
+	let expanded = $state(false);
 	let hideTimeout: ReturnType<typeof setTimeout> | null = null;
 	let unlisten: (() => void) | null = null;
 
@@ -91,6 +93,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	onMount(() => {
 		let disposed = false;
 		void listenDownloadProgress((data) => {
+			if ((data.phase === "downloading" || data.phase === "done") && modpackInstallation.state.busy) return;
 			progress = data;
 			isVisible = true;
 
@@ -108,6 +111,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	$effect(() => {
 		if (appState.isLaunching || appState.isGameRunning) return;
 		if (!isVisible) return;
+		if (progress?.phase === "java" && !isComplete) return;
 		scheduleHide(3000);
 	});
 
@@ -119,29 +123,23 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 {#if isVisible && progress}
 	<div 
-		class="fixed bottom-4 right-6 z-50 select-none max-w-xl w-[calc(100%-110px)]"
+		class="w-full select-none"
 		transition:slide={{ easing: quintOut, duration: 250, axis: "y" }}
 	>
-		<div class="bg-bg-elevated border border-brand-400/30 rounded-2xl p-4 shadow-elevated space-y-2.5 relative overflow-hidden">
-			<!-- Subtle gold accent glow on top edge -->
-			<div class="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-brand-400/50 to-transparent"></div>
-
-			<!-- Main Top Row: Icon + Title + Metrics + Close -->
+		<div class="dl-card relative space-y-2.5 overflow-hidden rounded-xl border border-fg/12 bg-bg-elevated/95 p-3 shadow-elevated backdrop-blur-xl">
+			<div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-400/70 to-transparent"></div>
 			<div class="flex items-center justify-between text-xs gap-3">
-				
-				<!-- Left: Glowing Icon + Title & File -->
-				<div class="flex items-center gap-3 min-w-0">
+				<button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" onclick={() => expanded = !expanded} aria-expanded={expanded}>
 					{#if isComplete}
-						<div class="h-8 w-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0 shadow-sm">
+						<div class="h-8 w-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0 shadow-sm">
 							<CheckCircle2 class="w-4 h-4" />
 						</div>
 					{:else}
-						<div class="h-8 w-8 rounded-xl bg-brand-400/15 border border-brand-400/30 text-brand-400 flex items-center justify-center shrink-0 shadow-sm">
-							<Download class="w-4 h-4 animate-bounce" />
+						<div class="h-8 w-8 rounded-lg bg-brand-400/15 border border-brand-400/30 text-brand-400 flex items-center justify-center shrink-0 shadow-sm">
+							<Download class="w-4 h-4 animate-bounce motion-reduce:animate-none" />
 						</div>
 					{/if}
-
-					<div class="min-w-0">
+					<span class="min-w-0 flex-1">
 						<div class="flex items-center gap-2">
 							<p class="font-extrabold text-fg text-xs truncate tracking-tight">
 								{phaseTitle}
@@ -152,52 +150,41 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 								</span>
 							{/if}
 						</div>
-						{#if progress.currentFile}
-							<p class="text-[10px] text-fg/40 truncate font-mono mt-0.5 max-w-sm">
-								{progress.currentFile}
-							</p>
-						{/if}
-					</div>
-				</div>
-
-				<!-- Right: Speed, ETA & Percentage & Dismiss -->
-				<div class="flex items-center gap-2.5 shrink-0">
-					{#if speedText && !isComplete}
-						<div class="hidden sm:flex items-center gap-1 font-mono text-[10px] px-2 py-0.5 rounded-lg bg-brand-400/10 text-brand-400 border border-brand-400/20 font-bold">
-							<Zap class="w-3 h-3 text-brand-400" />
-							<span>{speedText}</span>
-						</div>
-					{/if}
-
-					{#if etaText && !isComplete}
-						<div class="hidden md:flex items-center gap-1 font-mono text-[10px] px-2 py-0.5 rounded-lg bg-fg/5 text-fg/50 border border-fg/5">
-							<Clock class="w-3 h-3 text-fg/40" />
-							<span>{etaText}</span>
-						</div>
-					{/if}
-
-					<span class="font-black text-brand-400 text-sm font-mono min-w-[36px] text-right">
-						{percent}%
 					</span>
-
+				</button>
+				<div class="flex items-center gap-2 shrink-0">
+					<span class="dl-meta">
+						{#if !isComplete && speedText}<span class="dl-chip"><Zap class="h-3 w-3" />{speedText}</span>{/if}
+						{#if !isComplete && etaText}<span class="dl-chip"><Clock class="h-3 w-3" />{etaText}</span>{/if}
+					</span>
+					<span class="font-black text-brand-400 text-xs font-mono min-w-[38px] text-right tabular-nums">{percent}%</span>
+					<button type="button" class={launcherButton({ variant: "secondary", size: "icon", class: "flex items-center justify-center" })} onclick={() => expanded = !expanded} aria-label={uiText(expanded ? "downloadsDesign.collapseProgress" : "downloadsDesign.expandProgress")} aria-expanded={expanded}>
+						{#if expanded}<ChevronUp class="w-3.5 h-3.5" />{:else}<ChevronDown class="w-3.5 h-3.5" />{/if}
+					</button>
 					<button 
 						type="button"
 						class={launcherButton({ variant: "secondary", size: "icon", class: "flex items-center justify-center" })}
 						onclick={() => isVisible = false}
 						title={uiText("ui.f5d746dc17252472")}
+						aria-label={uiText("ui.f5d746dc17252472")}
 					>
 						<X class="w-3.5 h-3.5" />
 					</button>
 				</div>
 			</div>
-
-			<!-- Liquid Gold Progress Track -->
-			<div class="w-full h-2 bg-bg-overlay/40 rounded-full overflow-hidden p-0.5 border border-fg/5">
+			{#if expanded}
+				<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-fg-muted">
+					{#if progress.currentFile}<span class="max-w-full truncate font-mono">{progress.currentFile}</span>{/if}
+					{#if speedText && !isComplete}<span class="inline-flex items-center gap-1 font-mono"><Zap class="h-3 w-3 text-brand-400" />{speedText}</span>{/if}
+					{#if etaText && !isComplete}<span class="inline-flex items-center gap-1 font-mono"><Clock class="h-3 w-3" />{etaText}</span>{/if}
+				</div>
+			{/if}
+			<div class="dl-track h-2 w-full overflow-hidden rounded-full bg-fg/8">
 				<div 
-					class="h-full bg-gradient-to-r from-brand-400 via-brand-400 to-brand-400 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 ease-out relative shadow-elevated"
+					class="dl-fill relative h-full rounded-full bg-gradient-to-r from-brand-600 via-brand-400 to-brand-300 transition-[width] duration-300 ease-out"
 					style="width: {percent}%"
 				>
-					<div class="absolute inset-0 bg-fg/25 animate-pulse"></div>
+					<div class="dl-shine absolute inset-0"></div>
 				</div>
 			</div>
 		</div>

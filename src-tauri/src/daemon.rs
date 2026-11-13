@@ -31,12 +31,25 @@ pub(crate) async fn dispatch_local_server(command: &str, args: Value, state: &Ap
     if matches!(command, "local_server_create" | "local_server_update" | "local_server_start") { local_servers::require_pro(account.as_deref()).await?; }
     match command {
         "local_server_list" => Ok(serde_json::to_value(manager.list(args.get("after").and_then(Value::as_u64).unwrap_or(0)).await?)?),
-        "local_server_manage" => local_servers::manage(http, account, serde_json::from_value(args["request"].clone())?).await,
+        "local_server_manage" => {
+            let request = serde_json::from_value(args["request"].clone())?;
+            match request {
+                crate::commands::local_servers::ServerRequest::PublicAccess { id, operation } => {
+                    if operation != "status" {
+                        let _guard = state.launch_lock.try_lock().map_err(|_| crate::error::AppError::InvalidState("Aguarde a preparação do Minecraft ou a atualização do launcher.".into()))?;
+                        local_servers::public_access(http, id, operation, account).await
+                    } else {
+                        local_servers::public_access(http, id, operation, account).await
+                    }
+                }
+                request => local_servers::manage(http, account, request).await,
+            }
+        },
         "local_server_create" => Ok(serde_json::to_value(manager.create(serde_json::from_value(args["input"].clone())?).await?)?),
         "local_server_update" => {
             let ram = args.get("ramMb").and_then(Value::as_u64).and_then(|value| u32::try_from(value).ok()).ok_or_else(|| crate::error::AppError::InvalidInput("Memória inválida.".into()))?;
             let players = args.get("maxPlayers").and_then(Value::as_u64).and_then(|value| u16::try_from(value).ok()).ok_or_else(|| crate::error::AppError::InvalidInput("Capacidade inválida.".into()))?;
-            Ok(serde_json::to_value(manager.update(&id, args.get("name").and_then(Value::as_str).unwrap_or_default().into(), ram, players).await?)?)
+            Ok(serde_json::to_value(manager.update_version(&id, args.get("name").and_then(Value::as_str).unwrap_or_default().into(), ram, players, args.get("mcVersion").and_then(Value::as_str).map(str::to_string)).await?)?)
         }
         "local_server_start" => {
             local_servers::include_owner(http, &id, account.as_deref()).await?;
@@ -44,6 +57,7 @@ pub(crate) async fn dispatch_local_server(command: &str, args: Value, state: &Ap
             Ok(serde_json::to_value(manager.start(id, 20).await?)?)
         }
         "local_server_stop" => { manager.stop(&id).await?; Ok(Value::Null) }
+        "local_server_telemetry" => Ok(serde_json::to_value(manager.telemetry(&id).await?)?),
         "local_server_console" => { let text = args.get("text").and_then(Value::as_str).unwrap_or_default(); local_servers::allow_console(account.as_deref(), text).await?; manager.console(&id, text.into()).await?; Ok(Value::Null) }
         "local_server_open_folder" => { local_servers::open_folder(http, id).await?; Ok(Value::Null) }
         "local_server_share" | "local_server_share_existing" => {
@@ -261,6 +275,11 @@ async fn dispatch_command(
             let specs = crate::commands::system::get_system_specs().await;
             Ok(serde_json::to_value(specs).map_err(|e| e.to_string())?)
         },
+        "network_throughput_sample" => {
+            let sample = crate::commands::system::network_throughput_sample().await.map_err(|e| e.to_string())?;
+            Ok(serde_json::to_value(sample).map_err(|e| e.to_string())?)
+        },
+        "system_resource_sample" => Ok(serde_json::to_value(crate::commands::system::system_resource_sample().await).map_err(|e| e.to_string())?),
         "env_check" => {
             let check = crate::commands::env::env_check().await.map_err(|e| e.to_string())?;
             Ok(serde_json::to_value(check).map_err(|e| e.to_string())?)

@@ -39,6 +39,15 @@ describe("catalog gallery recovery", () => {
 		expect(await catalogGallery("modrinth","cache-pack")).toEqual(results[0]);
 		expect(mocks.details).toHaveBeenCalledTimes(1);
 	});
+	it("returns artwork without waiting for image dimension probes", async () => {
+		mocks.details.mockResolvedValueOnce(details("fast-gallery"));
+		vi.stubGlobal('Image', class {
+			set src(_value: string) {}
+		});
+		await expect(catalogGallery("modrinth", "fast-gallery")).resolves.toEqual([
+			"https://cdn.modrinth.com/data/fast-gallery/landscape.png"
+		]);
+	});
 	it("does not use a fallback response belonging to another project", async () => {
 		mocks.details.mockResolvedValueOnce(details("another-pack"));
 		expect(await catalogGallery("modrinth","requested-pack")).toEqual([]);

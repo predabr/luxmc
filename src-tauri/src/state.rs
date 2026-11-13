@@ -18,6 +18,8 @@ impl Default for AppState {
             .user_agent(concat!("Luxmc/", env!("CARGO_PKG_VERSION")))
             .pool_max_idle_per_host(32)
             .tcp_nodelay(true)
+            .tcp_keepalive(std::time::Duration::from_secs(30))
+            .http2_adaptive_window(true)
             .connect_timeout(std::time::Duration::from_secs(15))
             .read_timeout(std::time::Duration::from_secs(60))
             .build()

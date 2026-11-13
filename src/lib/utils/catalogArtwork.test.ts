@@ -23,4 +23,11 @@ describe('catalog artwork identity',()=>{
     it('deduplicates gallery candidates and rejects executable image URLs',()=>{
         expect(catalogBannerCandidates({title:'Pack',slug:'pack',iconUrl:'https://example.com/icon.png',bannerUrl:'https://example.com/cover.png',galleryUrls:['https://example.com/cover.png','javascript:alert(1)','https://example.com/scene.png']})).toEqual(['https://example.com/cover.png','https://example.com/scene.png','https://example.com/icon.png']);
     });
+    it('never promotes provider avatar URLs to landscape covers',()=>{
+        const curseForgeIcon='https://media.forgecdn.net/avatars/123/456/logo.png';
+        const modrinthIcon='https://cdn.modrinth.com/data/project/abc123.png';
+        const gallery='https://cdn.modrinth.com/data/project/images/cover.png';
+        expect(catalogBannerCandidates({title:'Pack',slug:'pack',source:'curseforge',iconUrl:curseForgeIcon,bannerUrl:curseForgeIcon,galleryUrls:[curseForgeIcon]})).toEqual([curseForgeIcon]);
+        expect(catalogBannerCandidates({title:'Pack',slug:'pack',source:'modrinth',iconUrl:modrinthIcon,bannerUrl:modrinthIcon,galleryUrls:[modrinthIcon,gallery]})).toEqual([gallery,modrinthIcon]);
+    });
 });

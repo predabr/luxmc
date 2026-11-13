@@ -52,7 +52,7 @@
 		<Search class="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg/40" />
 		<input
 			bind:this={searchInput}
-			class="h-10 w-full rounded-full pl-10 pr-4 text-xs font-bold outline-none placeholder:text-fg/30 bg-bg-elevated border border-fg/10 focus:border-brand-500 text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity]"
+			class="h-10 w-full rounded-sm pl-10 pr-4 text-xs font-semibold outline-none placeholder:text-fg/30 bg-fg/[0.07] border border-fg/[0.08] focus:border-brand-500 text-fg transition-[color,background-color,border-color]"
 			placeholder={t("instances.searchPlaceholder")}
 			bind:value={searchQuery}
 			oninput={() => onSearchChange?.(searchQuery)}

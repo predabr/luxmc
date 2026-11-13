@@ -16,7 +16,7 @@
     <div class="flex flex-wrap items-start justify-between gap-3"><div><h2 class="flex gap-2 text-lg font-semibold"><GitBranch class="h-5 w-5 text-brand-400" />{t('studio.dependencies')}</h2><p class="mt-2 text-xs leading-relaxed text-fg-muted">{t('studio.dependenciesHelp')}</p></div><button type="button" disabled={busy || !profileId} class={button({variant:'secondary',size:'sm'})} onclick={()=>void load()}><RefreshCw class="h-4 w-4" />{busy?t('common.loading'):t('studio.scan')}</button></div>
     {#if error}<p role="alert" class="text-sm text-danger">{error}</p>{/if}
     {#if loaded===profileId}
-        <input aria-label={t('studio.findMod')} bind:value={search} oninput={()=>limit=60} class="w-full rounded-xl border border-border bg-bg-subtle px-3 py-2 text-sm" placeholder={t('studio.findMod')} />
+        <input aria-label={t('studio.findMod')} bind:value={search} oninput={()=>limit=60} class="w-full rounded-sm border border-fg/[0.08] bg-fg/[0.07] px-3 py-2 text-sm" placeholder={t('studio.findMod')} />
         <div class="grid gap-4 md:grid-cols-2">
             <div class="max-h-96 space-y-2 overflow-y-auto rounded-2xl border border-border p-2 custom-scrollbar" role="group" aria-label={t('studio.dependencies')}>
                 {#each filtered.slice(0,limit) as node}<button type="button" aria-pressed={selected===node.id} class={button({variant:selected===node.id?'ghostBrand':'ghost',block:true,class:'justify-start text-left'})} onclick={()=>selected=node.id}><span class="truncate">{node.name}</span><span class="ml-auto text-xs text-warning">{node.missing.length || ''}</span></button>{/each}

@@ -87,7 +87,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	const { t } = useTranslation();
 
-	let loginTab = $state<"microsoft" | "offline">("microsoft");
+	let loginTab = $state<"microsoft" | "luxmc" | "offline">("microsoft");
 	let offlineName = $state("");
 	let isLoggingIn = $state(false);
 	let isLoggingInMicrosoft = $state(false);
@@ -668,182 +668,117 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
             <div><p class="mb-4 font-sans text-xs font-semibold uppercase tracking-[.18em] text-brand-400">Luxmc / Launcher</p><h2 class="font-sans text-5xl font-semibold leading-[1.08] tracking-tight text-fg">{uiText('loginDesign.headline')}</h2><p class="mt-6 font-sans text-sm leading-relaxed text-fg-muted">{uiText('loginDesign.story')}</p></div>
             <div class="flex items-center gap-3 border-t border-border pt-6 text-xs text-fg-muted"><Layers class="h-4 w-4 text-brand-400" />Vanilla · Fabric · Quilt · Forge · NeoForge</div>
         </section>
-		<div
-			class="auth-surface w-full max-w-[520px] bg-bg-elevated border border-border rounded-3xl p-6 sm:p-8 relative z-10 space-y-6 shadow-elevated"
-			in:fly={{ easing: backOut, y: 20, duration: 260 }}
+				<div
+			class="auth-surface w-full max-w-[480px] border border-fg/12 rounded-xl p-7 sm:p-8 relative z-10 space-y-4"
+			in:fly={{ easing: backOut, y: 16, duration: 240 }}
 		>
-			<div class="flex flex-col items-center text-center space-y-3">
-				<div class="w-16 h-16 rounded-2xl bg-gradient-to-b from-bg-subtle to-bg-elevated border border-fg/15 p-2.5 shadow-2xl flex items-center justify-center relative group">
-					<div class="absolute inset-0 bg-blue-500/15 rounded-2xl pointer-events-none group-hover:bg-blue-500/25 transition-[color,background-color,border-color,box-shadow,transform,opacity]"></div>
-					<img loading="lazy" decoding="async" src="/logo.png" alt="Luxmc" class="w-full h-full object-contain relative z-10" />
-				</div>
-				<div>
-					<h1 class="text-xl font-black text-fg tracking-tight">{uiText("ui.d3094029aa08ec2c")}</h1>
-					<p class="text-sm text-fg/60 mt-2 leading-relaxed">{uiText("design.loginDescription")}</p>
-				</div>
+			<div class="flex flex-col items-center text-center gap-2 pb-1">
+				<img loading="lazy" decoding="async" src="/logo.png" alt="Luxmc" class="h-12 w-12 object-contain" />
+				<h1 class="text-[15px] font-extrabold uppercase tracking-[.14em] text-fg">Entrar na sua conta Luxmc</h1>
 			</div>
 
-            <div class="grid grid-cols-3 gap-2" aria-label={uiText('loginDesign.method')}>
-                {#each ['microsoft','luxmc','offline'] as method}
-                    {@const selected = method === 'microsoft' ? loginTab === 'microsoft' : loginTab === 'offline' && localProfile === (method === 'offline')}
-                    <button type="button" disabled={isLoggingIn || isLoggingInMicrosoft} aria-label={method === 'microsoft' ? 'Microsoft' : method === 'luxmc' ? 'Luxmc' : uiText('loginDesign.offline')} aria-pressed={selected} onclick={() => { loginTab = method === 'microsoft' ? 'microsoft' : 'offline'; localProfile = method === 'offline'; }} class="flex min-w-0 flex-col items-start gap-3 rounded-2xl border p-3 text-left {selected ? 'border-brand-400/50 bg-brand-500/10' : 'border-border bg-bg-subtle hover:border-fg/25'}">
-                        {#if method === 'microsoft'}<MicrosoftLogo size={19} />{:else if method === 'luxmc'}<img src="/logo.png" alt="" class="h-6 w-6 object-contain" />{:else}<User class="h-5 w-5 text-fg-muted" />{/if}<span class="font-sans text-xs font-semibold text-fg">{method === 'microsoft' ? 'Microsoft' : method === 'luxmc' ? 'Luxmc' : uiText('loginDesign.offline')}</span>
-                    </button>
-                {/each}
-            </div>
+			<div class="login-methods" role="tablist" aria-label="Método de login">
+				<button type="button" role="tab" aria-selected={loginTab === 'microsoft'} class="login-method" class:active={loginTab === 'microsoft'} disabled={isLoggingIn || isLoggingInMicrosoft} onclick={() => (loginTab = 'microsoft')}>
+					<MicrosoftLogo size={15} /> Microsoft
+				</button>
+				<button type="button" role="tab" aria-selected={loginTab === 'luxmc'} class="login-method" class:active={loginTab === 'luxmc'} disabled={isLoggingIn} onclick={() => { loginTab = 'luxmc'; localProfile = false; }}>
+					<img src="/logo.png" alt="" class="h-4 w-4 object-contain" /> Luxmc
+				</button>
+				<button type="button" role="tab" aria-selected={loginTab === 'luxmc' && localProfile} class="login-method" class:active={loginTab === 'luxmc' && localProfile} disabled={isLoggingIn} onclick={() => { loginTab = 'luxmc'; localProfile = true; }}>
+					<User class="h-3.5 w-3.5" /> Offline
+				</button>
+			</div>
 
-			{#if loginTab === "microsoft"}
-				<div class="flex flex-col items-center text-center space-y-5 pt-1" in:fade={{ easing: quintOut, duration: 220 }}>
-					<div class="space-y-1">
-						<h2 class="text-base font-bold text-fg">{uiText("ui.e5b61bd78d85758f")}</h2>
-						<p class="text-xs text-fg/50 max-w-xs leading-relaxed">
-							{uiText("ui.95d14a94c1dc9be5")}
-						</p>
-					</div>
-
-					{#if isLoggingInMicrosoft}
-						<div role="status" aria-live="polite" class="w-full bg-bg/35 border border-brand-400/25 rounded-2xl p-6 text-left space-y-4">
-							<div class="flex items-center justify-between">
-								<MicrosoftLogo size={28} />
-								<Loader2 class="w-5 h-5 text-brand-400 animate-spin motion-reduce:animate-none" />
-							</div>
-
-							<div class="space-y-1">
-								<p class="text-sm font-semibold text-fg">{uiText("design.browserLogin")}</p>
-								<p class="text-xs text-fg/60 leading-relaxed">
-									{uiText("design.browserLoginHint")}
-								</p>
-							</div>
-
+			{#if loginTab === 'microsoft'}
+				{#if isLoggingInMicrosoft}
+					<div role="status" aria-live="polite" class="login-status">
+						<div class="flex w-full items-center justify-between">
+							<MicrosoftLogo size={22} />
+							<Loader2 class="h-4 w-4 animate-spin text-brand-400 motion-reduce:animate-none" />
 						</div>
-					{:else}
-						<div class="w-full space-y-2">
-							<button
-								type="button"
-								class={launcherButton({ variant: "microsoft", size: "hero", class: "w-full" })}
-								onclick={() => { playClick(); handleMicrosoftLogin(); }}
-								disabled={isLoggingIn || isLoggingInMicrosoft}
-							>
-								<MicrosoftLogo size={20} />
-								<span>{uiText("auth.signIn")}</span>
-							</button>
-							<span class="text-[11px] text-fg/40 font-medium block">{uiText("ui.9d92ae200eb167d0")}</span>
-						</div>
-					{/if}
-
-
-				</div>
-
-			{:else}
-
-				{#if !localProfile}
-                    <LuxAccountForm bind:busy={isLoggingIn} />
-                    <button type="button" class={launcherButton({ variant: "ghost", size: "sm", class: "" })} disabled={isLoggingIn} onclick={() => localProfile = true}>{uiText("ui.8d82fb65b8a91eab")}</button>
-                {:else}
-                    <button type="button" class={launcherButton({ variant: "ghost", size: "sm", class: "" })} disabled={isLoggingIn} onclick={() => localProfile = false}>{uiText("ui.0cf9a9775845e7f8")}</button>
-				<div class="space-y-4 pt-1" in:fade={{ easing: quintOut, duration: 220 }}>
-					<div class="text-center space-y-1">
-						<h2 class="text-base font-bold text-fg">{uiText("ui.d90b39bcf2e9d5be")}</h2>
-						<p class="text-xs text-fg/50">{uiText("ui.1e6ebd3ae27cc1c6")}</p>
+						<p class="font-semibold text-fg">{uiText('design.browserLogin')}</p>
+						<p class="text-xs leading-relaxed text-fg-muted">{uiText('design.browserLoginHint')}</p>
 					</div>
-
-					<div class="space-y-1.5">
-						<label for="offline-nick-input" class="text-[11px] font-bold text-fg/60 block text-left">
-							{uiText("ui.2e2972baf919c7b6")}
-						</label>
-						<div class="relative flex items-center">
-							<div class="w-7 h-7 rounded-lg bg-bg-overlay/40 border border-fg/10 overflow-hidden absolute left-2.5 flex items-center justify-center pointer-events-none">
-								<img loading="lazy" decoding="async"
-									src={`https://mc-heads.net/avatar/${offlineName.trim() || 'Steve'}/32`}
-									alt={uiText("ui.ca8e826d9c2ec401")}
-									class="w-full h-full object-contain"
-								/>
-							</div>
-							<input
-								id="offline-nick-input"
-								type="text"
-								placeholder={uiText("ui.44c104681ef49837")}
-								bind:value={offlineName}
-								maxlength="16"
-								class="w-full bg-bg-overlay/40 border border-fg/10 focus:border-blue-500/60 rounded-2xl pl-12 pr-4 py-3 text-xs font-bold text-fg outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity] placeholder:text-fg/20"
-								onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
-							/>
-						</div>
-					</div>
-
+				{:else}
 					<button
 						type="button"
-						class={launcherButton({ variant: "primary", size: "lg", class: "w-full uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-50" })}
-						onclick={() => { playClick(); handleOfflineAuth(); }}
-						disabled={isLoggingIn || isLoggingInMicrosoft}
+						class={launcherButton({ variant: 'microsoft', size: 'lg', class: 'w-full' })}
+						onclick={() => { playClick(); handleMicrosoftLogin(); }}
+						disabled={isLoggingIn}
 					>
-						{#if isLoggingIn}
-							<Loader2 class="w-4 h-4 animate-spin text-fg" /> {uiText("ui.a89d514549530e6e")}
-						{:else}
-							<Play class="w-3.5 h-3.5 fill-current" /> {uiText("home.offlineCta")}
-						{/if}
+						<MicrosoftLogo size={18} />
+						<span class="font-semibold">{uiText('auth.signIn')}</span>
 					</button>
-
+				{/if}
+			{:else if !localProfile}
+				<div class="login-split">
+					<LuxAccountForm bind:busy={isLoggingIn} />
+					<div class="login-ms-col">
+						<button
+							type="button"
+							class="login-ms-btn"
+							onclick={() => { playClick(); loginTab = 'microsoft'; }}
+							disabled={isLoggingIn || isLoggingInMicrosoft}
+						>
+							<MicrosoftLogo size={16} />
+							<span>{uiText('auth.signIn')}</span>
+						</button>
+					</div>
+				</div>
+			{:else}
+				<div class="login-form" in:fade={{ easing: quintOut, duration: 200 }}>
+					<label class="login-label" for="offline-nick-input">{uiText('ui.2e2972baf919c7b6')}</label>
+					<div class="login-field">
+						<img
+							loading="lazy"
+							decoding="async"
+							src={`https://mc-heads.net/avatar/${offlineName.trim() || 'Steve'}/32`}
+							alt=""
+							class="h-5 w-5 shrink-0 rounded"
+						/>
+						<input
+							id="offline-nick-input"
+							type="text"
+							placeholder={uiText('ui.44c104681ef49837')}
+							bind:value={offlineName}
+							maxlength="16"
+							onkeydown={(e) => { if (e.key === 'Enter') handleOfflineAuth(); }}
+						/>
+					</div>
+					<button type="button" class="login-submit" onclick={() => { playClick(); handleOfflineAuth(); }} disabled={isLoggingIn || isLoggingInMicrosoft}>
+						{#if isLoggingIn}<Loader2 class="h-4 w-4 animate-spin" />{/if}
+						{uiText('home.offlineCta')}
+					</button>
 					{#if savedAccounts.length > 0}
-						<div class="space-y-2 pt-1 border-t border-fg/5">
-							<span class="text-[10px] font-bold text-fg/40 uppercase tracking-wider block text-left">
-								{uiText("ui.e7f8cb3ab06ffcd0")}
-							</span>
-							<div class="flex flex-wrap gap-1.5">
+						<div class="login-saved">
+							<span class="login-label">{uiText('ui.e7f8cb3ab06ffcd0')}</span>
+							<div class="login-saved-list">
 								{#each savedAccounts as accName (accName)}
-									<div class="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-xl bg-fg/5 hover:bg-fg/10 border border-fg/5 transition-[color,background-color,border-color,box-shadow,transform,opacity] group">
-										<button
-											type="button"
-											onclick={() => handleOfflineAuth(accName)}
-											class="flex items-center gap-1.5 text-left cursor-pointer"
-										>
-											<img loading="lazy" decoding="async"
-												src={`https://mc-heads.net/avatar/${accName}/32`}
-												alt={accName}
-												class="w-4 h-4 rounded object-cover"
-											/>
-											<span class="text-xs font-bold text-fg/80 group-hover:text-blue-300 transition-colors">{accName}</span>
+									<span class="login-saved-item">
+										<button type="button" onclick={() => handleOfflineAuth(accName)}>
+											<img loading="lazy" decoding="async" src={`https://mc-heads.net/avatar/${accName}/32`} alt="" class="h-4 w-4 rounded" />
+											<span>{accName}</span>
 										</button>
-										<button
-											type="button"
-											onclick={() => deleteSavedAccount(accName)}
-											class={launcherButton({ variant: "danger", size: "icon", class: "opacity-0 group-hover:opacity-100" })}
-											title={uiText("mods.remove")}
-										>
-											<Trash2 class="w-2.5 h-2.5" />
-										</button>
-									</div>
+										<button type="button" class="login-saved-remove" aria-label={uiText('mods.remove')} onclick={() => deleteSavedAccount(accName)}>×</button>
+									</span>
 								{/each}
 							</div>
 						</div>
 					{/if}
 				</div>
-
-				{/if}
 			{/if}
 
-			<div class="pt-2 border-t border-fg/5 flex flex-col items-center gap-2">
-                <p class="text-center text-xs leading-5 text-fg-muted">{uiText('loginDesign.customizerHint')}</p>
-
-				<div class="flex items-center justify-between w-full pt-1">
-					<button
-						type="button"
-						class={launcherButton({ variant: "ghost", size: "sm", class: "" })}
-						onclick={() => showMsClientIdModal = true}
-					>
-						{uiText("ui.563dfb14d03e1d7f")}
-					</button>
-					<button
-						type="button"
-						class={launcherButton({ variant: "ghost", size: "sm", class: "" })}
-						onclick={handleDevLogin}
-					>
-						{uiText("ui.ab7d9b0dcfe1bfa6")}
-					</button>
-				</div>
+			<div class="login-footer">
+				<button type="button" class="login-icon-btn" onclick={() => (showMsClientIdModal = true)} title={uiText('ui.563dfb14d03e1d7f')}>
+					<User class="h-5 w-5" />
+					<span>Conta</span>
+				</button>
+				<button type="button" class="login-icon-btn" onclick={() => goto('/settings')} title="Configurações do launcher">
+					<Settings class="h-5 w-5" />
+					<span>Configurações</span>
+				</button>
 			</div>
 		</div>
-	</div>
 
 	{#if showMsClientIdModal}
 		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/80 backdrop-blur-sm" in:fade={{ easing: quintOut, duration: 220 }}>
@@ -894,6 +829,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		</div>
 	{/if}
 
+	</div>
 {:else}
 
 	<div class="flex min-h-full w-full select-none" in:fade={{ easing: quintOut, duration: 220 }}>
@@ -978,7 +914,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 				{#if jumpInExpanded}
 					{#if jumpInInstances.length === 0}
-						<div class="p-6 rounded-2xl bg-bg/35 backdrop-blur-xl border border-fg/[0.06] text-center space-y-2">
+						<div class="p-6 rounded-sm bg-bg/35 backdrop-blur-xl border border-fg/[0.1] text-center space-y-2">
 							<p class="text-xs text-fg/40">{uiText("ui.88282960c9bdaa99")}</p>
 							<button
 								type="button"
@@ -992,7 +928,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 						<div class="space-y-2.5" transition:slide={{ easing: quintOut, duration: 240 }}>
 							{#each jumpInInstances as inst (inst.id)}
 								{@const tileCol = getInstanceTileColor(inst.id || inst.name)}
-								<div class="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.06] hover:border-fg/[0.14] transition-[color,background-color,border-color,box-shadow,transform,opacity] group shadow-sm ">
+								<div class="flex flex-wrap items-center justify-between gap-3 p-3 rounded-sm bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.1] hover:border-fg/[0.2] transition-[color,background-color,border-color,box-shadow,transform,opacity] group shadow-sm ">
 									<a href={`/instances/${inst.id}`} onpointerenter={() => preloadRoute(`/instances/${inst.id}`)} class="flex flex-1 items-center gap-3.5 min-w-[220px] rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400">
 										<div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 flex items-center justify-center shadow-inner {inst.icon && !inst.icon.includes('grass_block') ? 'bg-black/40 border border-fg/10' : tileCol.bg}">
 											{#if inst.icon && inst.icon !== '/grass_block.png' && !inst.icon.includes('grass_block')}
@@ -1154,7 +1090,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 								type="text"
 								placeholder={t("common.search")}
 								bind:value={searchQuery}
-								class="w-full bg-bg/35 backdrop-blur-xl border border-fg/[0.06] rounded-xl pl-9 pr-3 py-2.5 text-xs text-fg placeholder:text-fg/30 outline-none focus:border-brand-500/60 transition-[color,background-color,border-color,box-shadow,transform,opacity]"
+								class="w-full bg-fg/[0.07] border border-fg/[0.08] rounded-sm pl-9 pr-3 py-2.5 text-xs text-fg placeholder:text-fg/30 outline-none focus:border-brand-500/60 transition-[color,background-color,border-color]"
 							/>
 						</div>
 
@@ -1163,8 +1099,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 							onclick={() => showNewGroupPrompt = true}
 							class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1.5 shrink-0" })}
 						>
-							<FolderPlus class="w-3.5 h-3.5 text-fg/50" />
-							<span>{t("library.newGroup")}</span>
+							<FolderPlus class="w-4 h-4 text-fg" />
+							<span class="font-semibold text-fg">{t("library.newGroup")}</span>
 						</button>
 
 						<button
@@ -1173,7 +1109,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 							class={launcherButton({ variant: "primary", size: "sm", class: "flex items-center gap-1.5 shrink-0" })}
 						>
 							<Plus class="w-4 h-4 stroke-[3]" />
-							<span>{t("library.newInstance")}</span>
+							<span class="font-bold">{t("library.newInstance")}</span>
 						</button>
 					</div>
 
@@ -1250,7 +1186,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                             {#each visibleFolders as folder (folder)}
                                 <div class="relative">
                                 <button type="button" data-library-folder={folder} aria-label={uiText('library.openFolder', {name:folder})}
-                                    class="library-folder-card h-full w-full min-h-[232px] rounded-3xl border p-5 text-center shadow-soft transition-[background-color,border-color,box-shadow] {groupHover === folder ? 'border-brand-500 bg-brand-500/10' : 'border-fg/10 bg-bg/35 hover:border-brand-500/35 hover:bg-fg/10'}"
+                                    class="library-folder-card h-full w-full min-h-[232px] rounded-[12px] border p-5 text-center shadow-soft transition-[background-color,border-color,box-shadow] {groupHover === folder ? 'border-brand-500 bg-brand-500/10' : 'border-fg/10 bg-bg/35 hover:border-brand-500/35 hover:bg-fg/10'}"
                                     disabled={!!movingProfile} ondragover={event => { if (event.dataTransfer?.types.includes('application/x-luxmc-instance')) { event.preventDefault(); groupHover=folder; event.dataTransfer.dropEffect='move'; } }}
                                     ondragleave={() => groupHover=null} ondrop={event => dropIntoGroup(event,folder)} onclick={() => selectedGroup=folder}>
                                     <div class="relative mx-auto flex h-28 w-28 items-center justify-center overflow-hidden rounded-2xl bg-brand-500/10">
@@ -1279,7 +1215,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 								draggable={!movingProfile}
                                 ondragstart={event => { if (event.dataTransfer) { event.dataTransfer.setData('application/x-luxmc-instance',inst.id); event.dataTransfer.effectAllowed='move'; } }}
                                 ondragend={() => groupHover=null}
-                                class="home-instance-card focus-within:z-30 rounded-3xl bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.08] hover:border-brand-500/35 transition-[background-color,border-color,box-shadow,transform] p-5 flex flex-col justify-between group relative shadow-soft hover:shadow-elevated cursor-pointer min-h-[232px]"
+                                class="home-instance-card focus-within:z-30 rounded-[12px] bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.08] hover:border-brand-500/35 transition-[background-color,border-color,box-shadow,transform] p-5 flex flex-col justify-between group relative shadow-soft hover:shadow-elevated cursor-pointer min-h-[232px]"
 								onpointerenter={() => preloadRoute(`/instances/${inst.id}`)}
 								onpointerdown={event => { if (!(event.target instanceof Element && event.target.closest('button,a,input,select,textarea'))) preloadRoute(`/instances/${inst.id}`, true); }}
 								onclick={event => { if (event.target instanceof Element && event.target.closest("button,select,label,input,a")) return; void goto(`/instances/${inst.id}`); }}
@@ -1311,7 +1247,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 											handleLaunch(inst);
 										}}
 										disabled={isLaunching || appState.isLaunching}
-										class={launcherButton({ variant: "play", size: "icon", class: "absolute bottom-0 right-0 h-11 w-11 rounded-2xl" })}
+										class={launcherButton({ variant: "play", size: "icon", class: "absolute bottom-0 right-0 h-11 w-11 rounded-full" })}
 										aria-label={`${uiText("instances.play")} ${inst.name}`}
 										title={isThisLaunching ? (appState.launchStatusText || uiText("ui.dc0546b3e22c8f9e")) : uiText("instances.play")}
 									>

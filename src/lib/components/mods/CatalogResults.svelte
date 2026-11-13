@@ -1,7 +1,7 @@
 <script lang="ts" generics="Item">
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { onMount, type Snippet } from "svelte";
-    let { items, columns = 1, rowHeight = 440, children }: { items: Item[]; columns?: number; rowHeight?: number; children: Snippet<[Item]> } = $props();
+    let { items, columns = 1, rowHeight = 440, layout = "grid", children }: { items: Item[]; columns?: number; rowHeight?: number; layout?: "grid" | "rows"; children: Snippet<[Item]> } = $props();
     let container = $state<HTMLDivElement | null>(null);
     let first = $state(0);
     let visible = $state(4);
@@ -30,12 +30,18 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     });
 </script>
 
-<div bind:this={container} class="relative w-full" style:height={`${rowCount * rowHeight}px`} data-catalog-results aria-label={uiText("ui.6c6b7279d01d77d4")}>
-    {#each rows as row (row)}
-        <div class="catalog-result-row absolute left-0 top-0 grid w-full gap-4 pb-4" style:height={`${rowHeight}px`} style:transform={`translateY(${row * rowHeight}px)`} style:grid-template-columns={`repeat(${columns}, minmax(0, 1fr))`}>
-            {#each items.slice(row * columns, (row + 1) * columns) as item (item)}
-                {@render children(item)}
-            {/each}
-        </div>
-    {/each}
+<div bind:this={container} class="relative w-full" class:flex={layout === "rows"} class:flex-col={layout === "rows"} class:gap-4={layout === "rows"} style:height={layout === "grid" ? `${rowCount * rowHeight}px` : undefined} data-catalog-results aria-label={uiText("ui.6c6b7279d01d77d4")}>
+    {#if layout === "rows"}
+        {#each items as item (item)}
+            {@render children(item)}
+        {/each}
+    {:else}
+        {#each rows as row (row)}
+            <div class="catalog-result-row absolute left-0 top-0 grid w-full gap-4 pb-4" style:height={`${rowHeight}px`} style:transform={`translateY(${row * rowHeight}px)`} style:grid-template-columns={`repeat(${columns}, minmax(0, 1fr))`}>
+                {#each items.slice(row * columns, (row + 1) * columns) as item (item)}
+                    {@render children(item)}
+                {/each}
+            </div>
+        {/each}
+    {/if}
 </div>

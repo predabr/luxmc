@@ -13,6 +13,8 @@ export interface AppSettings {
     preloadContentIcons?: boolean;
     catalogPageSize?: 24 | 36 | 48;
     catalogCompactCards?: boolean;
+    catalogViewMode?: "grid" | "compact" | "large" | "interactive";
+    catalogViewShape?: "square" | "row";
     gifQuality?: "balanced" | "high";
     respectReducedMotion?: boolean;
 	blur: boolean;
@@ -139,4 +141,3 @@ function createSettingsStore() {
 }
 
 export const settings = createSettingsStore();
-

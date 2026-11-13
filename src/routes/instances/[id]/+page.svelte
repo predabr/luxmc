@@ -74,7 +74,11 @@
 		ArrowLeftRight,
 		Snowflake,
 		Link,
-        Wrench
+        Wrench,
+        List,
+        LayoutGrid,
+        Circle,
+        Triangle
 	} from "lucide-svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import VirtualList from "$lib/components/ui/VirtualList.svelte";
@@ -194,6 +198,36 @@
 	let isImportingDrop = $state(false);
 	let modsDragDepth = 0;
 	let searchQuery = $state("");
+    type InstanceModView = "list" | "cards" | "circles" | "triangles";
+    const instanceModViews: InstanceModView[] = ["list", "cards", "circles", "triangles"];
+    let instanceModView = $state<InstanceModView>("list");
+    let loadedModViewInstance = $state("");
+    let modViewStorageFailedFor = $state("");
+    $effect(() => {
+        const id = instanceId;
+        if (!id || typeof window === "undefined") return;
+        try {
+            const saved = localStorage.getItem(`luxmc:instance-mod-view:${id}`);
+            instanceModView = instanceModViews.includes(saved as InstanceModView) ? saved as InstanceModView : "list";
+            modViewStorageFailedFor = "";
+        } catch {
+            toast(uiText("ui.1a50574dacc105fc"), "warning");
+            instanceModView = "list";
+            modViewStorageFailedFor = id;
+        }
+        loadedModViewInstance = id;
+    });
+    $effect(() => {
+        const id = instanceId;
+        const view = instanceModView;
+        if (!id || loadedModViewInstance !== id || modViewStorageFailedFor === id || typeof window === "undefined") return;
+        try {
+            localStorage.setItem(`luxmc:instance-mod-view:${id}`, view);
+        } catch {
+            toast(uiText("ui.1a50574dacc105fc"), "warning");
+            modViewStorageFailedFor = id;
+        }
+    });
     let debouncedSearch = $state("");
     $effect(() => {
         const query = searchQuery;
@@ -1926,7 +1960,7 @@
         <div class="instance-overview-nav instance-tabbar" role="tablist" tabindex="-1" onkeydown={handleTabKeys} aria-label={uiText("ui.afb02856c2b1242c")}>
             {#each [{ id: 'mods', label: 'Mods', icon: Puzzle }, { id: 'resourcepacks', label: uiText("ui.906d0853ece30a11"), icon: Box }, { id: 'shaders', label: 'Shaders', icon: Sparkles }, { id: 'datapacks', label: uiText("ui.f3260e4c97557038"), icon: Code }, { id: 'mundos', label: uiText("files.saves"), icon: Globe2 }, { id: 'galeria', label: uiText("ui.067348ce68943b63"), icon: Image }, { id: 'ficheiros', label: uiText("ui.c11445cb4fe129bf"), icon: Folder }, { id: 'configuracoes', label: uiText("ui.76b0fb6ad18939ac"), icon: SettingsIcon }] as section}
                 {@const selected = mainTab === section.id || (mainTab === 'conteudo' && subTab === section.id)}
-                <button type="button" role="tab" tabindex={selected ? 0 : -1} id={`instance-tab-${section.id}`} aria-selected={selected} aria-controls={`instance-${['mods', 'resourcepacks', 'shaders', 'datapacks'].includes(section.id) ? 'conteudo' : section.id}`} class={button({ variant: selected ? "secondary" : "ghost", size: "sm", class: selected ? 'text-brand-400 border-brand-400/30 bg-brand-500/10' : '' })} onclick={() => {
+                <button type="button" role="tab" tabindex={selected ? 0 : -1} id={`instance-tab-${section.id}`} aria-selected={selected} aria-controls={`instance-${['mods', 'resourcepacks', 'shaders', 'datapacks'].includes(section.id) ? 'conteudo' : section.id}`} class={button({ variant: selected ? "secondary" : "ghost", size: "sm", class: selected ? 'text-brand-400 border-brand-400/40 bg-brand-500/12' : 'text-fg/55 hover:text-fg' })} onclick={() => {
                     if (['mods', 'resourcepacks', 'shaders', 'datapacks'].includes(section.id)) {
                         subTab = section.id as typeof subTab;
                         goToSection('conteudo');
@@ -1969,11 +2003,17 @@
                     <div class="flex flex-wrap items-center gap-2 p-4 border-t border-border">
                         <div class="relative min-w-48 flex-1">
                             <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-fg-subtle pointer-events-none" />
-                            <input type="search" aria-label={uiText("ui.1bae8d6a32c4bf2f")} bind:value={searchQuery} placeholder={uiText("ui.958087c3687d84e7")} class="w-full h-10 rounded-xl border border-border bg-bg-subtle pl-10 pr-3 text-xs text-fg placeholder:text-fg-subtle focus:outline-none focus:border-brand-400" />
+                            <input type="search" aria-label={uiText("ui.1bae8d6a32c4bf2f")} bind:value={searchQuery} placeholder={uiText("ui.958087c3687d84e7")} class="w-full h-10 rounded-sm border border-fg/[0.08] bg-fg/[0.07] pl-10 pr-3 text-xs text-fg placeholder:text-fg-subtle focus:outline-none focus:border-brand-400" />
                         </div>
                         <button type="button" class={button({ variant: 'secondary', size: 'sm' })} onclick={handleOpenModsFolder}><FolderOpen class="h-4 w-4" />{uiText("screenshots.openFolderBtn")}</button>
                         <button type="button" class={button({ variant: 'secondary', size: 'sm' })} onclick={handleCheckModUpdates} disabled={isCheckingUpdates || isLoadingData}><RefreshCw class="h-4 w-4 {isCheckingUpdates ? 'animate-spin' : ''}" />{isCheckingUpdates ? 'Verificando…' : uiText("mods.checkUpdates")}</button>
                         <button type="button" class={button({ variant: 'secondary', size: 'sm' })} disabled={isImportingDrop} onclick={handleAddModFile}><Plus class="h-4 w-4" />{uiText("ui.21ce7cc4e47f9c45")}</button>
+                        <div class="mod-view-switch" role="group" aria-label={uiText("instanceModsView.label")}>
+                            <button type="button" class:active={instanceModView === "list"} class="mod-view-button" aria-label={uiText("instanceModsView.list")} title={uiText("instanceModsView.list")} aria-pressed={instanceModView === "list"} onclick={() => instanceModView = "list"}><List class="h-4 w-4" /></button>
+                            <button type="button" class:active={instanceModView === "cards"} class="mod-view-button" aria-label={uiText("instanceModsView.cards")} title={uiText("instanceModsView.cards")} aria-pressed={instanceModView === "cards"} onclick={() => instanceModView = "cards"}><LayoutGrid class="h-4 w-4" /></button>
+                            <button type="button" class:active={instanceModView === "circles"} class="mod-view-button" aria-label={uiText("instanceModsView.circles")} title={uiText("instanceModsView.circles")} aria-pressed={instanceModView === "circles"} onclick={() => instanceModView = "circles"}><Circle class="h-4 w-4" /></button>
+                            <button type="button" class:active={instanceModView === "triangles"} class="mod-view-button" aria-label={uiText("instanceModsView.triangles")} title={uiText("instanceModsView.triangles")} aria-pressed={instanceModView === "triangles"} onclick={() => instanceModView = "triangles"}><Triangle class="h-4 w-4" /></button>
+                        </div>
                     </div>
                     <div class="flex flex-wrap items-center justify-between gap-2 px-4 pb-4 text-xs text-fg-muted" aria-live="polite">
                         <span>{isLoadingData ? uiText("ui.318209e40ba847c9") : `${filteredMods.length} mods · ${resourcePacks.length + shaderPacks.length + dataPacks.length} pacotes`} · {enabledModCount} {uiText("ui.089963539b553aec")}</span>
@@ -2038,8 +2078,8 @@
                     {#if instanceMods.length > 0 && filteredMods.length === 0}
                         <p class="py-6 text-center text-sm text-fg-muted">{uiText("ui.96eec50d7e6f654e")}</p>
                     {:else if instanceMods.length > 0}
-						<div class="instance-mod-row items-center gap-4 px-4 py-3 border-b border-fg/10 text-xs font-semibold text-fg/50 select-none bg-bg-elevated/80 rounded-t-2xl">
-							<div class="flex items-center gap-3">
+						<div class="instance-mod-row instance-mod-header items-center gap-4 px-4 py-3 border-b border-fg/10 text-xs font-semibold text-fg/70 select-none rounded-t-2xl">
+							<div class="flex min-w-0 items-center gap-3">
 								<input
 									type="checkbox"
 									checked={allModsSelected}
@@ -2053,7 +2093,7 @@
 							<div class="text-right font-medium pr-2">{uiText("instances.actions")}</div>
 						</div>
 
-						<VirtualList items={filteredMods} getKey={(mod) => mod.name} itemHeight={92} fixedHeight overscan={3} height="600px" class="instance-mod-list">
+						<VirtualList items={filteredMods} getKey={(mod) => mod.name} itemHeight={instanceModView === "list" ? 112 : 120} overscan={3} height="600px" class="instance-mod-list instance-mod-list--{instanceModView}">
 							{#snippet children(mod: FileTreeEntry, _index: number)}
 								{@const isDisabled = mod.name.endsWith('.disabled')}
 								{@const info = modRowInfo.get(mod.name)}
@@ -2086,8 +2126,8 @@
 											{/if}
 										</div>
 										<div class="min-w-0">
-											<div class="flex items-center gap-2">
-												<h5 class="mod-title text-fg truncate transition-colors" title={displayName}>
+											<div class="flex min-w-0 items-center gap-2">
+												<h5 class="mod-title min-w-0 flex-1 text-fg transition-colors" title={displayName}>
 													{displayName}
 												</h5>
 												{#if isFrozen}<span title={uiText("ui.b37959a62adebf5c")}><Snowflake class="w-3.5 h-3.5 text-cyan-400 shrink-0" /></span>{/if}
@@ -2614,7 +2654,7 @@
 			<div inert={savingInstanceSettings} class="instance-settings-layout">
                 <nav class="instance-settings-navigation" aria-label={uiText("instanceSettingsNav.navigation")}>
                     {#each instanceSettingsSections as section}
-                        <button type="button" aria-pressed={instanceSettingsSection === section.id} class={button({ variant: instanceSettingsSection === section.id ? 'primary' : 'ghost', class: 'justify-start' })} onclick={() => instanceSettingsSection = section.id}>
+                        <button type="button" aria-pressed={instanceSettingsSection === section.id} class={button({ variant: instanceSettingsSection === section.id ? 'tinted' : 'ghost', class: 'justify-start' })} onclick={() => instanceSettingsSection = section.id}>
                             <section.icon class="h-4 w-4" />{uiText(`instanceSettingsNav.${section.id}`)}
                         </button>
                     {/each}

@@ -232,7 +232,7 @@ async fn resource_pack_import_can_stage_while_running_but_cannot_replace_active_
     );
     let (runtime, _) = fixture_runtime(config.id.clone());
     runtime.phase("running");
-    *manager.runtime.lock().unwrap() = Some(runtime.clone());
+    *manager.runtimes.lock().unwrap() = [(config.id.clone(), runtime.clone())].into_iter().collect();
     manager
         .stage_content(&config.id, "resourcepack", &source)
         .await
@@ -513,4 +513,28 @@ async fn quilt_and_forge_client_only_flags_are_rejected_before_staging() {
         .await
         .is_err());
     assert!(!directory.join(".luxmc-staging").exists());
+}
+
+#[tokio::test]
+async fn duplicate_mods_resolve_to_the_newest_and_land_in_a_quarantine_folder() {
+    let temporary = tempfile::tempdir().unwrap();
+    let manager = LocalServerManager::new(temporary.path().join("servers"), reqwest::Client::new());
+    let config = fixture_config();
+    let directory = persist(&manager, &config).await;
+    tokio::fs::write(directory.join("luxmc-loader.json"), br#"{"kind":"fabric","version":"0.16.9"}"#).await.unwrap();
+    tokio::fs::create_dir_all(directory.join("mods")).await.unwrap();
+    std::fs::write(directory.join("mods/sodium-0.5.jar"), mod_bytes("sodium","server")).unwrap();
+    let newer = temporary.path().join("sodium-new.jar");
+    std::fs::write(&newer, mod_bytes("sodium","server")).unwrap();
+    manager.stage_content(&config.id, "mod", &newer).await.unwrap();
+    let report = manager.apply_content(&config.id).await.unwrap();
+    assert_eq!(report.applied, 1);
+    assert_eq!(report.duplicates.len(), 1);
+    let mods = manager.contents(&config.id).await.unwrap();
+    let active = mods.iter().filter(|item| item.kind == "mod" && item.name.ends_with(".jar")).count();
+    assert_eq!(active, 1, "apenas a versão nova permanece ativa");
+    let quarantine = directory.join("mods/.luxmc-duplicates");
+    let entries = std::fs::read_dir(&quarantine).unwrap().next().unwrap().unwrap();
+    let archived = std::fs::read_dir(entries.path()).unwrap().count();
+    assert_eq!(archived, 1, "a versão antiga é preservada fora do mods");
 }

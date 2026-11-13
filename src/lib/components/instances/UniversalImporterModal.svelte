@@ -28,6 +28,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		loader: string;
 		modCount: number;
 		hasSaves: boolean;
+		icon?: string | null;
+		ramMb?: number | null;
 	};
 
 	type ImportResult = {
@@ -94,7 +96,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				sourcePath: inst.path,
 				targetName: inst.name,
 				mcVersion: inst.mcVersion,
-				loader: inst.loader
+				loader: inst.loader,
+				icon: inst.icon || null,
+				ramMb: inst.ramMb || null
 			});
 
 			if (res.success) {

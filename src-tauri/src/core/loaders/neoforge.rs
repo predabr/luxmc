@@ -85,7 +85,7 @@ async fn fetch_versions_from(http: &reqwest::Client, mc_version: &str, metadata_
         .send()
         .await?.error_for_status()?.text().await?;
     if !resp_text.contains("<metadata") || !(resp_text.contains("</metadata>") || resp_text.contains("<metadata/>") || resp_text.contains("<metadata />")) {
-        return Err(AppError::InvalidState("O serviço do NeoForge retornou metadados inválidos. Tente novamente.".into()));
+        return Err(AppError::InvalidState("O serviÃ§o do NeoForge retornou metadados invÃ¡lidos. Tente novamente.".into()));
     }
 
     Ok(versions_from_metadata(&resp_text, &prefix))
@@ -220,7 +220,7 @@ pub async fn prepare_neoforge(
     futures_util::stream::iter(downloads).map(|(dest,urls,size,sha1)| {
         let http = http.clone();
         async move { crate::core::downloader::ensure_artifact(&http, &dest, &urls, size, &sha1).await }
-    }).buffered(6).try_collect::<Vec<_>>().await?;
+    }).buffer_unordered(crate::core::downloader::max_concurrent_downloads().min(24)).try_collect::<Vec<_>>().await?;
 
     let client_rel = format!(
         "net/neoforged/neoforge/{}/neoforge-{}-client.jar",
@@ -401,7 +401,7 @@ async fn get_latest_loader_version(http: &reqwest::Client, mc_version: &str) -> 
         return Ok(chosen.id.clone());
     }
 
-    Err(AppError::NotFound(format!("NeoForge indisponível para Minecraft {mc_version}")))
+    Err(AppError::NotFound(format!("NeoForge indisponÃ­vel para Minecraft {mc_version}")))
 }
 
 #[cfg(test)]

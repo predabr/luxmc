@@ -16,6 +16,7 @@ pub struct ContentFile {
 pub struct ApplyResult {
     pub applied: usize,
     pub preserved: Vec<String>,
+    pub duplicates: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -227,6 +228,40 @@ pub(super) fn server_archive(path: &Path, kind: &str) -> AppResult<bool> {
         }
     }
     Ok(true)
+}
+
+/// Escolhe uma única versão por mod: arquivos recém-enviados vencem os já instalados e,
+/// entre dois novos, vence o mais recente. As versões antigas viram duplicatas removidas.
+fn resolve_duplicate_mods(files: Vec<(PathBuf, String)>) -> (Vec<(PathBuf, String)>, Vec<(PathBuf, String, String, bool)>) {
+    let mut groups: std::collections::BTreeMap<String, Vec<(PathBuf, String, bool, u128)>> = std::collections::BTreeMap::new();
+    for (path, name) in files.iter() {
+        let staged = path.to_string_lossy().contains(".luxmc-staging");
+        let modified = std::fs::metadata(&path).ok().and_then(|metadata| metadata.modified().ok()).and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok()).map_or(0, |duration| duration.as_millis());
+        let ids = crate::core::mods::validation::mod_metadata(&path)
+            .or_else(|| legacy_metadata(&path))
+            .map(|metadata| metadata.ids)
+            .filter(|ids| !ids.is_empty());
+        for id in ids.unwrap_or_default() {
+            groups.entry(id).or_default().push((path.clone(), name.clone(), staged, modified));
+        }
+    }
+    let mut dropped: std::collections::BTreeMap<String, (PathBuf, String, String, bool)> = std::collections::BTreeMap::new();
+    for (id, mut candidates) in groups {
+        if candidates.len() < 2 {
+            continue;
+        }
+        candidates.sort_by(|a, b| b.2.cmp(&a.2).then(b.3.cmp(&a.3)));
+        let (_, winner_name, _, _) = candidates.remove(0);
+        for (path, name, staged, _) in candidates {
+            if name == winner_name {
+                continue;
+            }
+            dropped.insert(name.clone(), (path, name, id.clone(), staged));
+        }
+    }
+    let names: std::collections::BTreeSet<String> = dropped.keys().cloned().collect();
+    let kept = files.into_iter().filter(|(_, name)| !names.contains(name)).collect();
+    (kept, dropped.into_values().collect())
 }
 
 fn validate_mod_set(files: &[(PathBuf, String)], loader: &str) -> AppResult<()> {
@@ -485,6 +520,7 @@ impl LocalServerManager {
             return Ok(ApplyResult {
                 applied: 0,
                 preserved: Vec::new(),
+                duplicates: Vec::new(),
             });
         }
         backups::normal_file(&staging)?;
@@ -656,9 +692,33 @@ impl LocalServerManager {
                 ));
             }
         }
-        tokio::task::spawn_blocking(move || validate_mod_set(&mod_files, &loader.kind))
+        let validate: (Vec<(PathBuf, String)>, Vec<(PathBuf, String, String, bool)>) =
+            tokio::task::spawn_blocking(move || {
+                let (kept, dropped) = resolve_duplicate_mods(mod_files);
+                validate_mod_set(&kept, &loader.kind).map(|()| (kept, dropped))
+            })
             .await
             .map_err(|error| AppError::Internal(error.to_string()))??;
+        let mut duplicates = Vec::new();
+        if !validate.1.is_empty() {
+            let dropped_payloads: std::collections::BTreeSet<PathBuf> = validate.1.iter().filter(|entry| entry.3).map(|entry| entry.0.clone()).collect();
+            plan.retain(|(path, _, _, _, _)| !dropped_payloads.contains(&path.join("payload")));
+            let stamp = chrono::Utc::now().format("%Y%m%d-%H%M%S").to_string();
+            let archive = directory.join("mods").join(".luxmc-duplicates").join(&stamp);
+            tokio::fs::create_dir_all(&archive).await?;
+            for (path, name, id, staged) in validate.1 {
+                if staged {
+                    duplicates.push(format!("{name} ({id})"));
+                    continue;
+                }
+                let target = archive.join(&name);
+                let moved = if path.exists() { tokio::fs::rename(&path, &target).await } else { Ok(()) };
+                match moved {
+                    Ok(()) => duplicates.push(format!("{name} ({id})")),
+                    Err(error) => duplicates.push(format!("{name} ({id}) — não movido: {error}")),
+                }
+            }
+        }
         let applied: AppResult<()> = async {
             for (path, record, target, moved, installed) in &mut plan {
                 if target.exists() {
@@ -726,6 +786,7 @@ impl LocalServerManager {
         Ok(ApplyResult {
             applied: applied_count,
             preserved,
+            duplicates,
         })
     }
 }

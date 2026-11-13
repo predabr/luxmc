@@ -50,7 +50,7 @@ async fn real_server_accepts_connections_commands_and_saves_without_touching_exi
         Ok::<_,String>(diagnosis)
     }.await;
     let stopped=manager.stop(&config.id).await;
-    let state=manager.runtime.lock().unwrap().as_ref().unwrap().snapshot(0);
+    let state=manager.runtimes.lock().unwrap().values().next().unwrap().snapshot(0);
     if let Ok(path)=std::env::var("LUXMC_REAL_SERVER_RECEIPT") {
         let log=manager.console_text(&config.id).await.unwrap_or_default();
         std::fs::write(path,serde_json::to_vec_pretty(&serde_json::json!({"loader":kind,"minecraft":version,"testResult":result,"stopResult":stopped.as_ref().map(|_|"ok").map_err(|error|error.to_string()),"state":state,"log":log,"isolatedWorld":true})).unwrap()).unwrap();

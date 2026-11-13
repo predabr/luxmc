@@ -16,7 +16,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { runtimePlatform } from "$lib/stores/platform.svelte";
 	import { scrollActivity } from "$lib/utils/scrollActivity";
 	import { pageMotion } from "$lib/actions/pageMotion";
-    import { buttonFeedback } from '$lib/actions/buttonFeedback';
 	import { resolveWallpaperImageUrl } from "$lib/utils/wallpaperSource";
 	import VideoWallpaper from "$lib/components/visuals/VideoWallpaper.svelte";
     import ShaderScenery from "$lib/components/visuals/ShaderScenery.svelte";
@@ -98,6 +97,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { clientMods } from "$lib/stores/clientMods.svelte";
 	import { applyAdaptivePalette } from "$lib/utils/adaptivePalette";
 	import { preloadRoute } from "$lib/utils/preloadRoute";
+	import { platform } from "$lib/mcserver/state.svelte";
 	import { appInit, discordSetActivity, discordClearActivity, listenGameExit, listenGameStateChange, listenLaunchStage, listenShieldWarning, listenLauncherLog, listenGameLog, launchLogOpen, launchLogAppendBatch, launchLogClose, crashDoctorDiagnose, clientOverlayClose, authSetAccountCape } from "$lib/api";
 	import { optimizerTrimMemory } from "$lib/api/instances";
 	import { useTranslation, setActiveLocale } from "$lib/i18n/useTranslation.svelte";
@@ -217,8 +217,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			document.dispatchEvent(new Event("luxmc-settings-ready"));
 		});
 		void profiles.refresh();
+		void platform.refreshServers();
 
-		const warmRoutes = ["/friends", "/instances", "/mods", "/skins", "/settings", "/news", "/screenshots", "/"];
+		const warmRoutes = ["/hosting/server", "/friends", "/instances", "/mods", "/skins", "/settings", "/news", "/screenshots", "/"];
 		let warmIndex = 0;
 		const warmTimer = setInterval(() => {
 			if (!initialized || document.hidden || appState.isLaunching || appState.isGameRunning || appState.isScrolling) return;
@@ -890,7 +891,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		{@render children?.()}
 	</div>
 {:else}
-	<div use:buttonFeedback class="flex h-dvh min-h-0 w-full overflow-hidden" in:fade={{ easing: quintOut, duration: 150 }}>
+	<div class="flex h-dvh min-h-0 w-full overflow-hidden" in:fade={{ easing: quintOut, duration: 150 }}>
 		<Sidebar notificationCount={0} />
 		<div class="flex h-full min-h-0 min-w-0 flex-1 flex-col relative z-10">
 			<main use:scrollActivity data-scroll-root data-refined-ui={page.url.pathname !== '/skins'} class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto {page.url.pathname === "/" ? "p-0" : "px-6 py-6"} custom-scrollbar custom-scrollbar-root relative">
@@ -902,7 +903,10 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	</div>
 {/if}
 <UpdateModal />
-<DownloadProgressBar />
+<div class="pointer-events-none fixed left-1/2 top-4 z-[150] flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-2">
+    <div class="pointer-events-auto"><ModpackDownloadStatus /></div>
+    <div class="pointer-events-auto"><DownloadProgressBar /></div>
+</div>
 <LaunchSessionStatus />
 <PlanRequiredModal />
 <CrashDoctorModal />
@@ -921,7 +925,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 </ErrorBoundary>
 
-<ModpackDownloadStatus />
 <ModpackUpdateStatus />
 <BedrockDownloadStatus />
 <RoomPreparationStatus />

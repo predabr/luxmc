@@ -197,7 +197,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                     {#if activeTab !== 'add'}
                         <div class="relative min-w-0 flex-1 sm:max-w-60">
                             <Search class="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-fg-subtle" />
-                            <input type="text" bind:value={searchQuery} aria-label={uiText("friendsDesign.search")} placeholder={uiText("friendsDesign.search")} class="h-10 w-full rounded-xl border border-fg/10 bg-bg-elevated pl-9 pr-3 text-xs text-fg outline-none placeholder:text-fg-subtle focus:border-brand-400/50" />
+                            <input type="text" bind:value={searchQuery} aria-label={uiText("friendsDesign.search")} placeholder={uiText("friendsDesign.search")} class="h-10 w-full rounded-sm border border-fg/[0.08] bg-fg/[0.07] pl-9 pr-3 text-xs text-fg outline-none placeholder:text-fg-subtle focus:border-brand-400/50" />
                         </div>
                     {/if}
                 </div>

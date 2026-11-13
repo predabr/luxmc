@@ -87,36 +87,6 @@ export const updaterStore = {
 			const channel = settings.value.releaseChannel === "beta" ? "beta" : "stable";
 			let foundUpdate = false;
 
-			if (channel === "stable") {
-				try {
-					const latestRes = await fetch("https://github.com/predabr/luxmc/releases/latest/download/latest.json", { cache: "no-store", signal: AbortSignal.timeout(10000) });
-					if (latestRes.ok) {
-						const manifest = await latestRes.json();
-						if (manifest && manifest.version) {
-							latestVersion = (manifest.displayVersion || manifest.version).replace(/^v/i, "");
-							latestRevision = Number.isSafeInteger(manifest.revision) && manifest.revision >= 0 ? manifest.revision : 0;
-							releaseNotes = manifest.notes || uiText("ui.985b1a01257311f1");
-							releaseUrl = "https://github.com/predabr/luxmc/releases/latest";
-
-							const ua = typeof navigator !== "undefined" ? (navigator.userAgent + " " + (navigator.platform || "")).toLowerCase() : "";
-                            const nativePlatform = environment === 'windows' ? 'windows' : environment === 'macos' ? 'macos' : environment !== 'manual' ? 'linux' : ua.includes('win') ? 'windows' : ua.includes('mac') ? 'macos' : 'linux';
-							const platformKey = nativePlatform === 'windows' ? "windows-x86_64" : nativePlatform === 'macos' ? (ua.includes("arm") ? "darwin-aarch64" : "darwin-x86_64") : "linux-x86_64";
-
-							if (manifest.platforms && manifest.platforms[platformKey] && manifest.platforms[platformKey].url && (environment === "appimage" || environment === "windows" || environment === "macos")) {
-								const candidateUrl: string = manifest.platforms[platformKey].url;
-								if (environment === "windows") {
-									const name = decodeURIComponent(new URL(candidateUrl).pathname.split("/").at(-1) || "");
-									downloadUrl = resolveUpdateAssetUrl([{ name, browser_download_url: candidateUrl, size: 0 }], environment);
-								} else downloadUrl = candidateUrl;
-							}
-							foundUpdate = true;
-						}
-					}
-				} catch {
-					foundUpdate = false;
-				}
-			}
-
 			if (!foundUpdate || !downloadUrl) {
 				const endpoint = channel === "stable"
 					? "https://api.github.com/repos/predabr/luxmc/releases/latest"

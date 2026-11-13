@@ -480,16 +480,28 @@ impl GameLauncher {
             if !matches!(loader.as_str(), "fabric" | "legacyfabric" | "babric" | "quilt" | "neoforge" | "forge") {
                 return Ok(None);
             }
-            if loader == "fabric" {
-                let _ = crate::core::loaders::fabric::ensure_fabric_api(
-                    self.downloader.http(), &game_dir.join("mods"), clean_ver,
-                ).await;
-            }
             self.emit_log(&format!("Resolving {} loader for Minecraft {}...", loader, clean_ver));
-            crate::core::loaders::prepare_loader(
-                self.downloader.http(), &self.downloader.libraries_dir(),
+            let libraries_dir = self.downloader.libraries_dir();
+            let preparation = crate::core::loaders::prepare_loader(
+                self.downloader.http(), &libraries_dir,
                 &loader, clean_ver, loader_version.as_deref(),
-            ).await.map(Some).map_err(|error| crate::error::AppError::InvalidState(format!(
+            );
+            let result = if loader == "fabric" {
+                let mods_dir = game_dir.join("mods");
+                let (preparation, api) = tokio::join!(
+                    preparation,
+                    crate::core::loaders::fabric::ensure_fabric_api(
+                        self.downloader.http(), &mods_dir, clean_ver,
+                    ),
+                );
+                if let Err(error) = api {
+                    tracing::warn!(%error, "Optional Fabric API preparation failed");
+                }
+                preparation
+            } else {
+                preparation.await
+            };
+            result.map(Some).map_err(|error| crate::error::AppError::InvalidState(format!(
                 "Falha ao preparar o loader {}: {}. Verifique se a versão do Minecraft e do loader são compatíveis.", loader, error
             )))
         };

@@ -9,24 +9,24 @@ async function main() {
     let browser;
     try {
         for (let attempt = 0; attempt < 40; attempt++) {
-            try { if ((await fetch('http://127.0.0.1:8776/packaging/windows/scene.html')).ok) break; } catch {}
+            try { if ((await fetch('http://127.0.0.1:8776/packaging/windows/identity.html')).ok) break; } catch {}
             if (attempt === 39) throw new Error('Servidor de prévia indisponível.');
             await new Promise(resolve => setTimeout(resolve, 100));
         }
-        browser = await chromium.launch({ executablePath: process.env.LUXMC_CHROMIUM_EXECUTABLE || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true, args: ['--enable-webgl', '--use-angle=swiftshader'] });
+        browser = await chromium.launch({ executablePath: process.env.LUXMC_CHROMIUM_EXECUTABLE || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true });
         const page = await browser.newPage({ viewport: { width: 656, height: 1256 }, deviceScaleFactor: 1 });
         const errors = [];
         page.on('pageerror', error => errors.push(error.message));
-        await page.goto('http://127.0.0.1:8776/packaging/windows/scene.html');
+        await page.goto('http://127.0.0.1:8776/packaging/windows/identity.html');
         await page.waitForFunction(() => window.artReady === true);
         await page.screenshot({ path: join(root, 'packaging/windows/sidebar-preview.png') });
         await page.setViewportSize({ width: 600, height: 228 });
-        await page.goto('http://127.0.0.1:8776/packaging/windows/scene.html?header');
+        await page.goto('http://127.0.0.1:8776/packaging/windows/identity.html?header');
         await page.waitForFunction(() => window.artReady === true);
         await page.screenshot({ path: join(root, 'packaging/windows/header-preview.png') });
         if (errors.length) throw new Error(errors.join('\n'));
-        writeFileSync(join(root, 'docs/validation/installer-art-render.json'), JSON.stringify({ renderer: 'Three.js WebGL', errors, sidebar: [656, 1256], header: [600, 228] }, null, 2));
-        console.log('Arte 3D renderizada sem erros WebGL.');
+        writeFileSync(join(root, 'docs/validation/installer-art-render.json'), JSON.stringify({ renderer: 'HTML/CSS', errors, sidebar: [656, 1256], header: [600, 228] }, null, 2));
+        console.log('Identidade do instalador renderizada sem erros.');
     } finally {
         if (browser) await browser.close();
         server.kill();

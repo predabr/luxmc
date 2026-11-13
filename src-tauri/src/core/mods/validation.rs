@@ -80,13 +80,14 @@ fn archive_reader<'a>(path: &Path, cancel: Option<&'a std::sync::atomic::AtomicB
 #[derive(Clone, Default)]
 pub(crate) struct ModMetadata {
     pub ids: std::collections::BTreeSet<String>,
+    pub provides: std::collections::BTreeSet<String>,
     pub loaders: std::collections::BTreeSet<String>,
     pub minecraft_declared: bool,
     pub versions: std::collections::BTreeMap<String, String>,
 }
 
 pub(crate) fn primary_ids(path: &Path) -> Option<std::collections::BTreeSet<String>> {
-    mod_metadata(path).map(|metadata| metadata.ids)
+    mod_metadata(path).map(|metadata| metadata.ids.union(&metadata.provides).cloned().collect())
 }
 
 pub(crate) fn mod_metadata(path: &Path) -> Option<ModMetadata> {
@@ -126,6 +127,11 @@ fn read_mod_metadata_from_reader<R: Read + Seek>(reader: R) -> Option<ModMetadat
                     metadata.ids.insert(id.to_owned());
                     if let Some(version) = value.pointer(if name == "fabric.mod.json" { "/version" } else { "/quilt_loader/version" }).and_then(|value| value.as_str()) { metadata.versions.insert(id.to_owned(), version.to_owned()); }
                     metadata.loaders.insert(if name == "fabric.mod.json" { "fabric" } else { "quilt" }.into());
+                    if name == "fabric.mod.json" {
+                        if let Some(provides) = value.get("provides").and_then(serde_json::Value::as_array) {
+                            metadata.provides.extend(provides.iter().filter_map(serde_json::Value::as_str).map(str::to_owned));
+                        }
+                    }
                     metadata.minecraft_declared |= value.pointer("/depends/minecraft").is_some_and(|version| version.is_string() || version.is_array())
                         || value.pointer("/quilt_loader/depends").and_then(|depends| depends.as_array()).is_some_and(|depends| depends.iter().any(|dependency| dependency["id"] == "minecraft" && dependency.get("versions").is_some()));
                 }
@@ -183,6 +189,24 @@ fn pack_filename_version(name: &str) -> Option<(String, Vec<u64>)> {
 pub(crate) fn select_pack_duplicate_versions_for_loader(root: &Path, pinned: &HashSet<String>, preferred: &mut HashSet<String>, loader: &str) {
     let metadata: Vec<_> = pinned.iter().filter_map(|name|mod_metadata(&root.join("mods").join(name)).map(|metadata|(name,metadata))).collect();
     let compatible = |loaders: &std::collections::BTreeSet<String>| loaders.contains(loader) || loader == "quilt" && loaders.contains("fabric");
+    let mut replaced_ids = Vec::new();
+    for (provider_name, provider) in &metadata {
+        if !preferred.contains(*provider_name) || !compatible(&provider.loaders) {
+            continue;
+        }
+        for (primary_name, primary) in &metadata {
+            if primary_name != provider_name
+                && preferred.contains(*primary_name)
+                && compatible(&primary.loaders)
+                && primary.ids.iter().any(|id| provider.provides.contains(id))
+            {
+                replaced_ids.push((*primary_name).clone());
+            }
+        }
+    }
+    for name in replaced_ids {
+        preferred.remove(&name);
+    }
     for (name,item) in &metadata {
         if !item.loaders.is_empty() && !compatible(&item.loaders) && metadata.iter().any(|(_,other)|other.ids == item.ids && compatible(&other.loaders)) { preferred.remove(*name); }
     }
@@ -220,12 +244,24 @@ pub fn repair_duplicates_cancellable(root: &Path, preferred: &HashSet<String>, c
         .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_file()) && entry.path().extension().is_some_and(|extension| extension == "jar"))
         .map(|entry| entry.path()).collect::<Vec<_>>();
     paths.sort_by_key(|path| (!preferred.contains(&path.file_name().unwrap_or_default().to_string_lossy().into_owned()), path.file_name().map(|name| name.to_os_string())));
-    let mut retained = std::collections::BTreeMap::<std::collections::BTreeSet<String>, std::path::PathBuf>::new();
+    let mut retained = std::collections::BTreeMap::<String, std::path::PathBuf>::new();
     let mut removed = Vec::new();
     for path in paths {
         crate::core::mods::pack_download::cancelled(cancel)?;
-        let Some(ids) = primary_ids(&path) else { continue; };
-        if let Some(kept) = retained.get(&ids) {
+        let Some(metadata) = mod_metadata(&path) else { continue; };
+        let ids = metadata.ids.union(&metadata.provides).cloned().collect::<std::collections::BTreeSet<_>>();
+        let kept = ids.iter().find_map(|id| retained.get(id));
+        if let Some(kept) = kept {
+            let Some(kept_metadata) = mod_metadata(kept) else { continue; };
+            let kept_ids = kept_metadata.ids.union(&kept_metadata.provides).cloned().collect::<std::collections::BTreeSet<_>>();
+            let provides_compatibility = metadata.ids.iter().any(|id| kept_metadata.provides.contains(id))
+                || kept_metadata.ids.iter().any(|id| metadata.provides.contains(id));
+            if ids != kept_ids && !provides_compatibility {
+                for id in ids {
+                    retained.entry(id).or_insert_with(|| path.clone());
+                }
+                continue;
+            }
             let kept_pinned = preferred.contains(&kept.file_name().unwrap_or_default().to_string_lossy().into_owned());
             let other_pinned = preferred.contains(&path.file_name().unwrap_or_default().to_string_lossy().into_owned());
             let identical = || -> AppResult<bool> {
@@ -241,7 +277,11 @@ pub fn repair_duplicates_cancellable(root: &Path, preferred: &HashSet<String>, c
             };
             if kept_pinned && !other_pinned || identical()? { removed.push((path, kept.clone())); }
         }
-        else { retained.insert(ids, path); }
+        else {
+            for id in ids {
+                retained.entry(id).or_insert_with(|| path.clone());
+            }
+        }
     }
     if removed.is_empty() { return Ok(0); }
     let backup = root.join(".luxmc/removed-duplicates").join(uuid::Uuid::new_v4().to_string());
@@ -589,6 +629,54 @@ mod tests {
         assert!(super::audit(&root,false).unwrap().errors.is_empty());
         assert_eq!(super::repair_duplicates(&root,&preferred).unwrap(),0);
         std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn pack_repair_prefers_a_fabric_provides_compatibility_mod_over_legacy_mod() {
+        use std::io::Write;
+        let root = tempfile::tempdir().unwrap();
+        let mods = root.path().join("mods");
+        std::fs::create_dir(&mods).unwrap();
+        for (name, metadata) in [
+            (
+                "sodium-fabric-0.6.13+mc1.21.1.jar",
+                serde_json::json!({
+                    "id": "sodium",
+                    "version": "0.6.13+mc1.21.1",
+                    "provides": ["indium"],
+                    "depends": {"minecraft": ">=1.21.1"}
+                }),
+            ),
+            (
+                "indium-1.0.35+mc1.21.jar",
+                serde_json::json!({
+                    "id": "indium",
+                    "version": "1.0.35+mc1.21",
+                    "depends": {"minecraft": "~1.21.0", "sodium": "0.5.11"}
+                }),
+            ),
+        ] {
+            let mut archive = zip::ZipWriter::new(std::fs::File::create(mods.join(name)).unwrap());
+            archive.start_file("fabric.mod.json", zip::write::FileOptions::default()).unwrap();
+            archive.write_all(metadata.to_string().as_bytes()).unwrap();
+            archive.finish().unwrap();
+        }
+        assert!(super::audit(root.path(), false).unwrap().errors.iter().any(|error| error.contains("Mod duplicado indium")));
+
+        let pinned: std::collections::HashSet<String> = [
+            "sodium-fabric-0.6.13+mc1.21.1.jar".to_owned(),
+            "indium-1.0.35+mc1.21.jar".to_owned(),
+        ].into_iter().collect();
+        let mut preferred = pinned.clone();
+        super::select_pack_duplicate_versions_for_loader(root.path(), &pinned, &mut preferred, "fabric");
+        assert!(preferred.contains("sodium-fabric-0.6.13+mc1.21.1.jar"));
+        assert!(!preferred.contains("indium-1.0.35+mc1.21.jar"));
+        assert_eq!(super::repair_duplicates(root.path(), &preferred).unwrap(), 1);
+        assert!(mods.join("sodium-fabric-0.6.13+mc1.21.1.jar").is_file());
+        assert!(!mods.join("indium-1.0.35+mc1.21.jar").exists());
+        assert!(super::audit(root.path(), false).unwrap().errors.is_empty());
+        let backup = std::fs::read_dir(root.path().join(".luxmc/removed-duplicates")).unwrap()
+            .next().unwrap().unwrap().path();
+        assert!(backup.join("indium-1.0.35+mc1.21.jar").is_file());
     }
     #[test]
     fn neoforge_duplicate_repair_keeps_manifest_version() {

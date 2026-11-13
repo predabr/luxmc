@@ -13,7 +13,7 @@ const validBuild = build && Number(build[2]) < 1000 && Number.isSafeInteger(Numb
 if (validBuild && process.env.LUXMC_BUILD_ID && `${build[1]}.${build[2]}` !== process.env.LUXMC_BUILD_ID) throw new Error('Release build identity does not match the compiled installers.');
 if (tag && !validBuild && ![`v${version}`, `v${compatibilityVersion}-revision.${revision}`].includes(tag)) throw new Error("Release tag does not match the launcher version.");
 if (tauri.productName !== "Luxmc" || tauri.identifier !== "io.github.luxmc.Luxmc") throw new Error("The launcher identity must remain unchanged.");
-if (!readFileSync('packaging/windows/hooks.nsh', 'utf8').includes(`!define MUI_WELCOMEPAGE_TITLE "Luxmc ${version}"`)) throw new Error('Windows installer welcome version mismatch.');
+if (!readFileSync('packaging/windows/launcher-installer.nsi', 'utf8').includes('!define MUI_WELCOMEPAGE_TITLE "${PRODUCTNAME} ${VERSION}"')) throw new Error('Windows installer welcome version mismatch.');
 for (const locale of ["pt-BR", "en", "es"]) {
   const data = JSON.parse(readFileSync(`src/lib/i18n/${locale}.json`, "utf8"));
   if (data.app.version !== `v${version}`) throw new Error(`Version translation mismatch: ${locale}`);

@@ -566,21 +566,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	<header class="flex items-center justify-between gap-4 py-1">
 		<div class="flex items-center gap-3">
-			<div class="flex items-center gap-1 bg-bg-elevated border border-fg/10 rounded-xl p-1 shadow-sm">
-				<button
-					type="button"
-					class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
-					title={uiText("common.back")}
-					onclick={() => history.back()}
-				>
+			<div class="history-nav" role="group" aria-label="Navegação">
+				<button type="button" class="history-btn" title={uiText("common.back")} aria-label={uiText("common.back")} onclick={() => history.back()}>
 					<ArrowLeft class="w-3.5 h-3.5" />
 				</button>
-				<button
-					type="button"
-					class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
-					title={uiText("ui.859e48c3c9333657")}
-					onclick={() => history.forward()}
-				>
+				<span class="history-sep" aria-hidden="true"></span>
+				<button type="button" class="history-btn" title={uiText("ui.859e48c3c9333657")} aria-label={uiText("ui.859e48c3c9333657")} onclick={() => history.forward()}>
 					<ChevronRight class="w-3.5 h-3.5" />
 				</button>
 			</div>

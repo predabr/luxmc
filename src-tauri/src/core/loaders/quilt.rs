@@ -108,7 +108,7 @@ pub async fn prepare_quilt(
         async move {
         let rel_path = crate::core::launcher::lib_path_from_name(&std::path::PathBuf::new(), &lib.name);
         if rel_path.components().any(|part| !matches!(part, std::path::Component::Normal(_))) {
-            return Err(crate::error::AppError::InvalidInput("Caminho Maven inválido".into()));
+            return Err(crate::error::AppError::InvalidInput("Caminho Maven invÃ¡lido".into()));
         }
         let dest = libraries_dir.join(&rel_path);
         let base_url = lib.url.as_deref().unwrap_or("https://maven.quiltmc.org/repository/release/");
@@ -119,7 +119,7 @@ pub async fn prepare_quilt(
             super::ensure_maven_jar(&http, &dest, &central).await?;
         }
         Ok::<_, crate::error::AppError>(dest)
-    }}).buffered(6).try_collect::<Vec<_>>().await?;
+    }}).buffer_unordered(crate::core::downloader::max_concurrent_downloads().min(24)).try_collect::<Vec<_>>().await?;
 
     let mut jvm_args = Vec::new();
     if let Some(args) = profile.arguments {
@@ -171,7 +171,7 @@ async fn get_latest_loader_version(http: &reqwest::Client, mc_version: &str) -> 
         .find(|v| v.stable)
         .or_else(|| versions.first())
         .map(|v| v.id.clone())
-        .ok_or_else(|| crate::error::AppError::NotFound(format!("Quilt indisponível para Minecraft {mc_version}")))?;
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("Quilt indisponÃ­vel para Minecraft {mc_version}")))?;
     Ok(chosen)
 }
 

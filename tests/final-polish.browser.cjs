@@ -58,7 +58,7 @@ const luminance = value => value.match(/[\d.]+/g).slice(0,3).map(Number).map(cha
    assert.ok(scrolled > initial + 500);
    assert.ok(await page.locator('.catalog-card').count() <= 27);
    await page.locator('main').evaluate(node=>node.scrollTop=0); await page.waitForTimeout(150);
-   await page.locator('.catalog-card button').first().click();
+   await page.locator('.catalog-card').first().locator('.catalog-install').click();
    const installer=page.getByRole('dialog'); await installer.waitFor();
    await page.waitForTimeout(250);
    assert.ok(await installer.evaluate(node=>node.scrollWidth<=node.clientWidth));

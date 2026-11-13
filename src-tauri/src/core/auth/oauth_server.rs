@@ -1,24 +1,59 @@
 use std::collections::HashMap;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::net::TcpListener;
+use tokio::net::{TcpListener, TcpStream};
+
+pub struct OAuthCallbackListeners {
+    ipv4: TcpListener,
+    ipv6: Option<TcpListener>,
+}
+
+impl OAuthCallbackListeners {
+    async fn accept(&self) -> Result<(TcpStream, std::net::SocketAddr), std::io::Error> {
+        if let Some(ipv6) = &self.ipv6 {
+            tokio::select! {
+                result = self.ipv4.accept() => result,
+                result = ipv6.accept() => result,
+            }
+        } else {
+            self.ipv4.accept().await
+        }
+    }
+}
 
 pub struct OAuthCallback {
     pub code: String,
     pub state: String,
 }
 
-pub async fn start_callback_server() -> Result<TcpListener, std::io::Error> {
-    let listener = TcpListener::bind("127.0.0.1:8453").await?;
-    Ok(listener)
+pub async fn start_callback_server() -> Result<OAuthCallbackListeners, std::io::Error> {
+    bind_callback_server(8453).await
+}
+
+async fn bind_callback_server(port: u16) -> Result<OAuthCallbackListeners, std::io::Error> {
+    let ipv4 = TcpListener::bind(("127.0.0.1", port)).await?;
+    let ipv6 = match TcpListener::bind(("::1", port)).await {
+        Ok(listener) => Some(listener),
+        Err(error)
+            if matches!(
+                error.kind(),
+                std::io::ErrorKind::AddrNotAvailable | std::io::ErrorKind::Unsupported
+            ) =>
+        {
+            tracing::warn!(%error, "IPv6 loopback is unavailable for Microsoft login");
+            None
+        }
+        Err(error) => return Err(error),
+    };
+    Ok(OAuthCallbackListeners { ipv4, ipv6 })
 }
 
 pub async fn wait_for_callback(
-    listener: &TcpListener,
+    listeners: &OAuthCallbackListeners,
     timeout_secs: u64,
 ) -> Result<OAuthCallback, String> {
     let accept = tokio::time::timeout(
         std::time::Duration::from_secs(timeout_secs),
-        listener.accept(),
+        listeners.accept(),
     )
     .await
     .map_err(|_| "Login timed out waiting for browser redirect".to_string())?;
@@ -179,4 +214,53 @@ fn parse_query_string(path: &str) -> HashMap<String, String> {
         }
     }
     params
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn receive_callback(
+        listeners: &OAuthCallbackListeners,
+        address: std::net::SocketAddr,
+    ) -> OAuthCallback {
+        let accept = wait_for_callback(listeners, 2);
+        let connect = async {
+            let mut stream = TcpStream::connect(address).await.unwrap();
+            stream
+                .write_all(
+                    b"GET /callback?code=test-code&state=test-state HTTP/1.1\r\nHost: localhost\r\n\r\n",
+                )
+                .await
+                .unwrap();
+        };
+        let (callback, ()) = tokio::join!(accept, connect);
+        callback.unwrap()
+    }
+
+    #[tokio::test]
+    async fn microsoft_callback_accepts_both_loopback_address_families() {
+        let reservation = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let port = reservation.local_addr().unwrap().port();
+        drop(reservation);
+        let listeners = bind_callback_server(port).await.unwrap();
+
+        let ipv4 = receive_callback(
+            &listeners,
+            std::net::SocketAddr::from(([127, 0, 0, 1], port)),
+        )
+        .await;
+        assert_eq!(ipv4.code, "test-code");
+        assert_eq!(ipv4.state, "test-state");
+
+        if listeners.ipv6.is_some() {
+            let ipv6 = receive_callback(
+                &listeners,
+                std::net::SocketAddr::from(([0, 0, 0, 0, 0, 0, 0, 1], port)),
+            )
+            .await;
+            assert_eq!(ipv6.code, "test-code");
+            assert_eq!(ipv6.state, "test-state");
+        }
+    }
 }

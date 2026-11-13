@@ -268,7 +268,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 						</div>
 						<span class="w-full text-[11px] font-bold text-fg/90 truncate">{wallpaper.name}</span>
 					</button>
-					<button type="button" class={launcherButton({ variant: "danger", size: "icon", class: "absolute top-2 right-2 h-8 w-8 rounded-lg" })} onclick={() => removeWallpaper(wallpaper.url)} aria-label={uiText("ui.b4732d72f959f8b2", {arg0: (wallpaper.name)})} title={uiText("ui.965aaaed9892ba29")}>
+					<button type="button" class={launcherButton({ variant: "danger", size: "icon", class: "absolute top-2 right-2 h-8 w-8 rounded-full" })} onclick={() => removeWallpaper(wallpaper.url)} aria-label={uiText("ui.b4732d72f959f8b2", {arg0: (wallpaper.name)})} title={uiText("ui.965aaaed9892ba29")}>
 						<Trash2 class="w-3.5 h-3.5" />
 					</button>
 				</div>

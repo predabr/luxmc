@@ -30,6 +30,14 @@ pub struct ServerSettings {
     pub max_tick_time:i64,
     pub op_permission_level:u8,
     pub hide_online_players:bool,
+    pub listen_on_network: bool,
+    pub online_mode: bool,
+    pub keep_inventory: bool,
+    pub daylight_cycle: bool,
+    pub natural_regeneration: bool,
+    pub mob_spawning: bool,
+    pub animal_spawning: bool,
+    pub monster_spawning: bool,
 }
 
 impl Default for ServerSettings {
@@ -43,7 +51,7 @@ impl Default for ServerSettings {
             whitelist: false,
             view_distance: 6,
             simulation_distance: 4,
-            port: 0,
+            port: 25565,
             autosave_minutes: 5,
             resource_pack_url: String::new(),
             resource_pack_file: String::new(),
@@ -53,6 +61,14 @@ impl Default for ServerSettings {
             hardcore: false,
             generate_structures: true,
             spawn_protection:16,allow_flight:false,command_blocks:false,idle_timeout:0,economy_mode:true,network_compression_threshold:256,entity_broadcast_range_percentage:100,max_tick_time:60000,op_permission_level:4,hide_online_players:false,
+            listen_on_network: false,
+            online_mode: true,
+            keep_inventory: false,
+            daylight_cycle: true,
+            natural_regeneration: true,
+            mob_spawning: true,
+            animal_spawning: true,
+            monster_spawning: true,
         }
     }
 }
@@ -121,14 +137,52 @@ impl ServerSettings {
     pub fn startup_commands(&self, version: &str) -> Vec<String> {
         let mut commands = vec![format!("defaultgamemode {}", self.gamemode), format!("difficulty {}", self.difficulty)];
         let parts = version.split(['.', '-']).take(3).map(|part| part.parse::<u32>().unwrap_or(0)).collect::<Vec<_>>();
+        let snapshot = version.split_once('w').and_then(|(year, week)| Some((year.parse::<u32>().ok()?, week.get(..2)?.parse::<u32>().ok()?)));
         let modern = parts.first().is_some_and(|major| *major >= 26)
             || (parts.first() == Some(&1) && (parts.get(1).is_some_and(|minor| *minor > 21) || (parts.get(1) == Some(&21) && parts.get(2).is_some_and(|patch| *patch >= 9))))
-            || version.split_once('w').is_some_and(|(year, week)| year.parse::<u32>().ok().is_some_and(|year| year >= 25 && (year > 25 || week.get(..2).and_then(|week| week.parse::<u32>().ok()).is_some_and(|week| week >= 31))));
-        if modern { commands.push(format!("gamerule pvp {}",self.pvp)); }
+            || snapshot.is_some_and(|(year, week)| year > 25 || (year == 25 && week >= 31));
+        let snake = parts.first().is_some_and(|major| *major >= 26)
+            || (parts.first() == Some(&1) && parts.get(1) == Some(&21) && parts.get(2).is_some_and(|patch| *patch >= 11))
+            || snapshot.is_some_and(|(year, week)| year > 25 || (year == 25 && week >= 44));
+        let basic = parts.first().is_some_and(|major| *major >= 26)
+            || (parts.first() == Some(&1) && (parts.get(1).is_some_and(|minor| *minor > 6) || (parts.get(1) == Some(&6) && parts.get(2).is_some_and(|patch| *patch >= 1))))
+            || snapshot.is_some_and(|(year, week)| year > 13 || (year == 13 && week >= 24));
+        if basic {
+            if snake {
+                commands.push(format!("gamerule keep_inventory {}",self.keep_inventory));
+                commands.push(format!("gamerule advance_time {}",self.daylight_cycle));
+                commands.push(format!("gamerule natural_health_regeneration {}",self.natural_regeneration));
+                commands.push(format!("gamerule spawn_mobs {}",self.mob_spawning));
+            } else {
+                commands.push(format!("gamerule keepInventory {}",self.keep_inventory));
+                commands.push(format!("gamerule doDaylightCycle {}",self.daylight_cycle));
+                commands.push(format!("gamerule naturalRegeneration {}",self.natural_regeneration));
+                commands.push(format!("gamerule doMobSpawning {}",self.mob_spawning));
+            }
+        }
+        if modern {
+            commands.push(format!("gamerule pvp {}",self.pvp));
+            if snake {
+                commands.push(format!("gamerule command_blocks_work {}",self.command_blocks));
+                commands.push(format!("gamerule spawn_monsters {}",self.monster_spawning));
+            } else {
+                if snapshot.map_or(true, |(_, week)| week >= 37) {
+                    commands.push(format!("gamerule commandBlocksEnabled {}",self.command_blocks));
+                }
+                if snapshot.map_or(true, |(_, week)| week >= 35) {
+                    commands.push(format!("gamerule spawnMonsters {}",self.monster_spawning));
+                }
+            }
+        }
         commands
     }
 
     pub fn validate(&self) -> AppResult<()> {
+        if self.listen_on_network && self.port == 0 {
+            return Err(invalid(
+                "Defina uma porta fixa antes de habilitar o acesso externo.",
+            ));
+        }
         if !(-1..=1048576).contains(&self.network_compression_threshold) || !(10..=1000).contains(&self.entity_broadcast_range_percentage) || !(-1..=600000).contains(&self.max_tick_time) || self.op_permission_level>4 {return Err(invalid("Ajustes avançados fora do limite permitido."));}
 
         if self.spawn_protection>64 || self.idle_timeout>120 {return Err(invalid("Use proteção de spawn de 0 a 64 blocos e inatividade de 0 a 120 minutos."));}
@@ -235,6 +289,7 @@ impl ServerSettings {
             ("hardcore", &mut result.hardcore),
             ("generate-structures", &mut result.generate_structures),
             ("allow-flight", &mut result.allow_flight),("enable-command-block", &mut result.command_blocks),
+            ("online-mode", &mut result.online_mode),
         ] {
             if let Some(value) = property(text, name) {
                 *target = value.eq_ignore_ascii_case("true");
@@ -274,6 +329,7 @@ impl ServerSettings {
             ("force-gamemode", self.force_gamemode.to_string()),
             ("pause-when-empty-seconds", if self.economy_mode {"60"} else {"0"}.into()),
             ("pvp", self.pvp.to_string()),
+            ("online-mode", self.online_mode.to_string()),
             ("white-list", self.whitelist.to_string()),
             ("enforce-whitelist", self.whitelist.to_string()),
             ("view-distance", self.view_distance.to_string()),
@@ -421,10 +477,70 @@ mod tests {
     }
 
     #[test]
+    fn external_listening_is_opt_in_and_requires_a_fixed_port() {
+        let defaults = ServerSettings::default();
+        assert!(!defaults.listen_on_network);
+        assert!(!defaults.validate().is_err());
+
+        let legacy: ServerSettings = serde_json::from_str(r#"{"port":25565}"#).unwrap();
+        assert!(!legacy.listen_on_network);
+
+        let mut external = defaults;
+        external.port = 0;
+        external.listen_on_network = true;
+        assert!(external.validate().is_err());
+        external.port = 25565;
+        assert!(external.validate().is_ok());
+        let encoded = serde_json::to_string(&external).unwrap();
+        let restored: ServerSettings = serde_json::from_str(&encoded).unwrap();
+        assert!(restored.listen_on_network);
+        assert_eq!(restored.port, 25565);
+    }
+
+    #[test]
     fn pvp_is_applied_as_a_world_rule_only_on_versions_that_support_it() {
         let mut settings = ServerSettings::default(); settings.pvp = false;
         for version in ["1.21.9", "1.21.11", "26.3", "25w31a"] { assert!(settings.startup_commands(version).contains(&"gamerule pvp false".into())); }
         for version in ["1.12.2", "1.21.1", "25w30a"] { assert!(!settings.startup_commands(version).iter().any(|command| command.starts_with("gamerule pvp"))); }
+    }
+
+    #[test]
+    fn gamerule_names_follow_the_version_registry() {
+        let mut settings = ServerSettings::default();
+        settings.keep_inventory = true;
+        settings.daylight_cycle = false;
+        settings.natural_regeneration = false;
+        settings.mob_spawning = false;
+        settings.monster_spawning = false;
+        settings.command_blocks = false;
+        for version in ["1.21.11", "26.3", "26.1", "25w44a", "26w01a"] {
+            let commands = settings.startup_commands(version);
+            for expected in ["gamerule keep_inventory true", "gamerule advance_time false", "gamerule natural_health_regeneration false", "gamerule spawn_mobs false", "gamerule spawn_monsters false"] {
+                assert!(commands.contains(&expected.into()), "{version} should emit {expected}, got {commands:?}");
+            }
+            assert!(!commands.iter().any(|command| command.contains("doAnimalSpawning")), "{version} must not emit a rule that does not exist in Java");
+        }
+        for version in ["1.21.9", "1.21.10", "25w35a", "25w31a"] {
+            let commands = settings.startup_commands(version);
+            for expected in ["gamerule keepInventory true", "gamerule doDaylightCycle false", "gamerule naturalRegeneration false", "gamerule doMobSpawning false"] {
+                assert!(commands.contains(&expected.into()), "{version} should emit {expected}, got {commands:?}");
+            }
+            assert!(!commands.iter().any(|command| command.contains("doAnimalSpawning")), "{version} must not emit a rule that does not exist in Java");
+        }
+        assert!(settings.startup_commands("1.21.9").contains(&"gamerule spawnMonsters false".into()));
+        assert!(!settings.startup_commands("25w31a").iter().any(|command| command.contains("spawnMonsters")));
+        for version in ["1.12.2", "1.21.8", "25w30a"] {
+            let commands = settings.startup_commands(version);
+            for expected in ["gamerule keepInventory true", "gamerule doDaylightCycle false", "gamerule naturalRegeneration false", "gamerule doMobSpawning false"] {
+                assert!(commands.contains(&expected.into()), "{version} should emit {expected}, got {commands:?}");
+            }
+            assert!(!commands.iter().any(|command| command.contains("pvp") || command.contains("Monsters") || command.contains("commandBlock") || command.contains("command_blocks")), "{version} must not emit rules that do not exist yet");
+        }
+        for version in ["1.5.2", "1.4.7"] {
+            assert!(!settings.startup_commands(version).iter().any(|command| command.starts_with("gamerule")), "{version} predates the basic gamerules used here");
+        }
+        assert!(settings.startup_commands("26.3").contains(&"gamerule command_blocks_work false".into()));
+        assert!(settings.startup_commands("1.21.9").contains(&"gamerule commandBlocksEnabled false".into()));
     }
 
     #[test]
@@ -471,6 +587,20 @@ mod tests {
             .contains("online-mode=true"));
         settings.resource_pack_url = "file:///secret.zip".into();
         assert!(settings.validate().is_err());
+    }
+
+    #[test]
+    fn offline_mode_round_trips_and_defaults_to_original_accounts() {
+        assert!(ServerSettings::default().online_mode);
+        let encoded = ServerSettings::default().apply("online-mode=true
+");
+        assert!(encoded.lines().any(|line| line == "online-mode=true"));
+        let mut offline = ServerSettings::default();
+        offline.online_mode = false;
+        let encoded = offline.apply(&encoded);
+        assert_eq!(encoded.lines().filter(|line| line.starts_with("online-mode=")).count(), 1);
+        assert!(encoded.lines().any(|line| line == "online-mode=false"));
+        assert!(!ServerSettings::from_properties(&encoded).online_mode);
     }
 
     #[tokio::test]

@@ -13,6 +13,7 @@ import { matchesContentLoader } from '$lib/utils/catalogCompatibility';
 import { contentActivity } from './contentActivity.svelte';
 let jobs = $state<Job[]>([]);
 let current: Job | null = null;
+let panelExpanded = $state(false);
 let paused = false;
 let initialization: Promise<void> | null = null;
 let persistence = Promise.resolve();
@@ -29,7 +30,7 @@ async function initialize(): Promise<void> {
 async function loadJobs() {
     try {
         const saved = await installationQueueGet();
-        const schema = z.array(z.object({id:z.string(),name:z.string().min(1).max(200),ramMb:z.number().min(512).max(65536),selectedVersion:z.string(),modpackVersionId:z.string().optional(),selectedLoader:z.string().optional(),status:z.enum(['queued','running','paused','failed']),error:z.string().optional(),item:z.object({sourceId:z.string(),source:z.string(),title:z.string(),slug:z.string(),description:z.string(),downloads:z.number(),author:z.string().nullable(),versions:z.array(z.string()),categories:z.array(z.string()),iconUrl:z.string().nullable(),bannerUrl:z.string().nullable()}).passthrough()})).max(50);
+        const schema = z.array(z.object({id:z.string(),name:z.string().min(1).max(200),ramMb:z.number().min(0).max(65536),selectedVersion:z.string(),modpackVersionId:z.string().optional(),selectedLoader:z.string().optional(),status:z.enum(['queued','running','paused','failed']),error:z.string().optional(),item:z.object({sourceId:z.string(),source:z.string(),title:z.string(),slug:z.string(),description:z.string(),downloads:z.number(),author:z.string().nullable(),versions:z.array(z.string()),categories:z.array(z.string()),iconUrl:z.string().nullable(),bannerUrl:z.string().nullable()}).passthrough()})).max(50);
         const result = schema.safeParse(saved);
         if (!result.success) throw new Error(uiText('workshop.invalidQueue'));
         if (result.success) jobs = result.data.map(job => ({...job,status:job.status === 'failed' ? 'failed' : 'paused'})) as Job[];
@@ -155,7 +156,10 @@ async function cancel() {
 }
 export const modpackInstallation = {
     continueQueue() { void pump(); },
-    get state() { return operation; }, get jobs() { return jobs; }, start, initialize,
+    get state() { return operation; }, get jobs() { return jobs; },
+    get panelExpanded() { return panelExpanded; },
+    togglePanel() { panelExpanded = !panelExpanded; },
+    start, initialize,
     async cancel() { if (current) { jobs = jobs.filter(job => job.id !== current!.id); persist(); } await cancel(); },
     async pause() { if (!current) return; paused = true; await cancel(); },
     resume(id: string) { const job = jobs.find(job => job.id === id); if (job && job.status !== 'running') { job.status='queued'; job.error=''; persist(); void pump(); } },

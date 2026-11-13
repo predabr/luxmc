@@ -23,7 +23,7 @@
         if (busy) return; busy=true;error='';
         try {
             const project=await modsProjectDetails(entry.projectId,entry.source);
-            await modpackInstallation.start({sourceId:entry.projectId,source:entry.source,title:entry.name,slug:project.slug,description:project.description,iconUrl:project.iconUrl,bannerUrl:null,downloads:project.downloads,author:project.author?.name || null,versions:project.gameVersions,categories:project.categories},entry.name,4096,'',entry.versionId);
+            await modpackInstallation.start({sourceId:entry.projectId,source:entry.source,title:entry.name,slug:project.slug,description:project.description,iconUrl:project.iconUrl,bannerUrl:null,downloads:project.downloads,author:project.author?.name || null,versions:project.gameVersions,categories:project.categories},entry.name,0,'',entry.versionId);
         } catch(cause) {error=String(cause);} finally {busy=false;}
     }
 </script>

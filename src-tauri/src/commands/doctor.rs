@@ -94,14 +94,6 @@ pub async fn doctor_instance_readiness(profileId: String) -> AppResult<InstanceR
     if gpu.vendor == "Desconhecido" {
         warnings.push("Não foi possível identificar a GPU; o Luxmc usará a configuração segura padrão.".into());
     }
-    let mods_dir = std::path::PathBuf::from(&row.game_dir).join("mods");
-    let mc_version = row.mc_version.clone();
-    let loader = row.loader.clone();
-    let compatibility = tokio::task::spawn_blocking(move || crate::core::doctor::mod_compatibility_warnings(&mods_dir, &mc_version, &loader))
-        .await.map_err(|error| AppError::Internal(error.to_string()))?;
-    for warning in compatibility {
-        warnings.push(warning);
-    }
     #[cfg(target_os = "linux")]
     if gpu.vendor == "NVIDIA" && std::env::var_os("WAYLAND_DISPLAY").is_some() {
         warnings.push("NVIDIA em Wayland detectada; use o modo de compatibilidade XWayland se ocorrer falha gráfica.".into());

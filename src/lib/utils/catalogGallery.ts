@@ -38,12 +38,12 @@ export function catalogGallery(source: string, projectId: string): Promise<strin
 	const next = new Promise<string[]>(resolve => {
 		queue.push(() => {
 			active += 1;
-			void modsProjectDetails(projectId, source).then(async details => {
+			void modsProjectDetails(projectId, source).then(details => {
                 const matches = details?.id === projectId && (!details.source || details.source === source);
                 const gallery = matches ? (details.gallery || []).filter(isProjectArtwork).map(image => image.url) : [];
-                const authorCover = matches ? await firstLandscape([...gallery, ...descriptionArtwork(details.body || '')]) : undefined;
+                const authorArtwork = matches ? descriptionArtwork(details.body || '') : [];
 				const urls = matches
-					? [...new Set([...(authorCover ? [authorCover] : []), ...gallery, ...(details.iconUrl && isRenderableBanner(details.iconUrl) ? [details.iconUrl] : [])])].slice(0, 8)
+					? [...new Set([...gallery, ...authorArtwork, ...(details.iconUrl && isRenderableBanner(details.iconUrl) ? [details.iconUrl] : [])])].slice(0, 8)
 					: [];
 				if (cache.size >= 128) cache.delete(cache.keys().next().value!);
 				cache.set(key, { urls, expires: Date.now() + (urls.length ? 600_000 : 60_000) });

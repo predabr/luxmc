@@ -101,6 +101,27 @@ export async function getSystemSpecs(): Promise<SystemSpecs> {
 	return api.invoke<SystemSpecs>("get_system_specs");
 }
 
+export interface NetworkThroughputSample {
+	receivedBytesPerSecond: number;
+	transmittedBytesPerSecond: number;
+	sampleMilliseconds: number;
+}
+
+export async function networkThroughputSample(): Promise<NetworkThroughputSample> {
+	return api.invoke<NetworkThroughputSample>("network_throughput_sample");
+}
+
+export interface SystemResourceSample {
+	cpuPercent: number;
+	usedMemoryMb: number;
+	totalMemoryMb: number;
+	sampleMilliseconds: number;
+}
+
+export async function systemResourceSample(): Promise<SystemResourceSample> {
+	return api.invoke<SystemResourceSample>("system_resource_sample");
+}
+
 export async function changelogGet(): Promise<ChangelogEntry[]> {
 	return api.invoke<ChangelogEntry[]>("changelog_get");
 }

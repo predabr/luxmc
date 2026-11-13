@@ -10,7 +10,7 @@ pub(super) async fn supported_game_versions(http: &reqwest::Client, meta: &str) 
     }
     let entries: Vec<serde_json::Value> = http.get(format!("{meta}/versions/game")).timeout(std::time::Duration::from_secs(12)).send().await?.error_for_status()?.json().await?;
     let versions: Vec<String> = entries.iter().filter_map(|entry| entry.get("version").and_then(|value| value.as_str())).filter(|version| !version.is_empty()).map(str::to_owned).collect();
-    if versions.is_empty() { return Err(crate::error::AppError::InvalidState("O provedor não informou as versões compatíveis. Tente novamente.".into())); }
+    if versions.is_empty() { return Err(crate::error::AppError::InvalidState("O provedor nÃ£o informou as versÃµes compatÃ­veis. Tente novamente.".into())); }
     if let Ok(mut cache) = GAME_VERSIONS.lock() { cache.insert(meta.to_owned(), (std::time::Instant::now(), versions.clone())); }
     Ok(versions)
 }
@@ -140,7 +140,7 @@ pub(super) async fn prepare_from_meta(http: &reqwest::Client, libraries_dir: &st
         let coordinate = classifier.as_ref().map(|classifier| format!("{}:{classifier}", lib.name)).unwrap_or_else(|| lib.name.clone());
         let rel_path = crate::core::launcher::lib_path_from_name(&std::path::PathBuf::new(), &coordinate);
         if rel_path.components().any(|part| !matches!(part, std::path::Component::Normal(_))) {
-            return Err(crate::error::AppError::InvalidInput("Caminho Maven inválido".into()));
+            return Err(crate::error::AppError::InvalidInput("Caminho Maven invÃ¡lido".into()));
         }
         let dest = libraries_dir.join(&rel_path);
         let base_url = lib.url.as_deref().unwrap_or("https://maven.fabricmc.net/");
@@ -151,7 +151,7 @@ pub(super) async fn prepare_from_meta(http: &reqwest::Client, libraries_dir: &st
             super::ensure_maven_jar(&http, &dest, &central).await?;
         }
         Ok::<_, crate::error::AppError>((dest, classifier.is_some()))
-    }}).buffered(6).try_collect::<Vec<_>>().await?;
+    }}).buffer_unordered(crate::core::downloader::max_concurrent_downloads().min(24)).try_collect::<Vec<_>>().await?;
 
     let (native, regular): (Vec<_>, Vec<_>) = artifacts.into_iter().partition(|(_, native)| *native);
     let native_archives = native.into_iter().map(|(path, _)| path).collect();
@@ -209,7 +209,7 @@ async fn get_latest_loader_version(http: &reqwest::Client, mc_version: &str, met
         .find(|v| v.stable)
         .or_else(|| versions.first())
         .map(|v| v.id.clone())
-        .ok_or_else(|| crate::error::AppError::NotFound(format!("Nenhuma versão de loader compatível com Minecraft {mc_version}")))?;
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("Nenhuma versÃ£o de loader compatÃ­vel com Minecraft {mc_version}")))?;
     Ok(chosen)
 }
 
@@ -255,6 +255,7 @@ pub async fn ensure_fabric_api(
     if let Ok(resp) = http
         .get(&url)
         .header("User-Agent", "Luxmc/1.3.0-beta")
+        .timeout(std::time::Duration::from_secs(8))
         .send()
         .await
     {
@@ -268,7 +269,12 @@ pub async fn ensure_fabric_api(
                                 file.get("filename").and_then(|f| f.as_str()),
                             ) {
                                 let dest = mods_dir.join(filename);
-                                if let Ok(dl_resp) = http.get(dl_url).send().await {
+                                if let Ok(dl_resp) = http
+                                    .get(dl_url)
+                                    .timeout(std::time::Duration::from_secs(8))
+                                    .send()
+                                    .await
+                                {
                                     if dl_resp.status().is_success() {
                                         if let Ok(bytes) = dl_resp.bytes().await {
                                             let _ = tokio::fs::write(&dest, &bytes).await;

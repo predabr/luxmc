@@ -293,6 +293,56 @@ pub async fn get_system_specs() -> SystemSpecs {
         })
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NetworkThroughputSample {
+    pub received_bytes_per_second: u64,
+    pub transmitted_bytes_per_second: u64,
+    pub sample_milliseconds: u64,
+}
+
+#[tauri::command]
+pub async fn network_throughput_sample() -> crate::error::AppResult<NetworkThroughputSample> {
+    let mut networks = sysinfo::Networks::new_with_refreshed_list();
+    let sample_milliseconds: u64 = 400;
+    tokio::time::sleep(std::time::Duration::from_millis(sample_milliseconds)).await;
+    networks.refresh(true);
+    let received: u64 = networks.iter().map(|(_, data)| data.received()).sum();
+    let transmitted: u64 = networks.iter().map(|(_, data)| data.transmitted()).sum();
+    Ok(NetworkThroughputSample {
+        received_bytes_per_second: received * 1000 / sample_milliseconds,
+        transmitted_bytes_per_second: transmitted * 1000 / sample_milliseconds,
+        sample_milliseconds,
+    })
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SystemResourceSample {
+    pub cpu_percent: f32,
+    pub used_memory_mb: u64,
+    pub total_memory_mb: u64,
+    pub sample_milliseconds: u64,
+}
+
+#[tauri::command]
+pub async fn system_resource_sample() -> SystemResourceSample {
+    let mut system = sysinfo::System::new();
+    system.refresh_cpu_all();
+    system.refresh_memory();
+    let sample_milliseconds: u64 = 300;
+    tokio::time::sleep(std::time::Duration::from_millis(sample_milliseconds)).await;
+    system.refresh_cpu_all();
+    system.refresh_memory();
+    let used_memory = system.total_memory().saturating_sub(system.available_memory());
+    SystemResourceSample {
+        cpu_percent: system.global_cpu_usage(),
+        used_memory_mb: used_memory / 1_048_576,
+        total_memory_mb: system.total_memory() / 1_048_576,
+        sample_milliseconds,
+    }
+}
+
 fn collect_system_specs() -> SystemSpecs {
     let raw_name = sysinfo::System::name().unwrap_or_else(|| {
         if cfg!(target_os = "windows") {
@@ -365,4 +415,68 @@ pub fn client_overlay_close(app: tauri::AppHandle) -> Result<(), String> {
         let _ = window.set_always_on_top(false);
     }
     Ok(())
+}
+
+#[tauri::command]
+pub async fn util_image_data_url(state: State<'_, AppState>, url: String) -> crate::error::AppResult<Option<String>> {
+    let url = url.trim().to_string();
+    let rejected = url.len() > 2048
+        || !url.starts_with("https://")
+        || url.split_whitespace().count() != 1
+        || url.contains("localhost")
+        || url.contains("127.0.0.1")
+        || url.contains("0.0.0.0");
+    if rejected {
+        return Ok(None);
+    }
+    let response = match state
+        .http
+        .get(&url)
+        .timeout(std::time::Duration::from_secs(12))
+        .send()
+        .await
+    {
+        Ok(response) => response,
+        Err(_) => return Ok(None),
+    };
+    if !response.status().is_success() {
+        return Ok(None);
+    }
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    if !content_type.starts_with("image/") {
+        return Ok(None);
+    }
+    if let Some(length) = response.content_length() {
+        if length > 8_000_000 {
+            return Ok(None);
+        }
+    }
+    let bytes = match response.bytes().await {
+        Ok(bytes) => bytes,
+        Err(_) => return Ok(None),
+    };
+    if bytes.is_empty() || bytes.len() > 8_000_000 {
+        return Ok(None);
+    }
+    tokio::task::spawn_blocking(move || {
+        let mut reader = image::ImageReader::new(std::io::Cursor::new(&bytes)).with_guessed_format().ok()?;
+        let mut limits = image::Limits::default();
+        limits.max_image_width = Some(4096);
+        limits.max_image_height = Some(4096);
+        limits.max_alloc = Some(64 * 1024 * 1024);
+        reader.limits(limits);
+        let source = reader.decode().ok()?;
+        let scaled = source.thumbnail(512, 512);
+        let mut output = std::io::Cursor::new(Vec::new());
+        scaled.write_to(&mut output, image::ImageFormat::Png).ok()?;
+        use base64::Engine as _;
+        Some(format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(output.into_inner())))
+    })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))
 }

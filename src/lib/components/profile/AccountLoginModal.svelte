@@ -118,7 +118,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			isLoggingIn = false;
 			handleClose();
 		} catch (e) {
-			errorMsg = uiText("ui.62406a19962ea989") + String(e);
+			const detail = String(e).replace(/^(?:Error:\s*)?not found:\s*/i, "");
+			errorMsg = uiText("ui.62406a19962ea989") + detail;
 			toast(errorMsg, "error");
 		} finally {
 			isLoggingIn = false;

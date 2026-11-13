@@ -17,6 +17,106 @@ pub struct ExternalInstance {
     pub loader: String,
     pub mod_count: usize,
     pub has_saves: bool,
+    #[serde(default)]
+    pub icon: Option<String>,
+    #[serde(default)]
+    pub ram_mb: Option<i64>,
+}
+
+const MAX_ICON_DATA_URL: usize = 6_000_000;
+
+fn data_url_from_file(path: &Path) -> Option<String> {
+    let mime = match path.extension().and_then(|ext| ext.to_str()).map(|ext| ext.to_ascii_lowercase()).as_deref() {
+        Some("png") => "image/png",
+        Some("jpg") | Some("jpeg") => "image/jpeg",
+        Some("gif") => "image/gif",
+        Some("webp") => "image/webp",
+        Some("bmp") => "image/bmp",
+        _ => return None,
+    };
+    let bytes = std::fs::read(path).ok()?;
+    if bytes.is_empty() || bytes.len() > MAX_ICON_DATA_URL / 4 * 3 { return None; }
+    use base64::Engine as _;
+    Some(format!("data:{mime};base64,{}", base64::engine::general_purpose::STANDARD.encode(bytes)))
+}
+
+fn sanitize_icon(icon: Option<String>) -> Option<String> {
+    let trimmed = icon?.trim().to_string();
+    if trimmed.is_empty() || trimmed.len() > MAX_ICON_DATA_URL { return None; }
+    let builtin = trimmed.len() <= 64 && trimmed.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'));
+    let accepted = trimmed.starts_with("data:image/")
+        || trimmed.starts_with("http://")
+        || trimmed.starts_with("https://")
+        || (trimmed.starts_with('/') && trimmed.len() < 512 && trimmed.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'/' | b'.' | b'_' | b'-')));
+    (accepted || builtin).then_some(trimmed)
+}
+
+fn resolve_prism_icon(instance_dir: &Path, icon_key: &str) -> Option<String> {
+    let key = icon_key.trim().to_string();
+    if key.is_empty() || key.contains("..") || key.contains('/') || key.contains('\\') { return None; }
+    let mut roots: Vec<PathBuf> = Vec::new();
+    if let Some(instances) = instance_dir.parent() {
+        roots.push(instances.join("icons"));
+        if let Some(root) = instances.parent() { roots.push(root.join("icons")); }
+    }
+    roots.push(instance_dir.join("icons"));
+    for root in &roots {
+        for candidate in [root.join(format!("{key}.png")), root.join(format!("{key}.jpg")), root.join(format!("{key}.jpeg")), root.join(format!("{key}.webp")), root.join(format!("{key}.gif")), root.join(&key)] {
+            if candidate.is_file() {
+                if let Some(url) = data_url_from_file(&candidate) { return Some(url); }
+            }
+        }
+    }
+    match key.as_str() {
+        "grass" | "grass_block" => Some("grass_block".into()),
+        _ => None,
+    }
+}
+
+struct PrismExtras {
+    name: Option<String>,
+    icon: Option<String>,
+    ram_mb: Option<i64>,
+}
+
+fn read_prism_extras(dir: &Path) -> PrismExtras {
+    let mut name: Option<String> = None;
+    let mut icon_key: Option<String> = None;
+    let mut ram_mb: Option<i64> = None;
+    if let Ok(content) = std::fs::read_to_string(dir.join("instance.cfg")) {
+        for line in content.lines() {
+            if let Some(value) = line.strip_prefix("name=") {
+                let value = value.trim();
+                if !value.is_empty() { name = Some(value.to_string()); }
+            } else if let Some(value) = line.strip_prefix("iconKey=") {
+                icon_key = Some(value.trim().to_string());
+            } else if let Some(value) = line.strip_prefix("MaxMemAlloc=") {
+                ram_mb = value.trim().parse::<i64>().ok().filter(|ram| *ram > 0);
+            } else if ram_mb.is_none() {
+                if let Some(value) = line.strip_prefix("AllocatedRam=") {
+                    ram_mb = value.trim().parse::<i64>().ok().filter(|ram| *ram > 0);
+                }
+            }
+        }
+    }
+    PrismExtras { name, icon: icon_key.and_then(|key| resolve_prism_icon(dir, &key)), ram_mb }
+}
+
+struct CurseForgeExtras {
+    ram_mb: Option<i64>,
+    icon: Option<String>,
+}
+
+fn read_curseforge_extras(dir: &Path) -> CurseForgeExtras {
+    let ram_mb = std::fs::read_to_string(dir.join("minecraftinstance.json")).ok().and_then(|content| {
+        serde_json::from_str::<serde_json::Value>(&content).ok().and_then(|value| {
+            value.get("allocatedMemory").and_then(|memory| memory.as_i64()).filter(|ram| *ram > 0 && *ram < 65536)
+        })
+    });
+    let icon = ["instance.png", "icon.png", "logo.png", "cover.png", "instance.jpg", "icon.jpg", "logo.jpg"]
+        .iter()
+        .find_map(|name| { let candidate = dir.join(name); candidate.is_file().then(|| data_url_from_file(&candidate)).flatten() });
+    CurseForgeExtras { ram_mb, icon }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,11 +134,20 @@ pub async fn importer_inspect_directory(path: String) -> AppResult<ExternalInsta
         let directory = PathBuf::from(path);
         if !directory.is_dir() { return Err(crate::error::AppError::NotFound("Pasta de origem não encontrada".into())); }
         let game = game_directory(&directory);
-        let (version, loader) = if directory.join("mmc-pack.json").is_file() || directory.join("instance.cfg").is_file() {
+        let is_prism = directory.join("mmc-pack.json").is_file() || directory.join("instance.cfg").is_file();
+        let (version, loader) = if is_prism {
             parse_prism_instance_cfg(&directory)
         } else if directory.join("minecraftinstance.json").is_file() { parse_curseforge_manifest(&directory) }
         else { (String::new(), "vanilla".to_owned()) };
-        Ok(ExternalInstance { launcher: "Pasta selecionada".into(), name: directory.file_name().unwrap_or_default().to_string_lossy().into_owned(), path: directory.to_string_lossy().into_owned(), mc_version: version, loader, mod_count: count_mods_in_dir(&game.join("mods")), has_saves: game.join("saves").is_dir() })
+        let name = directory.file_name().unwrap_or_default().to_string_lossy().into_owned();
+        let (icon, ram_mb) = if is_prism {
+            let extras = read_prism_extras(&directory);
+            (extras.icon, extras.ram_mb)
+        } else if directory.join("minecraftinstance.json").is_file() {
+            let extras = read_curseforge_extras(&directory);
+            (extras.icon, extras.ram_mb)
+        } else { (None, None) };
+        Ok(ExternalInstance { launcher: "Pasta selecionada".into(), name, path: directory.to_string_lossy().into_owned(), mc_version: version, loader, mod_count: count_mods_in_dir(&game.join("mods")), has_saves: game.join("saves").is_dir(), icon, ram_mb })
     }).await.map_err(|error| crate::error::AppError::Internal(error.to_string()))?
 }
 
@@ -85,6 +194,8 @@ pub async fn importer_detect_launchers() -> AppResult<Vec<ExternalInstance>> {
                             let (mc_version, loader) = parse_prism_instance_cfg(&p);
                             let mod_count = count_mods_in_dir(&p.join(".minecraft/mods")).max(count_mods_in_dir(&p.join("mods")));
                             let has_saves = p.join(".minecraft/saves").is_dir() || p.join("saves").is_dir();
+                            let extras = read_prism_extras(&p);
+                            let name = extras.name.clone().filter(|value| !value.trim().is_empty()).unwrap_or(name);
 
                             instances.push(ExternalInstance {
                                 launcher: "Prism Launcher".into(),
@@ -94,6 +205,8 @@ pub async fn importer_detect_launchers() -> AppResult<Vec<ExternalInstance>> {
                                 loader,
                                 mod_count,
                                 has_saves,
+                                icon: extras.icon,
+                                ram_mb: extras.ram_mb,
                             });
                         }
                     }
@@ -121,6 +234,7 @@ pub async fn importer_detect_launchers() -> AppResult<Vec<ExternalInstance>> {
                             let (mc_version, loader) = parse_curseforge_manifest(&p);
                             let mod_count = count_mods_in_dir(&p.join("mods"));
                             let has_saves = p.join("saves").is_dir();
+                            let extras = read_curseforge_extras(&p);
 
                             instances.push(ExternalInstance {
                                 launcher: "CurseForge".into(),
@@ -130,6 +244,8 @@ pub async fn importer_detect_launchers() -> AppResult<Vec<ExternalInstance>> {
                                 loader,
                                 mod_count,
                                 has_saves,
+                                icon: extras.icon,
+                                ram_mb: extras.ram_mb,
                             });
                         }
                     }
@@ -155,6 +271,8 @@ pub async fn importer_detect_launchers() -> AppResult<Vec<ExternalInstance>> {
                     loader: "vanilla".into(),
                     mod_count: 0,
                     has_saves,
+                    icon: None,
+                    ram_mb: None,
                 });
                 break;
             }
@@ -170,6 +288,8 @@ pub async fn importer_detect_launchers() -> AppResult<Vec<ExternalInstance>> {
                 loader: "vanilla".into(),
                 mod_count: 0,
                 has_saves: home.join(".minecraft/saves").is_dir(),
+                icon: None,
+                ram_mb: None,
             });
         }
 
@@ -187,6 +307,8 @@ pub async fn importer_execute_import(
     targetName: String,
     mcVersion: Option<String>,
     loader: Option<String>,
+    icon: Option<String>,
+    ramMb: Option<i64>,
 ) -> AppResult<ImportResult> {
     let src = PathBuf::from(&sourcePath);
     if !src.is_dir() {
@@ -196,6 +318,8 @@ pub async fn importer_execute_import(
     let final_mc_version = mcVersion.filter(|value| !value.trim().is_empty()).ok_or_else(|| crate::error::AppError::InvalidInput("Selecione a versão do Minecraft da instância".into()))?;
     if final_mc_version.len() > 128 || final_mc_version.contains("..") || !final_mc_version.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-' | b'_')) { return Err(crate::error::AppError::InvalidInput("Versão do Minecraft inválida".into())); }
     let final_loader = loader.unwrap_or_else(|| "vanilla".into());
+    let final_icon = sanitize_icon(icon);
+    let final_ram = ramMb.filter(|ram| *ram > 0 && *ram < 65536);
 
     let profile_id = uuid::Uuid::new_v4().to_string();
     let safe_name = if targetName.trim().is_empty() {
@@ -215,7 +339,7 @@ pub async fn importer_execute_import(
     let dest_dir = data_dir.join("instances").join(&profile_id).join(".minecraft");
     tokio::fs::create_dir_all(&dest_dir).await?;
 
-    let copy_candidates = vec!["mods", "config", "defaultconfigs", "kubejs", "scripts", "saves", "resourcepacks", "shaderpacks", "screenshots", "journeymap", "options.txt", "servers.dat"];
+    let copy_candidates = vec!["mods", "coremods", "openloader", "config", "defaultconfigs", "kubejs", "scripts", "saves", "resourcepacks", "shaderpacks", "screenshots", "journeymap", "packmenu", "custommainmenu", "options.txt", "servers.dat"];
     let inner_mc = game_directory(&src);
     let copy_destination = dest_dir.clone();
     let imported_mods = tokio::task::spawn_blocking(move || -> AppResult<usize> {
@@ -236,7 +360,7 @@ pub async fn importer_execute_import(
     let now = chrono::Utc::now().to_rfc3339();
 
     sqlx::query(
-        "INSERT INTO profiles (id, name, mc_version, loader, game_dir, mod_count, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO profiles (id, name, mc_version, loader, game_dir, mod_count, ram_mb, icon, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     )
     .bind(&profile_id)
     .bind(&safe_name)
@@ -244,6 +368,8 @@ pub async fn importer_execute_import(
     .bind(&final_loader)
     .bind(dest_dir.to_string_lossy().to_string())
     .bind(imported_mods as i64)
+    .bind(final_ram)
+    .bind(final_icon)
     .bind(&now)
     .bind(&now)
     .execute(db.pool())

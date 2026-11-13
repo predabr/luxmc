@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { elapsedTime, installationStep, transferComplete } from './installProgress';
+import { elapsedTime, installationProgressPercent, installationStep, transferComplete } from './installProgress';
 import type { DownloadProgress } from '$lib/api/types';
 
 describe('installation progress', () => {
@@ -15,8 +15,18 @@ describe('installation progress', () => {
         expect(installationStep('preparing')).toBe(1);
         expect(installationStep('downloading')).toBe(1);
         expect(installationStep('validation')).toBe(2);
-        expect(installationStep('indexing')).toBe(2);
+        expect(installationStep('indexing')).toBe(3);
         expect(installationStep('complete')).toBe(3);
+    });
+    it('weights the four installation stages evenly at 25 percent each', () => {
+        expect(installationProgressPercent('package', 0, 100)).toBe(25);
+        expect(installationProgressPercent('downloading', 0)).toBe(25);
+        expect(installationProgressPercent('downloading', 100)).toBe(50);
+        expect(installationProgressPercent('validation', 96)).toBe(50);
+        expect(installationProgressPercent('validation', 98)).toBe(75);
+        expect(installationProgressPercent('indexing', 96)).toBe(75);
+        expect(installationProgressPercent('indexing', 100)).toBe(100);
+        expect(installationProgressPercent('complete', 0)).toBe(100);
     });
     it('formats elapsed duration without inventing a completion estimate', () => {
         expect(elapsedTime(10_000, 9_000)).toBe('0s');

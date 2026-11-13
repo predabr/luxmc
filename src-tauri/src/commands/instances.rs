@@ -1099,7 +1099,7 @@ pub fn instance_import_modpack_core<'a>(
     crate::core::mods::pack_download::cancelled(Some(&state.import_cancel))?;
     tracing::info!(file_path = %file_path, profile_name = %profile_name, mc_version = %mc_version, loader = %loader, "instance_import_modpack called");
     type ModpackArchive = zip::ZipArchive<std::io::BufReader<std::fs::File>>;
-    let (mut archive, manifest, root_prefix) = tokio::task::block_in_place(
+    let (mut archive, mut manifest, root_prefix) = tokio::task::block_in_place(
         || -> AppResult<(ModpackArchive, CfManifest, String)> {
             let file = std::fs::File::open(&file_path).map_err(|e| {
                 tracing::error!(file_path = %file_path, error = %e, "failed to open modpack zip");
@@ -1155,6 +1155,10 @@ pub fn instance_import_modpack_core<'a>(
         },
     )?;
 
+    let removed_manifest_duplicates = deduplicate_curseforge_files(&mut manifest.files)?;
+    if removed_manifest_duplicates > 0 {
+        tracing::info!(removed = removed_manifest_duplicates, "Repeated CurseForge manifest entries collapsed");
+    }
     let (mc_version, loader, loader_version) = curseforge_target(&manifest, &mc_version, &loader)?;
 
     let profile_id = resumable_import_id(&file_path, &profile_name).await?;
@@ -1269,8 +1273,11 @@ pub fn instance_import_modpack_core<'a>(
     record_override_jars_cancellable(&instance_dir, &override_paths, Some(state.import_cancel.clone())).await?;
     tracing::info!(extracted = extracted_count, "overrides extraction completed");
 
-    let file_ids: Vec<u64> = manifest.files.iter().map(|f| f.file_id).collect();
-    let file_infos = crate::core::mods::curseforge::get_files_batch(&state.http, &file_ids).await;
+    let file_ids: Vec<u64> = manifest.files.iter().map(|f| f.file_id).collect::<std::collections::BTreeSet<_>>().into_iter().collect();
+    let file_infos = unique_curseforge_file_names(
+        &manifest.files,
+        crate::core::mods::curseforge::get_files_batch(&state.http, &file_ids).await,
+    );
     tracing::info!(resolved_files = file_infos.len(), total = file_ids.len(), "resolved CurseForge batch metadata");
 
     let total_files = manifest.files.len() as u32;
@@ -1772,6 +1779,142 @@ fn validate_pack_entry(path: &str) -> AppResult<()> {
     Ok(())
 }
 
+fn deduplicate_curseforge_files(files: &mut Vec<CfFile>) -> AppResult<usize> {
+    let original_len = files.len();
+    let mut projects = std::collections::HashMap::<u64, u64>::new();
+    let mut unique = Vec::with_capacity(files.len());
+    for file in std::mem::take(files) {
+        if let Some(project_id) = projects.get(&file.file_id) {
+            if *project_id != file.project_id {
+                return Err(crate::error::AppError::InvalidInput(format!(
+                    "O manifesto associa o arquivo CurseForge {} a mais de um projeto.",
+                    file.file_id
+                )));
+            }
+            continue;
+        }
+        projects.insert(file.file_id, file.project_id);
+        unique.push(file);
+    }
+    let removed = original_len.saturating_sub(unique.len());
+    *files = unique;
+    Ok(removed)
+}
+
+fn unique_curseforge_file_names(
+    files: &[CfFile],
+    mut infos: std::collections::HashMap<u64, crate::core::mods::curseforge::CurseForgeFileInfo>,
+) -> std::collections::HashMap<u64, crate::core::mods::curseforge::CurseForgeFileInfo> {
+    let mut names = std::collections::HashSet::new();
+    let mut unique = std::collections::HashMap::with_capacity(infos.len());
+    for file in files {
+        let Some(mut info) = infos.remove(&file.file_id) else { continue; };
+        let original_name = info.file_name.clone();
+        if names.insert(original_name.to_ascii_lowercase()) {
+            unique.insert(file.file_id, info);
+            continue;
+        }
+        let (stem, extension) = original_name.rsplit_once('.').unwrap_or((&original_name, ""));
+        let extension = if extension.is_empty() { String::new() } else { format!(".{extension}") };
+        let mut suffix = 0u32;
+        loop {
+            let marker = if suffix == 0 { format!(".luxmc-{}", file.file_id) } else { format!(".luxmc-{}-{suffix}", file.file_id) };
+            let candidate = format!("{stem}{marker}{extension}");
+            if names.insert(candidate.to_ascii_lowercase()) {
+                info.file_name = candidate;
+                unique.insert(file.file_id, info);
+                break;
+            }
+            suffix += 1;
+        }
+    }
+    unique
+}
+
+fn mrpack_file_hash<'a>(file: &'a MrpackFile, algorithm: &str) -> Option<&'a str> {
+    file.hashes.iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case(algorithm))
+        .map(|(_, hash)| hash.as_str())
+}
+
+fn same_mrpack_content(left: &MrpackFile, right: &MrpackFile) -> bool {
+    if matches!((left.file_size, right.file_size), (Some(a), Some(b)) if a != b) {
+        return false;
+    }
+    ["sha512", "sha1"].iter().any(|algorithm| {
+        mrpack_file_hash(left, algorithm).zip(mrpack_file_hash(right, algorithm))
+            .is_some_and(|(left, right)| left.eq_ignore_ascii_case(right))
+    })
+}
+
+fn normalize_mrpack_files(files: &mut Vec<MrpackFile>) -> AppResult<usize> {
+    let mut reserved = std::collections::HashSet::new();
+    for file in files.iter() {
+        validate_pack_entry(&file.path)?;
+        if file.env.as_ref().and_then(|env| env.client.as_deref()) != Some("unsupported") {
+            reserved.insert(file.path.replace('\\', "/").to_ascii_lowercase());
+        }
+    }
+
+    let mut seen = std::collections::HashMap::<String, usize>::new();
+    let mut normalized = Vec::with_capacity(files.len());
+    let mut removed = 0;
+    for mut file in std::mem::take(files) {
+        file.path = file.path.replace('\\', "/");
+        if file.env.as_ref().and_then(|env| env.client.as_deref()) == Some("unsupported") {
+            removed += 1;
+            continue;
+        }
+        let original_key = file.path.to_ascii_lowercase();
+        let Some(&previous_index) = seen.get(&original_key) else {
+            seen.insert(original_key, normalized.len());
+            normalized.push(file);
+            continue;
+        };
+        let previous = &normalized[previous_index];
+        if same_mrpack_content(previous, &file) {
+            removed += 1;
+            continue;
+        }
+        if !original_key.starts_with("mods/") || !original_key.ends_with(".jar") {
+            return Err(crate::error::AppError::InvalidInput(format!(
+                "O modpack contém arquivos diferentes no mesmo caminho: {}",
+                file.path
+            )));
+        }
+        let digest = mrpack_file_hash(&file, "sha512")
+            .or_else(|| mrpack_file_hash(&file, "sha1"))
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| crate::error::AppError::InvalidInput(format!(
+                "Não é possível resolver caminhos de mods duplicados sem hash: {}",
+                file.path
+            )))?;
+        let (directory, filename) = file.path.rsplit_once('/').unwrap_or(("", &file.path));
+        let (stem, extension) = filename.rsplit_once('.').unwrap_or((filename, ""));
+        let prefix = &digest[..digest.len().min(12)];
+        let mut suffix = 0u32;
+        loop {
+            let marker = if suffix == 0 { format!(".luxmc-{prefix}") } else { format!(".luxmc-{prefix}-{suffix}") };
+            let alias = if extension.is_empty() {
+                format!("{stem}{marker}")
+            } else {
+                format!("{stem}{marker}.{extension}")
+            };
+            let path = if directory.is_empty() { alias } else { format!("{directory}/{alias}") };
+            let key = path.to_ascii_lowercase();
+            if reserved.insert(key.clone()) {
+                file.path = path;
+                seen.insert(key, normalized.len());
+                normalized.push(file);
+                break;
+            }
+            suffix += 1;
+        }
+    }
+    *files = normalized;
+    Ok(removed)
+}
+
 async fn ensure_mrpack_file(
     http: &reqwest::Client,
     root: &std::path::Path,
@@ -1959,6 +2102,11 @@ async fn prepare_imported_launch(state: &AppState, profile: &ProfileRow, app: Op
 
 async fn commit_import(state: &AppState, profile: &ProfileRow, app: Option<&tauri::AppHandle>) -> AppResult<()> {
     let started = std::time::Instant::now();
+    crate::core::mods::pack_download::cancelled(Some(&state.import_cancel))?;
+    let duplicates = repair_import_duplicates(profile, Some(state.import_cancel.clone())).await?;
+    if duplicates > 0 {
+        tracing::info!(removed = duplicates, profile_id = %profile.id, "Duplicate pack mods repaired before registration");
+    }
     crate::core::mods::pack_download::cancelled(Some(&state.import_cancel))?;
     prepare_imported_launch(state, profile, app).await?;
     tracing::info!(seconds = started.elapsed().as_secs_f64(), archives_phase = "audit_and_launch_state", "Modpack registration phase completed");
@@ -2414,6 +2562,10 @@ pub fn instance_import_mrpack_core<'a>(
             }
         }).buffer_unordered(8).collect::<Vec<_>>().await;
         for file in resolved { if let Some(file) = file? { manifest.files.push(file); } }
+    }
+    let removed_manifest_duplicates = normalize_mrpack_files(&mut manifest.files)?;
+    if removed_manifest_duplicates > 0 {
+        tracing::info!(removed = removed_manifest_duplicates, "Repeated Modrinth manifest entries normalized");
     }
     pack::atomic_write(&instance_dir.join(".luxmc/source-modrinth.index.json"), &serde_json::to_vec(&manifest)?).await?;
     let mut paths = std::collections::HashSet::new();
@@ -4101,6 +4253,53 @@ mod modpack_integrity_tests {
         }
     }
 
+    #[test]
+    fn identical_modrinth_manifest_paths_are_downloaded_once() {
+        let bytes = b"same mod archive";
+        let mut files = vec![entry("mods/example.jar", bytes), entry("mods/EXAMPLE.jar", bytes)];
+
+        assert_eq!(normalize_mrpack_files(&mut files).unwrap(), 1);
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "mods/example.jar");
+    }
+
+    #[test]
+    fn conflicting_modrinth_mod_paths_get_distinct_names_for_version_repair() {
+        let mut files = vec![entry("mods/example.jar", b"older archive"), entry("mods/example.jar", b"newer archive")];
+
+        assert_eq!(normalize_mrpack_files(&mut files).unwrap(), 0);
+        assert_eq!(files.len(), 2);
+        assert_ne!(files[0].path, files[1].path);
+        assert!(files.iter().all(|file| file.path.starts_with("mods/") && file.path.ends_with(".jar")));
+    }
+
+    #[test]
+    fn conflicting_non_modrinth_paths_are_rejected() {
+        let mut files = vec![entry("config/example.json", b"first"), entry("config/example.json", b"second")];
+
+        assert!(normalize_mrpack_files(&mut files).is_err());
+    }
+
+    #[test]
+    fn duplicate_curseforge_ids_are_collapsed_and_colliding_names_are_preserved() {
+        let mut files = vec![
+            CfFile { project_id: 1, file_id: 10 },
+            CfFile { project_id: 1, file_id: 10 },
+            CfFile { project_id: 2, file_id: 20 },
+        ];
+        assert_eq!(deduplicate_curseforge_files(&mut files).unwrap(), 1);
+
+        let info = |id, mod_id| crate::core::mods::curseforge::CurseForgeFileInfo {
+            id, mod_id, file_name: "shared.jar".into(), download_url: None, size: None, sha1: None,
+        };
+        let names = unique_curseforge_file_names(
+            &files,
+            [(10, info(10, 1)), (20, info(20, 2))].into_iter().collect(),
+        );
+        assert_eq!(names.len(), 2);
+        assert_ne!(names[&10].file_name, names[&20].file_name);
+    }
+
     #[tokio::test]
     async fn repair_does_not_skip_integrity_for_populated_mods_directory() {
         let root = root();
@@ -4114,7 +4313,7 @@ mod modpack_integrity_tests {
         })).unwrap();
         assert!(heal_modpack(&AppState::default(), &profile).await.is_err());
         assert_eq!(std::fs::read_dir(root.join("mods")).unwrap().count(), 6);
-        std::fs::remove_dir_all(root).unwrap();
+        std::fs::remove_dir_all(&root).unwrap();
     }
 
     #[tokio::test]

@@ -134,12 +134,7 @@ impl LocalServerManager {
     pub async fn player_details(&self, id: &str) -> AppResult<serde_json::Value> {
         let directory = self.directory(id).await?;
         let current = {
-            self.runtime
-                .lock()
-                .unwrap_or_else(|error| error.into_inner())
-                .as_ref()
-                .filter(|runtime| runtime.snapshot(u64::MAX).id == id)
-                .cloned()
+            self.runtime_for(id)
         };
         let players = if let Some(runtime) = current {
             runtime.snapshot(u64::MAX).players

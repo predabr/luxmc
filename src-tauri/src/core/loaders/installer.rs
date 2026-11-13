@@ -15,7 +15,7 @@ pub async fn run(http: &reqwest::Client, installer: &Path, data_dir: &Path, mc_v
     let major = crate::core::minecraft::detect_java_major_from_version_id(mc_version);
     let java_future=async {
         #[cfg(target_os = "linux")]
-        {tokio::time::timeout(std::time::Duration::from_secs(300), super::installer_java::ensure(http, data_dir, major)).await.map_err(|_| AppError::InvalidState("Download do Java de instalação excedeu 5 minutos".into()))?}
+        {tokio::time::timeout(std::time::Duration::from_secs(300), super::installer_java::ensure(http, data_dir, major)).await.map_err(|_| AppError::InvalidState("Download do Java de instalaÃ§Ã£o excedeu 5 minutos".into()))?}
         #[cfg(not(target_os = "linux"))]
         {crate::core::java::JavaRuntimeManager::new(http.clone(), data_dir.to_owned()).ensure_java(major).await}
     };
@@ -66,8 +66,8 @@ async fn prefetch(http:&reqwest::Client,data_dir:&Path,profile:Option<&serde_jso
         jobs.push((data_dir.join("libraries").join(path),address.to_owned(),artifact["size"].as_u64().unwrap_or(0),artifact["sha1"].as_str().unwrap_or("").to_owned()));
     }
     futures_util::stream::iter(jobs.into_iter().map(|(path,url,size,sha1)|async move {
-        if let Err(error)=crate::core::downloader::ensure_artifact(http,&path,&url,size,&sha1).await{tracing::warn!(%error,"Biblioteca de instalação será tentada pelo instalador oficial");}
-    })).buffer_unordered(6).for_each(|_|async{}).await;
+        if let Err(error)=crate::core::downloader::ensure_artifact(http,&path,&url,size,&sha1).await{tracing::warn!(%error,"Biblioteca de instalaÃ§Ã£o serÃ¡ tentada pelo instalador oficial");}
+    })).buffer_unordered(12).for_each(|_|async{}).await;
 }
 
 async fn install_legacy_client(
@@ -100,7 +100,7 @@ async fn install_legacy_client(
             .any(|p| p.contains("..") || p.contains('/') || p.contains('\\'));
     if unsafe_coords {
         return Err(AppError::InvalidState(format!(
-            "install_profile.json com coordenadas Maven inválidas: {coords}"
+            "install_profile.json com coordenadas Maven invÃ¡lidas: {coords}"
         )));
     }
 

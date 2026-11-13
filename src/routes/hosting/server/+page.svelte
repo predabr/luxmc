@@ -1,5 +1,9 @@
 <script lang="ts">
-    import LocalServerPanel from '$lib/components/friends/LocalServerPanel.svelte';
+	import ServerWorkspace from '$lib/components/server/ServerWorkspace.svelte';
 </script>
 
-<LocalServerPanel />
+<svelte:head><title>Gerenciador de servidor · Luxmc</title></svelte:head>
+
+<div class="mx-auto h-[calc(100dvh-3rem)] w-full max-w-[1400px] pb-2">
+	<ServerWorkspace />
+</div>

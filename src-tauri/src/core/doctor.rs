@@ -36,6 +36,19 @@ pub fn analyze_crash_text(log: &str) -> CrashDiagnosis {
         return CrashDiagnosis::default();
     }
 
+    if trimmed.to_ascii_lowercase().contains("rejected their server side version number during listping") {
+        return CrashDiagnosis {
+            has_error: true,
+            title: "Incompatibilidade de canais de mods".to_string(),
+            message: "Durante a consulta a um servidor, canais de rede de mods foram recusados. Isso costuma indicar versões diferentes de Minecraft, loader ou mods entre cliente e servidor, mas essa mensagem sozinha não identifica o mod responsável nem confirma a causa do encerramento.".to_string(),
+            solution: "Compare a versão do Minecraft, o loader e as versões dos mods/modpack no cliente e no servidor. Se isso ocorreu apenas ao atualizar a lista de servidores, tente entrar novamente; não remova mods aleatoriamente. Se o jogo continuar fechando, confira o latest.log e o relatório de crash.".to_string(),
+            category: "network_mod_mismatch".to_string(),
+            offending_mod: None,
+            recommended_action: Some("open_folder".to_string()),
+            log_snippet: extract_snippet(trimmed, "rejected their server side version number"),
+        };
+    }
+
     for (needle, title, message, solution, category) in [
         ("Invalid session", "Sessão de jogo inválida", "O servidor solicitou uma sessão oficial e a sessão enviada não foi aceita.", "Em uma sala privada Luxmc, atualize e reinicie o Minecraft dos dois participantes. Em servidores oficiais, entre novamente com a conta Microsoft que possui o jogo.", "authentication"),
         ("Client shutdown from post-main", "O jogo terminou, mas o processo não fechou", "O watchdog detectou threads ainda abertas depois do encerramento do Minecraft.", "Atualize o launcher e os mods. Abra o relatório de threads para identificar o componente que mantém o processo ativo.", "shutdown"),
@@ -266,114 +279,6 @@ fn extract_snippet(log: &str, target: &str) -> Option<String> {
     let start = idx.saturating_sub(2);
     let end = std::cmp::min(lines.len(), idx + 6);
     Some(lines[start..end].join("\n"))
-}
-
-pub fn mod_compatibility_warnings(
-    mods_dir: &Path,
-    mc_version: &str,
-    loader: &str,
-) -> Vec<String> {
-    let mut warnings = Vec::new();
-    if mc_version.trim().is_empty() {
-        return warnings;
-    }
-    let instance_version = mc_version.trim().to_ascii_lowercase();
-    let instance_loader = match loader.trim().to_ascii_lowercase().as_str() { "legacyfabric" | "babric" => "fabric".to_owned(), value => value.to_owned() };
-
-    let incompatible: &[&str] = match instance_loader.as_str() {
-        "forge" => &["fabric", "quilt", "neoforge"],
-        "fabric" => &["forge", "quilt"],
-        "quilt" => &["forge", "neoforge"],
-        "neoforge" => &["fabric", "quilt"],
-        _ => &[],
-    };
-
-    let re_mc = Regex::new(r"(?i)(?:^|[-_+ .])(?:mc|minecraft)[-_ ]?(\d{1,2}\.\d{1,2}(?:\.\d{1,2})?)(?:[-_+ .]|$)|^optifine[-_](\d{1,2}\.\d{1,2}(?:\.\d{1,2})?)[-_]|(?:forge|fabric|quilt|neoforge)[-_](\d{1,2}\.\d{1,2}(?:\.\d{1,2})?)[-_]v\d").unwrap();
-
-    let Ok(entries) = std::fs::read_dir(mods_dir) else {
-        return warnings;
-    };
-    for entry in entries.flatten() {
-        if warnings.len() >= 4 {
-            break;
-        }
-        let name = entry.file_name().to_string_lossy().to_string();
-        let lower = name.to_ascii_lowercase();
-        if lower.ends_with(".disabled") {
-            continue;
-        }
-        if !lower.ends_with(".jar") {
-            continue;
-        }
-
-        let metadata = crate::core::mods::validation::mod_metadata(&entry.path());
-        let file_version = if metadata.as_ref().is_some_and(|metadata| metadata.minecraft_declared) { None } else {
-            re_mc.captures(&lower).and_then(|caps| (1..=3).find_map(|index| caps.get(index))).map(|value| value.as_str().to_string())
-        };
-
-        if let Some(found) = file_version {
-            if found != instance_version && !instance_version.starts_with(&format!("{found}.")) {
-                warnings.push(format!(
-                    "\"{name}\" parece ser para o Minecraft {found}, mas esta instância roda {instance_version}."
-                ));
-                continue;
-            }
-        }
-
-        if let Some(metadata) = metadata.filter(|metadata| !metadata.loaders.is_empty()) {
-            if !metadata.loaders.contains(&instance_loader) && !(instance_loader == "quilt" && metadata.loaders.contains("fabric")) && metadata.loaders.iter().all(|loader| incompatible.contains(&loader.as_str())) {
-                warnings.push(format!("\"{name}\" declara suporte a {}, mas esta instância usa {instance_loader}.", metadata.loaders.into_iter().collect::<Vec<_>>().join(" / ")));
-            }
-            continue;
-        }
-        let stripped = lower.replace("neoforge", "");
-        let has_own_loader = match instance_loader.as_str() {
-            "forge" => stripped.contains("forge"),
-            "fabric" => lower.contains("fabric"),
-            "quilt" => lower.contains("quilt"),
-            "neoforge" => lower.contains("neoforge"),
-            _ => true,
-        };
-        if !has_own_loader {
-            if let Some(foreign) = incompatible.iter().find(|l| lower.contains(**l)) {
-                warnings.push(format!(
-                    "\"{name}\" é um mod para {foreign}, mas esta instância usa {instance_loader}."
-                ));
-            }
-        }
-    }
-    warnings
-}
-
-#[cfg(test)]
-mod compatibility_filename_tests {
-    use super::*;
-    #[test]
-    fn declared_compatibility_takes_precedence_over_filename_hints() {
-        use std::io::Write;
-        let directory = tempfile::tempdir().unwrap();
-        for name in ["dynamic-fps-3.11.4+minecraft-1.21.0-fabric.jar", "reeses-sodium-options-fabric-1.8.3+mc1.21.4.jar", "forge-config-fabric-mc1.20.1.jar"] {
-            let file = std::fs::File::create(directory.path().join(name)).unwrap();
-            let mut archive = zip::ZipWriter::new(file);
-            archive.start_file("fabric.mod.json", zip::write::FileOptions::default()).unwrap();
-            archive.write_all(br#"{"id":"example","depends":{"minecraft":">=1.21 <=1.21.4"}}"#).unwrap();
-            archive.finish().unwrap();
-        }
-        assert!(mod_compatibility_warnings(directory.path(), "1.21.1", "fabric").is_empty());
-        assert!(mod_compatibility_warnings(directory.path(), "1.21.1", "quilt").is_empty());
-        assert_eq!(mod_compatibility_warnings(directory.path(), "1.21.1", "forge").len(), 3);
-    }
-    #[test]
-    fn mod_versions_are_not_minecraft_versions() {
-        let directory = tempfile::tempdir().unwrap();
-        for name in ["BetterThirdPerson-Fabric-1.21-1.9.0.jar", "citresewn-1.2.2+1.21.jar", "Cobblemon-fabric-1.8.1+1.21.1.jar", "emi-1.1.24+1.21.1+fabric.jar"] { std::fs::write(directory.path().join(name), b"fixture").unwrap(); }
-        assert!(mod_compatibility_warnings(directory.path(), "1.21.1", "fabric").is_empty());
-        assert!(mod_compatibility_warnings(directory.path(), "1.21.1", "quilt").is_empty());
-        std::fs::write(directory.path().join("example-mc1.19.2-fabric.jar"), b"fixture").unwrap();
-        let warnings = mod_compatibility_warnings(directory.path(), "1.21.1", "fabric");
-        assert_eq!(warnings.len(), 1);
-        assert!(warnings[0].contains("1.19.2"));
-    }
 }
 
 pub fn diagnose_instance(game_dir: &Path) -> CrashDiagnosis {
@@ -644,38 +549,13 @@ mod tests {
         assert!(diag.offending_mod.as_deref().unwrap().contains("Sexmod"));
     }
 
-    fn write_mod(dir: &Path, name: &str) {
-        std::fs::write(dir.join(name), b"jar").unwrap();
-    }
-
     #[test]
-    fn test_mod_compatibility_warnings() {
-        let dir = std::env::temp_dir().join(format!("luxmc_compat_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        write_mod(&dir, "Jenny-Mod-Forge-1.12.2-v1.9.0.jar");
-        write_mod(&dir, "jei-1.12-4.8.0.1.jar");
-        write_mod(&dir, "sodium-0.5.8+mc1.12.2-fabric.jar");
-        write_mod(&dir, "OptiFine_1.12.2_HD_U_G5.jar");
-
-        let warnings = mod_compatibility_warnings(&dir, "1.12", "forge");
-        let joined = warnings.join("\n");
-        assert!(joined.contains("Jenny-Mod-Forge-1.12.2-v1.9.0.jar"), "{joined}");
-        assert!(joined.contains("sodium"), "{joined}");
-        assert!(joined.contains("OptiFine"), "{joined}");
-        assert!(!joined.contains("jei-1.12"), "{joined}");
-
-        let ok = mod_compatibility_warnings(&dir, "1.12.2", "forge");
-        let joined_ok = ok.join("\n");
-        assert!(!joined_ok.contains("Jenny-Mod-Forge-1.12.2-v1.9.0.jar"), "{joined_ok}");
-        assert!(!joined_ok.contains("OptiFine"), "{joined_ok}");
-        assert!(joined_ok.contains("sodium"), "{joined_ok}");
-
-        let wrong_loader = mod_compatibility_warnings(&dir, "1.12.2", "fabric");
-        let joined_loader = wrong_loader.join("\n");
-        assert!(joined_loader.contains("Jenny-Mod-Forge-1.12.2-v1.9.0.jar"), "{joined_loader}");
-        assert!(!joined_loader.contains("sodium"), "{joined_loader}");
-
-        let _ = std::fs::remove_dir_all(&dir);
+    fn test_diagnose_mod_network_channel_rejection_without_guessing_a_mod() {
+        let log = "Channels [ponder:main,tacz:handshake] rejected their server side version number during listping";
+        let diag = analyze_crash_text(log);
+        assert!(diag.has_error);
+        assert_eq!(diag.category, "network_mod_mismatch");
+        assert_eq!(diag.offending_mod, None);
+        assert_eq!(diag.recommended_action.as_deref(), Some("open_folder"));
     }
 }

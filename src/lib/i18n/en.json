@@ -28,6 +28,13 @@
     "enabled": "Enabled",
     "disabled": "Disabled"
   },
+  "instanceModsView": {
+    "label": "Mod view mode",
+    "list": "List",
+    "cards": "Cards",
+    "circles": "Circular icons",
+    "triangles": "Triangular icons"
+  },
   "showcaseCatalogue": {
     "type": "Find a favourite in the catalogue",
     "results": "Favourite search results",
@@ -146,7 +153,7 @@
   "app": {
     "name": "Luxmc",
     "tagline": "Minecraft launcher for Windows and Linux",
-    "version": "v4.0.1",
+    "version": "v4.1.0",
     "pressForShortcuts": "Press {{key}} for shortcuts",
     "systemOnline": "System Online",
     "navigation": "Navigation",
@@ -3309,6 +3316,11 @@
         "message": "No server accepted connections at the selected address and port.",
         "solution": "Open the world to LAN again, wait for the room to refresh and verify the host is connected."
       },
+      "network_mod_mismatch": {
+        "title": "Mod network channel mismatch",
+        "message": "A server rejected mod network channels during a server-list ping. This often means the client and server differ in Minecraft, loader or mod versions, but this message alone cannot identify the responsible mod or confirm the cause of the game exit.",
+        "solution": "Compare the Minecraft version, loader and mod/modpack versions on the client and server. If this happened only while refreshing the server list, try joining again; do not remove mods at random. If the game keeps closing, inspect latest.log and the crash report."
+      },
       "mod_conflict": {
         "title": "Mod conflict",
         "message": "A conflict involving {{mod}} prevented the game from loading.",
@@ -3374,7 +3386,9 @@
     "cancelling": "Cancelling…",
     "complete": "Installation complete",
     "failed": "Installation failed",
-    "open": "Open instance"
+    "open": "Open instance",
+    "expandProgress": "Expand download progress",
+    "collapseProgress": "Collapse download progress"
   },
   "loginDesign": {
     "customizerHint": "After signing in, manage your skins and capes in the launcher customizer.",
@@ -3566,7 +3580,18 @@
     "together": "With friends",
     "technology": "Build & automate",
     "downloads": "downloads",
-    "installPack": "Install"
+    "installPack": "Install",
+    "closeFilters": "Close filters",
+    "views": {
+      "label": "Display mode",
+      "grid": "Normal",
+      "compact": "Minimal",
+      "large": "Large",
+      "interactive": "Interactive — reorder cards",
+      "shapeLabel": "Card presentation",
+      "square": "Square covers",
+      "row": "List rows"
+    }
   },
   "presenceDesign": {
     "players": "{{count}} players",
@@ -3855,6 +3880,29 @@
     "joinTitle": "Join the server",
     "storage": "Local servers and worlds",
     "sharing": "Connecting over P2P…"
+  },
+  "publicAccess": {
+    "title": "Internet access",
+    "description": "Let friends connect to this Minecraft server using any compatible Java launcher.",
+    "hostRequirement": "Your friends join as players, not hosts. The world stays on your PC; keep Luxmc/the server and your internet connection running while they play.",
+    "scope": "Authorization changes only this server's TCP port in the firewall and asks the router to forward that same port. On Windows, the rule applies only to networks marked Private. Luxmc attempts to remove the rules when the server stops; the system may ask for authorization again. No other ports are opened.",
+    "enable": "Enable external access",
+    "disable": "Disable external access",
+    "confirmTitle": "Authorize external access?",
+    "confirmText": "If running, the server will restart to listen for network connections; if stopped, the change applies on its next start. Your system will ask permission for a firewall rule limited to the Minecraft port, and Luxmc will ask the router to forward that port using UPnP.",
+    "limits": "Internet access is not guaranteed: the router must support UPnP and the ISP must not block connections or use CGNAT. Keep the PC on. The address may change and does not include a domain.",
+    "cancel": "Cancel",
+    "confirm": "Authorize and enable",
+    "copy": "Copy address",
+    "copied": "Copied",
+    "clientHelp": "Share this address with your friends. They should use Multiplayer → Direct Connection, a valid Minecraft: Java Edition account, and the same game version/modpack. They do not need Luxmc. Test from another network, not the same Wi-Fi.",
+    "whitelistHelp": "The whitelist is enabled. Add each friend's exact Minecraft name in the Players tab before they connect; others will be rejected.",
+    "noAddress": "The router forwarded the port but did not provide a public IP. Check the router and test from another network.",
+    "portHelp": "Start this server once and stop it to select a port. Then enable external access.",
+    "startFirst": "Start the server and wait until it is ready. Enabling external access will restart it to apply the setting.",
+    "needsReenable": "Authorization is not active in this session. Enable it again to recreate the firewall rule and temporary router forwarding.",
+    "cgnat": "The router reported a private or shared address. This usually indicates CGNAT or another router upstream; connections from outside may not work.",
+    "renewError": "Failed to renew UPnP forwarding: {{error}}"
   },
   "serverPanel": {
     "createPlayitTunnel": "Create tunnel on Playit",

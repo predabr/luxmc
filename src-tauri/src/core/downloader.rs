@@ -11,7 +11,7 @@ use crate::core::launcher::lib_path_from_name;
 use crate::core::minecraft::{lib_url_from_name, DownloadEntry, Library, VersionDetail};
 use crate::error::{AppError, AppResult};
 
-const MAX_RETRIES: u32 = 3;
+const MAX_RETRIES: u32 = 5;
 const RETRY_BASE_DELAY_MS: u64 = 1000;
 const DEFAULT_CONCURRENT_DOWNLOADS: usize = 24;
 static MAX_CONCURRENT_DOWNLOADS: std::sync::atomic::AtomicUsize =
@@ -802,6 +802,23 @@ impl DownloadManager {
     }
 }
 
+fn mirror_candidates(url: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    if let Some(rest) = url.strip_prefix("https://libraries.minecraft.net/") {
+        out.push(format!("https://bmclapi2.bangbang93.com/libraries/{rest}"));
+    }
+    if let Some(rest) = url.strip_prefix("https://resources.download.minecraft.net/") {
+        out.push(format!("https://bmclapi2.bangbang93.com/assets/{rest}"));
+    }
+    if let Some(rest) = url.strip_prefix("https://piston-meta.mojang.com/") {
+        out.push(format!("https://bmclapi2.bangbang93.com/{rest}"));
+    }
+    if let Some(rest) = url.strip_prefix("https://piston-data.mojang.com/") {
+        out.push(format!("https://bmclapi2.bangbang93.com/{rest}"));
+    }
+    out
+}
+
 fn partial_path(path: &PathBuf, url: &str) -> PathBuf {
     let digest = xxhash_rust::xxh3::xxh3_64(url.as_bytes());
     let mut name = path.as_os_str().to_os_string();
@@ -896,12 +913,22 @@ async fn download_file_once(
 
     let mut resp = send(&entry.url).send().await;
 
-    if let Ok(ref r) = resp {
-        if r.status() == reqwest::StatusCode::NOT_FOUND && entry.url.starts_with("https://libraries.minecraft.net/") {
-            let mirror_url = entry.url.replace("https://libraries.minecraft.net/", "https://bmclapi2.bangbang93.com/libraries/");
+    // Mojang CDN pode falhar por DNS/limite/5xx: tenta espelhos oficiais-espelho antes de desistir.
+    let degraded = match &resp {
+        Ok(r) => {
+            r.status() == reqwest::StatusCode::NOT_FOUND
+                || r.status() == reqwest::StatusCode::TOO_MANY_REQUESTS
+                || r.status().is_server_error()
+        }
+        Err(_) => true,
+    };
+    if degraded {
+        for mirror_url in mirror_candidates(&entry.url) {
+            DownloadManager::emit_log(mgr, &format!("Tentando espelho para {}: {}", label, mirror_url));
             if let Ok(m_resp) = send(&mirror_url).send().await {
-                if m_resp.status().is_success() {
+                if m_resp.status().is_success() || m_resp.status() == reqwest::StatusCode::PARTIAL_CONTENT {
                     resp = Ok(m_resp);
+                    break;
                 }
             }
         }

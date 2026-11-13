@@ -10,6 +10,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	import { pageMotion } from "$lib/actions/pageMotion";
 	import SourceBadge from "./SourceBadge.svelte";
 	import { projectCompatibility } from "$lib/utils/projectCompatibility";
+	import { favorites } from "$lib/stores/favorites.svelte";
 	import type { ModSearchResultItem, ModProjectDetails, ModVersion } from "$lib/api";
 
 	let {
@@ -25,6 +26,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 		onInstall,
 		onOpenGuide,
 		onInstallVersion,
+		onToggleFavorite,
 		children
 	}: {
 		item: ModSearchResultItem;
@@ -39,6 +41,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 		onInstall: () => void;
 		onOpenGuide: () => void;
 		onInstallVersion: (versionId: string) => void;
+		onToggleFavorite?: () => void;
 		children: import("svelte").Snippet;
 	} = $props();
 
@@ -59,6 +62,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	}
 
 	const isModpack = $derived(contentType === "Modpack");
+	const isFavorite = $derived(favorites.has(item.source, item.sourceId));
 	const compatibility = $derived(projectCompatibility(item, details, versions));
 	const effectiveLoaders = $derived(compatibility.loaders);
 	const effectiveVersions = $derived(compatibility.gameVersions);
@@ -85,7 +89,6 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 
 	<!-- Hero Card -->
 	<div class="product-header bg-bg-elevated border border-fg/10 rounded-3xl p-6 shadow-xl relative overflow-hidden shrink-0">
-		<div class="absolute -right-16 -top-16 w-64 h-64 bg-[radial-gradient(circle_at_center,rgb(var(--brand-400)/0.1),transparent_70%)] rounded-full pointer-events-none"></div>
 		<div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10 w-full">
 			<div class="flex items-start sm:items-center gap-5 min-w-0 flex-1">
 				<div class="w-20 h-20 shrink-0 rounded-2xl bg-bg-subtle border border-fg/15 p-1 overflow-hidden shadow-2xl flex items-center justify-center">
@@ -118,6 +121,18 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 				</div>
 			</div>
 			<div class="shrink-0 flex items-center gap-3 w-full lg:w-auto justify-end mt-2 lg:mt-0">
+				{#if onToggleFavorite}
+					<button
+						type="button"
+						class="detail-favorite"
+						aria-pressed={isFavorite}
+						aria-label={isFavorite ? `Remover “${item.title}” dos favoritos` : `Adicionar “${item.title}” aos favoritos`}
+						onclick={() => onToggleFavorite?.()}
+					>
+						<Heart class="h-5 w-5 {isFavorite ? 'filled-heart' : ''}" />
+						<span>{isFavorite ? 'Nos favoritos' : 'Favoritar'}</span>
+					</button>
+				{/if}
 				<button
 					type="button"
 					class={launcherButton({ variant: "secondary", size: "lg", class: "w-full lg:w-auto from-brand-400 to-brand-400 hover:from-brand-400 hover:to-brand-400 flex items-center justify-center gap-2.5 disabled:opacity-50 shrink-0" })}
@@ -330,3 +345,19 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 		{/if}
 	</div>
 </div>
+
+<style>
+	.detail-favorite {
+		display: inline-flex; align-items: center; gap: 9px;
+		padding: 10px 16px; border-radius: 14px;
+		border: 1px solid rgb(var(--border));
+		background: rgb(var(--fg) / .04); color: rgb(var(--fg-muted));
+		font-size: 13px; font-weight: 600;
+		transition: color 150ms ease, border-color 150ms ease, background-color 150ms ease;
+	}
+	.detail-favorite:hover { color: rgb(var(--danger)); border-color: rgb(var(--danger) / .4); background: rgb(var(--danger) / .06); }
+	.detail-favorite:focus-visible { outline: 2px solid rgb(var(--brand-action)); outline-offset: 2px; }
+	.detail-favorite :global(.filled-heart) { fill: rgb(var(--danger)); color: rgb(var(--danger)); }
+	.detail-favorite[aria-pressed='true'] { color: rgb(var(--danger)); border-color: rgb(var(--danger) / .35); }
+	@media (prefers-reduced-motion: reduce) { .detail-favorite { transition: none; } }
+</style>

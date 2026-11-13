@@ -140,7 +140,7 @@ async fn fetch_versions_from(http: &reqwest::Client, mc_version: &str, promotion
     match metadata {
         Ok(text) => {
             if !text.contains("<metadata") || !(text.contains("</metadata>") || text.contains("<metadata/>") || text.contains("<metadata />")) {
-                if versions.is_empty() { return Err(AppError::InvalidState("O serviço do Forge retornou metadados inválidos. Tente novamente.".into())); }
+                if versions.is_empty() { return Err(AppError::InvalidState("O serviÃ§o do Forge retornou metadados invÃ¡lidos. Tente novamente.".into())); }
                 return Ok(versions);
             }
             for forge_ver in versions_from_metadata(&text, mc_version) {
@@ -341,19 +341,37 @@ pub async fn prepare_forge(
             find_installed_json(&versions_dir, mc_version, &chosen_version, &candidate_ids).await;
     }
 
-    let installer_bytes = tokio::fs::read(&installer_dest).await?;
-    let extraction_root = libraries_dir.to_path_buf();
-    let installer_bytes = tokio::task::spawn_blocking(move || -> AppResult<Vec<u8>> {
-        extract_installer_maven_files(&installer_bytes, &extraction_root)?;
-        Ok(installer_bytes)
-    }).await.map_err(|error| AppError::Internal(error.to_string()))??;
-
-    let version_json_str = if let Some(ref p) = installed_json_path {
-        tokio::fs::read_to_string(p).await.unwrap_or_else(|_| {
-            extract_version_json_from_bytes(&installer_bytes).unwrap_or_default()
-        })
+    let mut installer_bytes = if already_installed {
+        None
     } else {
-        extract_version_json_from_bytes(&installer_bytes)?
+        let bytes = tokio::fs::read(&installer_dest).await?;
+        let extraction_root = libraries_dir.to_path_buf();
+        let bytes = tokio::task::spawn_blocking(move || -> AppResult<Vec<u8>> {
+            extract_installer_maven_files(&bytes, &extraction_root)?;
+            Ok(bytes)
+        })
+        .await
+        .map_err(|error| AppError::Internal(error.to_string()))??;
+        Some(bytes)
+    };
+
+    let version_json_str = if let Some(ref path) = installed_json_path {
+        match tokio::fs::read_to_string(path).await {
+            Ok(contents) => contents,
+            Err(_) => {
+                let bytes = match installer_bytes.take() {
+                    Some(bytes) => bytes,
+                    None => tokio::fs::read(&installer_dest).await?,
+                };
+                extract_version_json_from_bytes(&bytes)?
+            }
+        }
+    } else {
+        let bytes = match installer_bytes.take() {
+            Some(bytes) => bytes,
+            None => tokio::fs::read(&installer_dest).await?,
+        };
+        extract_version_json_from_bytes(&bytes)?
     };
 
     let version_data: ForgeVersionJson = serde_json::from_str(&version_json_str)
@@ -427,7 +445,7 @@ pub async fn prepare_forge(
     futures_util::stream::iter(downloads).map(|(dest,urls,size,sha1)| {
         let http = http.clone();
         async move { crate::core::downloader::ensure_artifact_any(&http, &dest, &urls, size, &sha1).await }
-    }).buffered(6).try_collect::<Vec<_>>().await?;
+    }).buffer_unordered(crate::core::downloader::max_concurrent_downloads().min(24)).try_collect::<Vec<_>>().await?;
 
     if !universal_dest.exists() {
         let universal_url = format!("{}/{}", FORGE_MAVEN, universal_rel);
@@ -607,7 +625,7 @@ async fn get_latest_loader_version(http: &reqwest::Client, mc_version: &str) -> 
         return Ok(first.id.clone());
     }
 
-    Err(AppError::NotFound(format!("Forge indisponível para Minecraft {mc_version}")))
+    Err(AppError::NotFound(format!("Forge indisponÃ­vel para Minecraft {mc_version}")))
 }
 
 #[cfg(test)]

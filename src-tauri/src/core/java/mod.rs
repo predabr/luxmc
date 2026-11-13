@@ -201,6 +201,14 @@ impl JavaRuntimeManager {
         self.find_system_java(major)
     }
 
+    pub fn locate_existing(&self, major: u32) -> Option<PathBuf> {
+        let bin = self.java_bin(major);
+        if bin.exists() {
+            return Some(bin);
+        }
+        self.find_system_java(major).ok()
+    }
+
     fn find_system_java(&self, major: u32) -> AppResult<PathBuf> {
         let check_binary = verified_java;
 

@@ -77,7 +77,10 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     .instance-hero { border-radius:28px; border:1px solid rgb(var(--border-strong)); background:rgb(var(--bg-elevated)/.96); box-shadow:0 16px 48px rgb(var(--shadow-color)/.12); }
     .instance-hero h1 { line-height:1.08; text-wrap:balance; overflow-wrap:anywhere; }
     .instance-photo { border-bottom:1px solid rgb(var(--border)/.35); }
-    .instance-hero :global(button) { border-radius:14px; }
+    .instance-hero :global(button) { border-radius:10px; }
+	.instance-hero :global(.launcher-button--secondary), .instance-hero :global(.launcher-button--primary) { border-width:1px; }
+	.instance-hero :global(.launcher-button--secondary):not(:hover) { background-color: rgb(var(--fg) / .07); color: rgb(var(--fg)); }
+	.instance-hero :global(.launcher-button--secondary):hover { background-color: rgb(var(--fg) / .12); }
     .instance-photo > img { transform: scale(1.06) translate3d(calc(var(--scene-x, 0) * -14px),calc(var(--scene-y, 0) * -10px),0); transition: transform 650ms cubic-bezier(.2,.7,.2,1); }
     .instance-photo.logo-cover > img { transform:none; transition:none; }
     @media (prefers-reduced-motion: reduce) { .instance-photo > img { transform: none; transition: none; } }

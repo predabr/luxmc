@@ -1,19 +1,23 @@
 <script lang="ts">
-	import { Flame } from "lucide-svelte";
+	import ProviderLogo from "./ProviderLogo.svelte";
 
 	let { source, class: klass = "" }: { source: string; class?: string } = $props();
 </script>
 
 {#if source === "modrinth"}
-	<div class="h-6 w-6 rounded-full bg-bg-elevated border border-fg/10 flex items-center justify-center shadow-md {klass}" title="Modrinth">
-		<span class="font-black text-[11px] text-success">m</span>
+	<div class="source-badge h-6 w-6 rounded-full bg-bg-elevated border border-fg/10 flex items-center justify-center shadow-md {klass}" title="Modrinth">
+		<ProviderLogo source={source} class="h-3.5 w-3.5 text-success" />
 	</div>
 {:else if source === "curseforge"}
-	<div class="h-6 w-6 rounded-full bg-bg-elevated border border-fg/10 flex items-center justify-center shadow-md {klass}" title="CurseForge">
-		<Flame class="w-3 h-3 text-danger" />
+	<div class="source-badge h-6 w-6 rounded-full bg-bg-elevated border border-fg/10 flex items-center justify-center shadow-md {klass}" title="CurseForge">
+		<ProviderLogo source={source} class="h-3.5 w-3.5 text-warning" />
 	</div>
 {:else}
-	<div class="h-6 w-6 rounded-full bg-bg-elevated border border-fg/10 flex items-center justify-center shadow-md {klass}" title={source}>
+	<div class="source-badge h-6 w-6 rounded-full bg-bg-elevated border border-fg/10 flex items-center justify-center shadow-md {klass}" title={source}>
 		<span class="font-black text-[11px] text-brand-400">?</span>
 	</div>
 {/if}
+
+<style>
+	.source-badge { flex: none; }
+</style>

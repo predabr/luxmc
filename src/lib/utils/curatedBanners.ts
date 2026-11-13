@@ -91,8 +91,8 @@ export function catalogBannerCandidates(item: { title: string; slug: string; sou
 	const candidates: string[] = [];
 	const landscape = projectLandscape(item);
 	if (landscape) candidates.push(landscape);
-	for (const url of item.galleryUrls || []) if (url !== item.iconUrl && isProjectArtwork({ url }) && !candidates.includes(url)) candidates.push(url);
-	if (item.bannerUrl && item.bannerUrl !== item.iconUrl && isProjectArtwork({ url: item.bannerUrl }) && !candidates.includes(item.bannerUrl)) candidates.push(item.bannerUrl);
+	for (const url of item.galleryUrls || []) if (url !== item.iconUrl && !isCatalogIcon(url) && isProjectArtwork({ url }) && !candidates.includes(url)) candidates.push(url);
+	if (item.bannerUrl && item.bannerUrl !== item.iconUrl && !isCatalogIcon(item.bannerUrl) && isProjectArtwork({ url: item.bannerUrl }) && !candidates.includes(item.bannerUrl)) candidates.push(item.bannerUrl);
 	if (item.iconUrl && isRenderableBanner(item.iconUrl) && !candidates.includes(item.iconUrl)) candidates.push(item.iconUrl);
 	return candidates;
 }

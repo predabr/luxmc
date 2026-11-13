@@ -1,7 +1,7 @@
 use crate::error::{AppError, AppResult};
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::VecDeque,
+    collections::{HashMap, VecDeque},
     path::{Path, PathBuf},
     process::Stdio,
     sync::{
@@ -33,6 +33,7 @@ mod process_guard;
 #[cfg(test)]
 mod reform_tests;
 pub mod settings;
+pub mod telemetry;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -91,6 +92,7 @@ pub struct ServerState {
     pub forced_stop: bool,
     pub players: Vec<players::PlayerRecord>,
     pub history_complete: bool,
+    pub last_status: Option<crate::core::server::ServerStatus>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -98,6 +100,7 @@ pub struct ServerState {
 pub struct ServerOverview {
     pub servers: Vec<LocalServerConfig>,
     pub active: Option<ServerState>,
+    pub states: Vec<ServerState>,
     pub warnings: Vec<String>,
     pub icons: std::collections::BTreeMap<String, String>,
 }
@@ -121,6 +124,7 @@ struct Runtime {
     autosave_minutes: u16,
     control: Mutex<Option<control::Endpoint>>,
     startup_commands: Vec<String>,
+    java: Mutex<Option<PathBuf>>,
 }
 
 impl Runtime {
@@ -200,10 +204,12 @@ impl Runtime {
 pub struct LocalServerManager {
     root: PathBuf,
     http: reqwest::Client,
-    runtime: Mutex<Option<Arc<Runtime>>>,
+    runtimes: Mutex<HashMap<String, Arc<Runtime>>>,
     changes: tokio::sync::Mutex<()>,
     shutting_down: AtomicBool,
     content_jobs: AtomicUsize,
+    telemetry_cache: Mutex<HashMap<String, telemetry::TelemetryCache>>,
+    telemetry_sys: Mutex<sysinfo::System>,
 }
 
 pub(crate) struct ContentJob<'a>(&'a AtomicUsize);
@@ -286,7 +292,7 @@ fn validate_config(config: &LocalServerConfig) -> AppResult<()> {
     Ok(())
 }
 
-fn server_properties(previous: &str, port: u16, players: u16) -> String {
+fn server_properties(previous: &str, port: u16, players: u16, online_mode: bool) -> String {
     let overrides = [
         "server-ip",
         "server-port",
@@ -311,8 +317,21 @@ fn server_properties(previous: &str, port: u16, players: u16) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n");
-    result.push_str(&format!("\nserver-ip=127.0.0.1\nserver-port={port}\nmax-players={players}\nonline-mode=true\nprevent-proxy-connections=false\nenable-rcon=false\nenable-query=false\nenable-status=true\nlevel-name=world\n"));
+    result.push_str(&format!("\nserver-ip=\nserver-port={port}\nmax-players={players}\nonline-mode={online_mode}\nprevent-proxy-connections=false\nenable-rcon=false\nenable-query=false\nenable-status=true\nlevel-name=world\n"));
     result
+}
+
+async fn free_port_suggestion(desired: u16) -> Option<u16> {
+    let mut candidates = (25565..=25600u16)
+        .filter(|port| *port != desired)
+        .collect::<Vec<_>>();
+    candidates.sort_by_key(|port| (i32::from(*port) - i32::from(desired)).abs());
+    for port in candidates {
+        if tokio::net::TcpListener::bind(("0.0.0.0", port)).await.is_ok() {
+            return Some(port);
+        }
+    }
+    None
 }
 
 fn server_memory_arguments(major:u32, economy:bool)->Vec<&'static str> {
@@ -331,10 +350,12 @@ impl LocalServerManager {
         Arc::new(Self {
             root,
             http,
-            runtime: Mutex::new(None),
+            runtimes: Mutex::new(HashMap::new()),
             changes: tokio::sync::Mutex::new(()),
             shutting_down: AtomicBool::new(false),
             content_jobs: AtomicUsize::new(0),
+            telemetry_cache: Mutex::new(HashMap::new()),
+            telemetry_sys: Mutex::new(sysinfo::System::new()),
         })
     }
 
@@ -356,11 +377,40 @@ impl LocalServerManager {
     }
 
     pub fn has_active(&self) -> bool {
-        self.runtime
+        self.runtimes
             .lock()
             .unwrap_or_else(|error| error.into_inner())
-            .as_ref()
-            .is_some_and(|runtime| runtime.active())
+            .values()
+            .any(|runtime| runtime.active())
+    }
+
+    fn runtime_for(&self, id: &str) -> Option<Arc<Runtime>> {
+        self.runtimes
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .get(id)
+            .cloned()
+    }
+
+    fn active_runtime_for(&self, id: &str) -> Option<Arc<Runtime>> {
+        self.runtimes
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .get(id)
+            .filter(|runtime| runtime.active())
+            .cloned()
+    }
+
+    pub fn states(&self, after: u64) -> Vec<ServerState> {
+        let mut states = self
+            .runtimes
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .iter()
+            .map(|(id, runtime)| (id.clone(), runtime.snapshot(after)))
+            .collect::<Vec<_>>();
+        states.sort_by(|first, second| first.0.cmp(&second.0));
+        states.into_iter().map(|(_, state)| state).collect()
     }
 
     async fn root(&self) -> AppResult<PathBuf> {
@@ -460,15 +510,21 @@ impl LocalServerManager {
             warnings,
             icons,
             active: self.status(after),
+            states: self.states(after),
         })
     }
 
     pub fn status(&self, after: u64) -> Option<ServerState> {
-        self.runtime
+        let runtimes = self
+            .runtimes
             .lock()
-            .unwrap_or_else(|error| error.into_inner())
-            .as_ref()
-            .map(|runtime| runtime.snapshot(after))
+            .unwrap_or_else(|error| error.into_inner());
+        let mut ids = runtimes.keys().cloned().collect::<Vec<_>>();
+        ids.sort();
+        ids.iter()
+            .find(|id| runtimes.get(id.as_str()).is_some_and(|runtime| runtime.active()))
+            .or_else(|| ids.first())
+            .and_then(|id| runtimes.get(id).map(|runtime| runtime.snapshot(after)))
     }
 
     pub async fn create(&self, input: CreateServer) -> AppResult<LocalServerConfig> {
@@ -579,8 +635,11 @@ impl LocalServerManager {
         if self.content_jobs.load(Ordering::Acquire) > 0 {
             return Err(unavailable("Aguarde o download ou a importação de conteúdos terminar antes de iniciar o servidor."));
         }
-        if self.shutting_down.load(Ordering::Acquire) || self.has_active() {
-            return Err(unavailable("Pare o servidor atual antes de iniciar outro."));
+        if self.shutting_down.load(Ordering::Acquire) {
+            return Err(unavailable("O Luxmc está encerrando."));
+        }
+        if self.current(&id).is_ok() {
+            return Err(unavailable("Este servidor já está em execução."));
         }
         let config = self.config(&id).await?;
         let directory = self.directory(&id).await?;
@@ -623,6 +682,13 @@ impl LocalServerManager {
         history.offline();
         history.complete = true;
         let settings = self.settings(&id).await?;
+        if settings.listen_on_network
+            && !crate::core::network::public_access::is_active(&id, settings.port).await
+        {
+            return Err(unavailable(
+                "O acesso externo não está autorizado nesta sessão. Desative e habilite novamente o acesso externo antes de iniciar o servidor.",
+            ));
+        }
         let autosave_minutes = settings.autosave_minutes;
         let runtime = Arc::new(Runtime {
             state: Mutex::new(ServerState {
@@ -641,6 +707,7 @@ impl LocalServerManager {
                 forced_stop: false,
                 players: Vec::new(),
                 history_complete: true,
+                last_status: None,
             }),
             lines: Mutex::new(VecDeque::new()),
             sequence: AtomicU64::new(0),
@@ -654,17 +721,46 @@ impl LocalServerManager {
             autosave_minutes,
             control: Mutex::new(None),
             startup_commands: settings.startup_commands(&config.mc_version),
+            java: Mutex::new(None),
         });
-        *self
-            .runtime
-            .lock()
-            .unwrap_or_else(|error| error.into_inner()) = Some(runtime.clone());
+        {
+            let mut runtimes = self
+                .runtimes
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            runtimes.insert(config.id.clone(), runtime.clone());
+        }
         let manager = self.clone();
         let task_runtime = runtime.clone();
         tokio::spawn(async move {
-            let result = manager
+            let mut result = manager
                 .run(&config, &directory, &task_runtime, receiver)
                 .await;
+            let cleanup = match manager.settings(&config.id).await {
+                Ok(settings) if settings.listen_on_network => {
+                    let port = task_runtime
+                        .snapshot(u64::MAX)
+                        .port
+                        .unwrap_or(settings.port);
+                    let cleanup = crate::core::network::public_access::disable(&config.id, port).await;
+                    let save = manager.clear_network_access_setting(&config.id).await;
+                    match (cleanup, save) {
+                        (Ok(()), Ok(_)) => Ok(()),
+                        (Err(error), Ok(_)) | (Ok(()), Err(error)) => Err(error),
+                        (Err(cleanup), Err(save)) => Err(unavailable(format!(
+                            "{cleanup} As configurações também não puderam ser revertidas: {save}"
+                        ))),
+                    }
+                }
+                Ok(_) => Ok(()),
+                Err(error) => Err(error),
+            };
+            if let Err(cleanup) = cleanup {
+                result = Err(match result {
+                    Ok(_) => cleanup,
+                    Err(error) => unavailable(format!("{error} A limpeza do acesso externo falhou: {cleanup}")),
+                });
+            }
             task_runtime.stop.send_replace(true);
             let owner = {
                 let state = task_runtime
@@ -708,6 +804,17 @@ impl LocalServerManager {
             let _ = crate::network::p2p_tunnel::stop_owned_server(&owner).await;
         });
         Ok(runtime.snapshot(0))
+    }
+
+    pub async fn update_version(&self, id: &str, name: String, ram_mb: u32, max_players: u16, mc_version: Option<String>) -> AppResult<LocalServerConfig> {
+        let next_version = mc_version.map(|version| version.trim().to_string()).filter(|version| !version.is_empty());
+        let mut config = self.update(id, name, ram_mb, max_players).await?;
+        let Some(version) = next_version else { return Ok(config); };
+        if version == config.mc_version { return Ok(config); }
+        let _guard = self.change()?;
+        let directory = self.directory(id).await?;
+        crate::core::mods::pack_download::atomic_write(&directory.join("luxmc-server.json"), &serde_json::to_vec_pretty(&config)?).await?;
+        Ok(config)
     }
 
     pub async fn update(
@@ -779,7 +886,18 @@ impl LocalServerManager {
             let pack=crate::network::resource_packs::host(&config.id,path).await?;
             settings.resource_pack_url=pack.url();settings.resource_pack_sha1=pack.sha1;
         }
-        let listener = tokio::net::TcpListener::bind(("127.0.0.1", settings.port)).await.map_err(|error| unavailable(format!("A porta local {} não está disponível: {error}. Confira as configurações do servidor.", settings.port)))?;
+        let desired_port = if settings.port == 0 { 25565 } else { settings.port };
+        let listener = match tokio::net::TcpListener::bind(("0.0.0.0", desired_port)).await {
+            Ok(listener) => listener,
+            Err(error) => {
+                let suggestion = match free_port_suggestion(desired_port).await {
+                    Some(port) => format!(" A porta {port} foi verificada e está livre; selecione-a em Configurações do servidor."),                    None => " Nenhuma porta livre na faixa 25565–25600; feche outro servidor antes de iniciar este.".into(),
+                };
+                return Err(unavailable(format!(
+                    "A porta {desired_port} já está em uso por outro processo ({error}).{suggestion}"
+                )));
+            }
+        };
         let port = listener.local_addr()?.port();
         let control_listener=tokio::net::TcpListener::bind(("127.0.0.1",0)).await?;
         let endpoint=control::Endpoint{port:control_listener.local_addr()?.port(),password:uuid::Uuid::new_v4().simple().to_string()};
@@ -806,7 +924,7 @@ impl LocalServerManager {
             .max_players;
         crate::core::mods::pack_download::atomic_write(
             &directory.join("server.properties"),
-            control::properties(&settings.apply(&server_properties(&previous, port, players)),&endpoint).as_bytes(),
+            control::properties(&settings.apply(&server_properties(&previous, port, players, settings.online_mode)),&endpoint).as_bytes(),
         )
         .await?;
         self.read(directory, "eula.txt").await?;
@@ -829,6 +947,10 @@ impl LocalServerManager {
         }
         runtime.phase("starting");
         let (java, port) = prepared;
+        *runtime
+            .java
+            .lock()
+            .unwrap_or_else(|error| error.into_inner()) = Some(java.clone());
         let loader_arguments = tokio::select! { biased; _ = wait_stop(&mut stop) => return Ok(None), result = self.prepare_loader(config, directory, &java, runtime) => result? };
         if *stop.borrow() {
             return Ok(None);
@@ -878,12 +1000,7 @@ impl LocalServerManager {
     }
 
     fn current(&self, id: &str) -> AppResult<Arc<Runtime>> {
-        self.runtime
-            .lock()
-            .unwrap_or_else(|error| error.into_inner())
-            .as_ref()
-            .filter(|runtime| runtime.snapshot(u64::MAX).id == id && runtime.active())
-            .cloned()
+        self.active_runtime_for(id)
             .ok_or_else(|| unavailable("Este servidor não está em execução."))
     }
 
@@ -958,13 +1075,37 @@ impl LocalServerManager {
 
     pub async fn shutdown(&self) -> AppResult<()> {
         self.shutting_down.store(true, Ordering::Release);
-        let _guard = self.changes.lock().await;
-        let id = self
-            .status(u64::MAX)
-            .filter(|_| self.has_active())
-            .map(|state| state.id);
-        if let Some(id) = id {
+        let ids = {
+            let _guard = self.changes.lock().await;
+            let runtimes = self
+                .runtimes
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            let mut ids = runtimes
+                .iter()
+                .filter(|(_, runtime)| runtime.active())
+                .map(|(id, _)| id.clone())
+                .collect::<Vec<_>>();
+            ids.sort();
+            ids
+        };
+        for id in ids {
             self.stop(&id).await?;
+        }
+        Ok(())
+    }
+
+    async fn clear_network_access_setting(&self, id: &str) -> AppResult<()> {
+        let _guard = self.changes.lock().await;
+        let mut settings = self.settings(id).await?;
+        if settings.listen_on_network {
+            settings.listen_on_network = false;
+            let directory = self.directory(id).await?;
+            crate::core::mods::pack_download::atomic_write(
+                &directory.join("luxmc-settings.json"),
+                &serde_json::to_vec_pretty(&settings)?,
+            )
+            .await?;
         }
         Ok(())
     }
@@ -1148,6 +1289,7 @@ mod tests {
                     forced_stop: false,
                     players: Vec::new(),
                     history_complete: true,
+                    last_status: None,
                 }),
                 stop,
                 finished,
@@ -1161,6 +1303,7 @@ mod tests {
                 autosave_minutes: 0,
                 control: Mutex::new(None),
                 startup_commands: Vec::new(),
+                java: Mutex::new(None),
             }),
             receiver,
         )
@@ -1210,10 +1353,10 @@ mod tests {
     }
 
     #[test]
-    fn loopback_and_authentication_override_old_properties_without_changing_world_settings() {
-        let text = server_properties("server-ip:0.0.0.0\nserver-port=25565\nonline-mode=false\nmax-players=99\nlevel-name=../personal-world\nlevel-seed=42\ndifficulty=hard\n", 45000, 20);
+    fn empty_server_ip_binds_every_interface_and_authentication_overrides_old_properties_without_changing_world_settings() {
+        let text = server_properties("server-ip:0.0.0.0\nserver-port=25565\nonline-mode=false\nmax-players=99\nlevel-name=../personal-world\nlevel-seed=42\ndifficulty=hard\n", 45000, 20, true);
         for expected in [
-            "server-ip=127.0.0.1",
+            "server-ip=",
             "server-port=45000",
             "online-mode=true",
             "max-players=20",
@@ -1226,6 +1369,7 @@ mod tests {
         }
         assert!(
             !text.contains("0.0.0.0")
+                && !text.contains("127.0.0.1")
                 && !text.contains("online-mode=false")
                 && !text.contains("personal-world")
         );
@@ -1235,6 +1379,9 @@ mod tests {
                 .count(),
             1
         );
+        let public = server_properties("server-ip=127.0.0.1\n", 45000, 20, true);
+        assert!(public.lines().any(|line| line == "server-ip="));
+        assert!(!public.contains("127.0.0.1"));
     }
 
     #[tokio::test]

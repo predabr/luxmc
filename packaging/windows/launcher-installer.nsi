@@ -80,6 +80,14 @@ ${StrLoc}
 !define ESTIMATEDSIZE "{{estimated_size}}"
 !define STARTMENUFOLDER "{{start_menu_folder}}"
 
+!define MUI_WELCOMEPAGE_TITLE "${PRODUCTNAME} ${VERSION}"
+!define MUI_WELCOMEPAGE_TEXT "Este assistente guiará a instalação do ${PRODUCTNAME} no seu computador.$\r$\n$\r$\nÉ recomendado fechar os outros aplicativos antes de iniciar a instalação. Isso tornará possível atualizar os arquivos do sistema relevantes sem ter que reiniciar o computador.$\r$\n$\r$\nClique em Avançar para continuar."
+!define MUI_FINISHPAGE_TITLE "${PRODUCTNAME} instalado!"
+!define MUI_FINISHPAGE_TEXT "O launcher está pronto.$\r$\n$\r$\n1. Abra o ${PRODUCTNAME} e conecte sua conta.$\r$\n2. Escolha uma versão ou um modpack.$\r$\n3. Clique em Jogar.$\r$\n$\r$\nNo primeiro início, aguarde a preparação do Java e dos arquivos do jogo. Os próximos inícios reutilizam os arquivos já instalados."
+!define MUI_FINISHPAGE_RUN_TEXT "Abrir o ${PRODUCTNAME}"
+!define MUI_ABORTWARNING
+!define MUI_UNCONFIRMPAGE_TEXT_TOP "O Luxmc será desinstalado. Deixe a opção de apagar dados DESMARCADA para manter suas contas, amigos, instâncias e mundos na reinstalação. Marcar essa opção apaga os dados permanentemente, sem enviá-los à Lixeira. Atualizações preservam seus dados."
+
 Var PassiveMode
 Var UpdateMode
 Var NoShortcutMode
@@ -87,7 +95,7 @@ Var WixMode
 Var OldMainBinaryName
 
 Name "${PRODUCTNAME}"
-BrandingText "${COPYRIGHT}"
+BrandingText "${PRODUCTNAME} ${VERSION}"
 OutFile "${OUTFILE}"
 
 
@@ -473,6 +481,7 @@ FunctionEnd
 
 
 !insertmacro MUI_UNPAGE_INSTFILES
+!insertmacro MUI_UNPAGE_FINISH
 
 
 {{#each languages}}

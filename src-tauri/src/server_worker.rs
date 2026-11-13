@@ -68,11 +68,42 @@ async fn connect() -> AppResult<(TcpStream, Endpoint)> {
     tokio::fs::create_dir_all(&directory).await?;
     let path = directory.join("endpoint.json");
     if let Ok(Some(value)) = existing(&directory).await { return Ok(value); }
+    let lock_path = directory.join("worker.lock");
+    let lock_held = std::fs::OpenOptions::new()
+        .write(true)
+        .open(&lock_path)
+        .map(|file| file.try_lock().is_err())
+        .unwrap_or(false);
+    if lock_held {
+        for _ in 0..60 {
+            if let Ok(Some(value)) = existing(&directory).await { return Ok(value); }
+            tokio::time::sleep(Duration::from_millis(250)).await;
+        }
+        return Err(failure("O serviço de servidores está ativo, mas seus dados locais ficaram inconsistentes. Encerre o processo luxmc-server.exe pelo Gerenciador de Tarefas e reabra o LUXMC."));
+    }
     let source = std::env::current_exe()?;
     let runtime = directory.join(env!("LUXMC_BUILD_REVISION"));
     tokio::fs::create_dir_all(&runtime).await?;
     let executable = runtime.join(if cfg!(windows) { "luxmc-server.exe" } else { "luxmc-server" });
-    if !executable.exists() { tokio::fs::copy(source, &executable).await?; }
+    let stale = match (std::fs::metadata(&source), std::fs::metadata(&executable)) {
+        (Ok(from), Ok(to)) => from
+            .modified()
+            .ok()
+            .zip(to.modified().ok())
+            .is_some_and(|(from, to)| from > to),
+        _ => true,
+    };
+    if stale {
+        let staged = runtime.join(format!("{}.new", executable.file_name().unwrap_or_default().to_string_lossy()));
+        let _ = tokio::fs::copy(&source, &staged).await;
+        if tokio::fs::metadata(&executable).await.is_ok() {
+            let _ = tokio::fs::remove_file(&executable).await;
+        }
+        let _ = tokio::fs::rename(&staged, &executable).await;
+        if !executable.exists() {
+            let _ = tokio::fs::copy(&source, &executable).await;
+        }
+    }
     let mut command = std::process::Command::new(executable);
     command.arg("--server-worker").stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
     #[cfg(windows)]
@@ -116,16 +147,31 @@ pub async fn run() -> AppResult<()> {
     let secret = Arc::new(endpoint.secret);
     let permits = Arc::new(tokio::sync::Semaphore::new(16));
     let _lock = lock;
+    let mut idle_ticks = 0u32;
     loop {
-        let (mut stream, _) = match tokio::time::timeout(Duration::from_secs(120), listener.accept()).await {
+        let (mut stream, _) = match tokio::time::timeout(Duration::from_secs(10), listener.accept()).await {
             Ok(value) => value?,
-            Err(_) if permits.available_permits() == 16 && !crate::commands::local_servers::has_active() && crate::network::p2p_tunnel::tunnel_status().await?.is_none() => {
-                let _ = tokio::fs::remove_file(directory.join("endpoint.json")).await;
-                return Ok(());
+            Err(_) => {
+                if tokio::fs::metadata(directory.join("endpoint.json")).await.is_err() {
+                    let _ = crate::core::mods::pack_download::atomic_write(&directory.join("endpoint.json"), &bytes).await;
+                }
+                idle_ticks += 1;
+                if idle_ticks >= 12
+                    && permits.available_permits() == 16
+                    && !crate::commands::local_servers::has_active()
+                    && crate::network::p2p_tunnel::tunnel_status().await?.is_none()
+                {
+                    let _ = tokio::fs::remove_file(directory.join("endpoint.json")).await;
+                    return Ok(());
+                }
+                continue;
             }
-            Err(_) => continue,
         };
-        let Ok(permit) = permits.clone().try_acquire_owned() else { continue; };
+        idle_ticks = 0;
+        let Ok(permit) = permits.clone().try_acquire_owned() else {
+            let _ = write(&mut stream, &Response { result: None, error: Some("O serviço de servidores está ocupado; repita a ação em instantes.".into()) }).await;
+            continue;
+        };
         let state = state.clone(); let secret = secret.clone();
         tokio::spawn(async move {
             let _permit = permit;

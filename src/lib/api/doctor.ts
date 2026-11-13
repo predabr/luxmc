@@ -14,7 +14,7 @@ export interface CrashDiagnosis {
 
 export function localizedDiagnosis(value: CrashDiagnosis): CrashDiagnosis {
     if (currentUiLocale() === "pt-BR") return value;
-    const supported = ["none", "authentication", "shutdown", "network_dns", "network_refused", "mod_conflict", "out_of_memory", "jvm_option", "java_version", "missing_dependency", "driver_issue", "version_mismatch", "unknown"];
+    const supported = ["none", "authentication", "shutdown", "network_dns", "network_refused", "network_mod_mismatch", "mod_conflict", "out_of_memory", "jvm_option", "java_version", "missing_dependency", "driver_issue", "version_mismatch", "unknown"];
     const category = supported.includes(value.category) ? value.category : "unknown";
     const params = { mod: value.offendingMod || translateUi("crash.unidentifiedMod") };
     return { ...value, title: translateUi(`crash.categories.${category}.title`, params), message: translateUi(`crash.categories.${category}.message`, params), solution: translateUi(`crash.categories.${category}.solution`, params) };

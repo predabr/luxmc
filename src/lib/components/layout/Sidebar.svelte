@@ -17,7 +17,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		Plus,
 		Settings as SettingsIcon,
 		Github,
-		Globe
+		Globe,
+		Server as ServerIcon
 	} from "lucide-svelte";
 	import { openUrl } from "@tauri-apps/plugin-opener";
 	import { friendsState } from "$lib/stores/friends.svelte";
@@ -39,6 +40,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	type Item = { href: string; labelKey: string; icon: typeof import("lucide-svelte").Circle; title: string };
 
 	const items: Item[] = $derived([
+		{ href: "/hosting/server", labelKey: "", title: "Gerenciador de servidor", icon: ServerIcon },
 		{ href: "/mods", labelKey: "nav.mods", title: uiText("home.browseMods"), icon: Compass },
 		{ href: "/skins", labelKey: "nav.skins", title: uiText("ui.786fa4f02a1a0dfc"), icon: Shirt },
 		{ href: "/friends", labelKey: "nav.friends", title: uiText("ui.30b21c1ed5a0967b"), icon: Users },
@@ -68,7 +70,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		<button
 			type="button"
 			onclick={() => goto("/")}
-			class="launcher-nav-link relative h-11 {expanded ? 'w-full mx-3 gap-3 px-3 justify-start' : 'w-11 justify-center'} rounded-2xl flex items-center transition-[background-color,color,transform] duration-150 cursor-pointer {isHomeActive ? 'bg-brand-500 text-brand-foreground shadow-sm' : 'bg-fg/5 text-fg/60 hover:text-fg hover:bg-fg/10'}"
+			class="launcher-nav-link relative h-10 {expanded ? 'w-full mx-3 gap-3 px-3 justify-start' : 'w-10 justify-center'} rounded-sm flex items-center transition-[background-color,color,transform] duration-150 cursor-pointer {isHomeActive ? 'bg-brand-500/15 text-brand-400' : 'bg-fg/5 text-fg/60 hover:text-fg hover:bg-fg/10'}"
 			aria-current={isHomeActive ? "page" : undefined}
 			title={t("nav.home") || uiText("nav.home")}
 		>
@@ -95,7 +97,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					}}
 					aria-label={t(item.labelKey) || item.title}
                     aria-current={active ? "page" : undefined}
-                    class="launcher-nav-link relative h-11 {expanded ? 'w-full mx-3 gap-3 px-3 justify-start' : 'w-11 justify-center'} rounded-2xl flex items-center transition-[background-color,color,border-color,transform] duration-150 cursor-pointer {active ? 'bg-brand-500/15 text-brand-400 border border-brand-500/30' : 'bg-fg/[0.02] border border-transparent text-fg/50 hover:text-fg hover:bg-fg/[0.06]'}"
+                    class="launcher-nav-link relative h-10 {expanded ? 'w-full mx-3 gap-3 px-3 justify-start' : 'w-10 justify-center'} rounded-sm flex items-center transition-[background-color,color,border-color,transform] duration-150 cursor-pointer {active ? 'bg-brand-500/15 text-brand-400 border border-brand-500/30' : 'bg-fg/[0.02] border border-transparent text-fg/50 hover:text-fg hover:bg-fg/[0.06]'}"
 				>
 					<item.icon class="h-5 w-5 shrink-0" strokeWidth={active ? 2.2 : 1.8} />
                     {#if expanded}<span class="text-sm font-medium">{t(item.labelKey) || item.title}</span>{/if}
@@ -123,7 +125,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 								e.preventDefault();
 								goto(`/instances/${prof.id}`);
 							}}
-							class="launcher-nav-link relative {expanded ? 'h-14 w-full mx-2 px-2 gap-3 justify-start' : 'h-10 w-10 justify-center'} rounded-xl overflow-hidden flex items-center transition-[background-color,border-color] duration-150 border cursor-pointer {active ? 'border-brand-500/40 bg-brand-500/10' : 'border-fg/10 bg-fg/[0.03] hover:bg-fg/[0.08] hover:border-fg/30'}"
+							class="launcher-nav-link relative {expanded ? 'h-14 w-full mx-2 px-2 gap-3 justify-start' : 'h-10 w-10 justify-center'} rounded-sm overflow-hidden flex items-center transition-[background-color,border-color] duration-150 border cursor-pointer {active ? 'border-brand-500/40 bg-brand-500/10' : 'border-fg/10 bg-fg/[0.03] hover:bg-fg/[0.08] hover:border-fg/30'}"
 							aria-current={active ? "page" : undefined}
 							aria-label={prof.name}
 						>
@@ -156,7 +158,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					e.preventDefault();
 					goto("/instances?new=true");
 				}}
-				class={launcherButton({ variant: "outline", size: expanded ? "md" : "icon", class: expanded ? "w-[calc(100%_-_1.5rem)] justify-start" : "" })}
+				class={launcherButton({ variant: "brandOutline", size: expanded ? "md" : "icon", class: expanded ? "w-[calc(100%_-_1.5rem)] justify-start" : "" })}
 				title={uiText("instances.newInstance")}
 			>
 				<Plus class="h-4 w-4" />
@@ -208,7 +210,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					e.preventDefault();
 					goto("/settings");
 				}}
-				class="launcher-nav-link relative h-11 {expanded ? 'w-full mx-3 gap-3 px-3 justify-start' : 'w-10 justify-center'} rounded-xl flex items-center transition-[background-color,color,border-color] duration-150 cursor-pointer {settingsActive ? 'bg-brand-500/15 text-brand-400 border border-brand-500/30' : 'bg-fg/[0.02] text-fg/50 hover:text-fg hover:bg-fg/[0.06]'}"
+				class="launcher-nav-link relative h-10 {expanded ? 'w-full mx-3 gap-3 px-3 justify-start' : 'w-10 justify-center'} rounded-sm flex items-center transition-[background-color,color,border-color] duration-150 cursor-pointer {settingsActive ? 'bg-brand-500/15 text-brand-400 border border-brand-500/30' : 'bg-fg/[0.02] text-fg/50 hover:text-fg hover:bg-fg/[0.06]'}"
 				aria-current={settingsActive ? "page" : undefined}
 			>
 				<SettingsIcon class="h-4 w-4 shrink-0 transition-transform duration-200 {settingsActive ? 'rotate-90' : 'group-hover:rotate-45'}" strokeWidth={1.8} />

@@ -660,10 +660,20 @@ pub async fn mods_install_with_deps_core(
     let mods_dir = std::path::PathBuf::from(&profile.game_dir).join("mods");
     let staging = std::path::PathBuf::from(&profile.game_dir).join(".luxmc").join(format!("install-{}", uuid::Uuid::new_v4()));
     let result: AppResult<Vec<String>> = async {
-        for version in planned.values() {
+        let download_jobs: Vec<(std::path::PathBuf, String, u64, String)> = planned.values().map(|version| {
             let file = version.files.first().ok_or_else(|| crate::error::AppError::NotFound(format!("{} não possui arquivo instalável", version.name)))?;
-            crate::core::downloader::ensure_artifact(&state.http, &staging.join(safe_file_name(&file.filename)), &file.url, file.size, &file.sha1).await?;
+            Ok((staging.join(safe_file_name(&file.filename)), file.url.clone(), file.size, file.sha1.clone()))
+        }).collect::<AppResult<Vec<_>>>()?;
+        let mut downloads = futures_util::stream::iter(download_jobs)
+            .map(|(target, url, size, sha1)| {
+                let http = state.http.clone();
+                async move { crate::core::downloader::ensure_artifact(&http, &target, &url, size, &sha1).await }
+            })
+            .buffer_unordered(16);
+        while let Some(downloaded) = downloads.next().await {
+            downloaded?;
         }
+        drop(downloads);
         tokio::fs::create_dir_all(&mods_dir).await?;
         for version in planned.values() {
             let file = &version.files[0];
@@ -1061,6 +1071,15 @@ pub async fn mods_download_to_temp_core(
     url: String,
     file_name: String,
 ) -> AppResult<String> {
+    mods_download_to_temp_inner(state, url, file_name, None).await
+}
+
+async fn mods_download_to_temp_inner(
+    state: &AppState,
+    url: String,
+    file_name: String,
+    app: Option<&tauri::AppHandle>,
+) -> AppResult<String> {
     use crate::core::mods::pack_download as pack;
     let _import = state.import_lock.try_lock().map_err(|_| crate::error::AppError::InvalidState("Já existe uma importação em andamento.".into()))?;
     if !state.import_job.load(std::sync::atomic::Ordering::SeqCst) { state.import_cancel.store(false, std::sync::atomic::Ordering::SeqCst); }
@@ -1083,7 +1102,12 @@ pub async fn mods_download_to_temp_core(
     for attempt in 0..3 {
         pack::backoff(attempt, Some(&state.import_cancel)).await?;
         for url in &urls {
-            match crate::core::mods::resumable::download(&client, url, &target, Some(&state.import_cancel)).await {
+            let download = if let Some(app) = app {
+                crate::core::mods::resumable::download_with_progress(&client, url, &target, Some(&state.import_cancel), app, &file_name).await
+            } else {
+                crate::core::mods::resumable::download(&client, url, &target, Some(&state.import_cancel)).await
+            };
+            match download {
                 Ok(()) => {
                     if !pack::verify_existing(&target, None, None, None, true).await {
                         let _ = tokio::fs::remove_file(&target).await;
@@ -1103,13 +1127,14 @@ pub async fn mods_download_to_temp_core(
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn mods_download_to_temp(
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
     url: String,
     fileName: String,
     operation_id: Option<String>,
 ) -> AppResult<String> {
     super::instances::instance_check_import_job(&state,operation_id.as_deref()).await?;
-    mods_download_to_temp_core(&state, url, fileName).await
+    mods_download_to_temp_inner(&state, url, fileName, Some(&app)).await
 }
 
 #[tauri::command]

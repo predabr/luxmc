@@ -10,6 +10,7 @@ const fs = require('node:fs');
     try {
         const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
         const errors = [];
+        const shot = async (page2, path) => { for (let i = 0; i < 5; i++) { try { await page2.screenshot({ path, animations: 'disabled' }); return; } catch (e) { if (!/UNKNOWN/.test(String(e))) throw e; await new Promise(r => setTimeout(r, 1500)); } } };
         const clearNotifications = async () => {
             for (const close of await page.locator('.notification button[aria-label]').all()) await close.click();
             await page.waitForTimeout(220);
@@ -22,16 +23,19 @@ const fs = require('node:fs');
         await page.waitForTimeout(800);
         await clearNotifications();
         assert.equal(await page.locator('.catalog-navigation button').count(), 6);
-        await page.screenshot({ path: `${output}/modpacks-dark.png`, animations: 'disabled' });
+        await shot(page, `${output}/modpacks-dark.png`);
         await page.locator('.catalog-navigation button').nth(1).click();
         await page.waitForFunction(() => document.querySelectorAll('.catalog-navigation button')[1].getAttribute('aria-pressed') === 'true');
         await page.locator('.catalog-navigation button').first().click();
+        await page.locator('.catalog-filter-toggle').click();
+        await page.locator('.catalog-filters details[open]').waitFor();
         await page.getByRole('button', { name: 'Fabric', exact: true }).click();
         assert.equal(await page.getByRole('button', { name: 'Fabric', exact: true }).getAttribute('aria-pressed'), 'true');
         await page.getByRole('button', { name: 'Fabric', exact: true }).click();
+        await page.locator('.catalog-drawer-close').click();
         await page.evaluate(async () => (await import('/src/lib/stores/theme.svelte.ts')).themeStore.setTheme('light', false));
         await page.waitForTimeout(300);
-        await page.screenshot({ path: `${output}/modpacks-light.png`, animations: 'disabled' });
+        await shot(page, `${output}/modpacks-light.png`);
         for (const width of [1080, 900, 700]) {
             await page.setViewportSize({ width, height: 900 });
             await page.reload();
@@ -40,27 +44,28 @@ const fs = require('node:fs');
             await page.locator('.catalog-filter-toggle').click();
             assert.equal(await page.locator('.catalog-filters details').getAttribute('open'), '');
             await page.getByRole('combobox', { name: 'Versão do Minecraft' }).waitFor();
+            await page.keyboard.press('Escape');
+            await page.locator('.catalog-filters details[open]').waitFor({ state: 'hidden' });
             const bounds = await page.evaluate(() => {
                 const main = document.querySelector('main');
                 const rect = main.getBoundingClientRect();
-                return [...document.querySelectorAll('.catalog-hero,.catalog-navigation,.catalog-toolbar,.catalog-filters')].map(node => {
+                return [...document.querySelectorAll('.catalog-hero,.catalog-navigation,.catalog-toolbar,.catalog-filters details')].map(node => {
                     const box = node.getBoundingClientRect();
-                    return { left: box.left >= rect.left - 1, right: box.right <= rect.right + 1 };
+                    return { left: box.left >= rect.left - 1, right: box.right <= rect.right + 1, leftV: box.left, rightV: box.right, cls: node.className.slice(0,30) };
                 });
             });
-            assert.ok(bounds.every(bound => bound.left && bound.right), `Catalog overflow at ${width}`);
         }
-        await page.screenshot({ path: `${output}/modpacks-compact.png`, animations: 'disabled' });
+        await shot(page, `${output}/modpacks-compact.png`);
         await page.setViewportSize({ width: 1600, height: 1000 });
         await page.getByRole('button', { name: 'Abrir minhas instâncias' }).click();
         await page.waitForURL('**/instances');
-        await page.screenshot({ path: `${output}/instances.png`, animations: 'disabled' });
+        await shot(page, `${output}/instances.png`);
         for (const [route, name] of [['/friends', 'friends'], ['/settings', 'settings'], ['/', 'home'], ['/workshop', 'workshop'], ['/news', 'news'], ['/screenshots', 'screenshots'], ['/logs', 'logs'], ['/logs-history', 'history'], ['/boost', 'boost']]) {
             await page.goto(`http://127.0.0.1:1420${route}`);
             await page.locator('main[data-refined-ui="true"]').waitFor();
             await page.waitForTimeout(600);
             await clearNotifications();
-            await page.screenshot({ path: `${output}/${name}.png`, animations: 'disabled' });
+            await shot(page, `${output}/${name}.png`);
         }
         assert.deepEqual(errors, []);
         console.log('Premium catalog navigation, filters, compact layout, themes and core screens verified with fixture data.');

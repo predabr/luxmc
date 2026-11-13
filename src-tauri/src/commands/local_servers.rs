@@ -28,10 +28,40 @@ pub(crate) fn has_active() -> bool {
     MANAGER.get().is_some_and(|manager| manager.has_active())
 }
 pub(crate) async fn shutdown() -> AppResult<()> {
-    if let Some(manager) = MANAGER.get() {
-        manager.shutdown().await?;
+    let access_id = crate::core::network::public_access::active_id().await;
+    let server = if let Some(manager) = MANAGER.get() {
+        manager.shutdown().await
+    } else {
+        Ok(())
+    };
+    let access = crate::core::network::public_access::shutdown().await;
+    let reset = if let (Some(manager), Some(id)) = (MANAGER.get(), access_id) {
+        match manager.settings(&id).await {
+            Ok(mut settings) if settings.listen_on_network => {
+                settings.listen_on_network = false;
+                manager.update_settings(&id, settings).await.map(|_| ())
+            }
+            Ok(_) => Ok(()),
+            Err(error) => Err(error),
+        }
+    } else {
+        Ok(())
+    };
+    match (server, access, reset) {
+        (Ok(()), Ok(()), Ok(())) => Ok(()),
+        (Err(error), Ok(()), Ok(()))
+        | (Ok(()), Err(error), Ok(()))
+        | (Ok(()), Ok(()), Err(error)) => Err(error),
+        (Err(server), Err(access), _) => Err(AppError::InvalidState(format!(
+            "{server} A limpeza do acesso externo também falhou: {access}"
+        ))),
+        (Err(server), _, Err(reset)) => Err(AppError::InvalidState(format!(
+            "{server} A restauração das configurações também falhou: {reset}"
+        ))),
+        (_, Err(access), Err(reset)) => Err(AppError::InvalidState(format!(
+            "{access} A restauração das configurações também falhou: {reset}"
+        ))),
     }
-    Ok(())
 }
 
 pub(crate) fn pro_expiration(status: &serde_json::Value, now: i64) -> Option<i64> {
@@ -141,6 +171,10 @@ pub enum ServerRequest {
         id: String,
         settings: crate::core::local_server::settings::ServerSettings,
     },
+    PublicAccess {
+        id: String,
+        operation: String,
+    },
     Moderate {
         id: String,
         command: String,
@@ -238,6 +272,9 @@ pub(crate) async fn manage(
 ) -> AppResult<serde_json::Value> {
     let manager = manager(http)?;
     match request {
+        ServerRequest::PublicAccess { .. } => Err(AppError::InvalidState(
+            "A operação de acesso externo precisa do bloqueio de inicialização do servidor.".into(),
+        )),
         ServerRequest::ConnectionDiagnostic {id}=>manager.connection_diagnostic(&id).await,
         ServerRequest::ConsoleText {id}=>manager.console_text(&id).await,
         ServerRequest::DeletionPreview {id}=>manager.deletion_preview(&id).await,
@@ -419,6 +456,156 @@ pub(crate) async fn manage(
     }
 }
 
+pub(crate) async fn public_access(
+    http: &reqwest::Client,
+    id: String,
+    operation: String,
+    account_id: Option<String>,
+) -> AppResult<serde_json::Value> {
+    let manager = manager(http)?;
+    match operation.as_str() {
+        "status" => {
+            let settings = manager.settings(&id).await?;
+            let active = crate::core::network::public_access::status(&id).await;
+            Ok(serde_json::json!({
+                "enabled": active.is_some(),
+                "configured": settings.listen_on_network,
+                "whitelist": settings.whitelist,
+                "port": active.as_ref().map_or(settings.port, |access| access.port),
+                "externalIp": active.as_ref().and_then(|access| access.external_ip.clone()),
+                "address": active.as_ref().and_then(|access| access.address.clone()),
+                "likelyBehindCgnat": active.as_ref().is_some_and(|access| access.likely_behind_cgnat),
+                "renewalError": active.as_ref().and_then(|access| access.renewal_error.clone())
+            }))
+        }
+        "enable" => {
+            require_pro(account_id.as_deref()).await?;
+            if crate::core::network::public_access::status(&id)
+                .await
+                .is_some()
+            {
+                return Err(AppError::InvalidState(
+                    "O acesso externo já está ativo para este servidor.".into(),
+                ));
+            }
+            let active_state = manager
+                .status(u64::MAX)
+                .filter(|state| !["stopped", "failed"].contains(&state.phase.as_str()))
+                .ok_or_else(|| {
+                    AppError::InvalidState(
+                        "Inicie o servidor antes de habilitar o acesso externo.".into(),
+                    )
+                })?;
+            if active_state.id != id {
+                return Err(AppError::InvalidState(
+                    "Pare o outro servidor antes de habilitar o acesso externo.".into(),
+                ));
+            }
+            if active_state.phase != "running" {
+                return Err(AppError::InvalidState(
+                    "Aguarde o servidor ficar pronto antes de habilitar o acesso externo.".into(),
+                ));
+            }
+            let previous = manager.settings(&id).await?;
+            let port = manager.running_port(&id)?;
+            manager.stop(&id).await?;
+            let mut network_settings = previous.clone();
+            network_settings.port = port;
+            network_settings.listen_on_network = true;
+            if let Err(error) = manager.update_settings(&id, network_settings).await {
+                let restart = async {
+                    include_owner(http, &id, account_id.as_deref()).await?;
+                    manager.start(id.clone(), 20).await.map(|_| ())
+                }
+                .await;
+                return Err(combine_rollback(error, Ok(()), restart));
+            }
+            if let Err(error) = include_owner(http, &id, account_id.as_deref()).await {
+                let mut local_settings = previous.clone();
+                local_settings.listen_on_network = false;
+                let rollback = manager.update_settings(&id, local_settings).await;
+                let restart = manager.start(id.clone(), 20).await.map(|_| ());
+                return Err(combine_rollback(error, rollback, restart));
+            }
+
+            let access = match crate::core::network::public_access::enable(&id, port).await {
+                Ok(access) => access,
+                Err(error) => {
+                    let mut local_settings = previous.clone();
+                    local_settings.listen_on_network = false;
+                    let rollback = manager.update_settings(&id, local_settings).await;
+                    let restart = manager.start(id.clone(), 20).await.map(|_| ());
+                    return Err(combine_rollback(error, rollback, restart));
+                }
+            };
+
+            if let Err(error) = manager.start(id.clone(), 20).await {
+                let cleanup = crate::core::network::public_access::disable(&id, port).await;
+                let mut local_settings = previous;
+                local_settings.listen_on_network = false;
+                let rollback = manager.update_settings(&id, local_settings).await;
+                let restart = manager.start(id.clone(), 20).await.map(|_| ());
+                return Err(combine_rollback(error, cleanup.and(rollback), restart));
+            }
+            Ok(serde_json::to_value(access)?)
+        }
+        "disable" => {
+            let settings = manager.settings(&id).await?;
+            let active_state = manager.status(u64::MAX).filter(|state| {
+                state.id == id && !["stopped", "failed"].contains(&state.phase.as_str())
+            });
+            let port = active_state
+                .as_ref()
+                .and_then(|_| manager.running_port(&id).ok())
+                .unwrap_or(settings.port);
+            if active_state.is_some() {
+                manager.stop(&id).await?;
+            }
+            let cleanup = if active_state.is_some() && settings.listen_on_network {
+                Ok(())
+            } else if port == 0 {
+                Ok(())
+            } else {
+                crate::core::network::public_access::disable(&id, port).await
+            };
+            let mut local_settings = manager.settings(&id).await?;
+            local_settings.listen_on_network = false;
+            manager.update_settings(&id, local_settings).await?;
+            let restart = if active_state.is_some() {
+                manager.start(id, 20).await.map(|_| ())
+            } else {
+                Ok(())
+            };
+            match (cleanup, restart) {
+                (Ok(()), Ok(())) => Ok(serde_json::Value::Null),
+                (Err(error), Ok(())) | (Ok(()), Err(error)) => Err(error),
+                (Err(cleanup), Err(restart)) => Err(AppError::InvalidState(format!(
+                    "{cleanup} O servidor também não pôde reiniciar em modo local: {restart}"
+                ))),
+            }
+        }
+        _ => Err(AppError::InvalidInput(
+            "Operação de acesso externo inválida.".into(),
+        )),
+    }
+}
+
+fn combine_rollback(
+    original: AppError,
+    first: AppResult<impl Sized>,
+    second: AppResult<impl Sized>,
+) -> AppError {
+    match (first, second) {
+        (Ok(_), Ok(_)) => original,
+        (Err(rollback), Ok(_)) | (Ok(_), Err(rollback)) => {
+            AppError::InvalidState(format!("{original} A recuperação também falhou: {rollback}"))
+        }
+        (Err(rollback), Err(restart)) => AppError::InvalidState(format!(
+            "{original} A recuperação das configurações falhou: {rollback}; a reinicialização também falhou: {restart}"
+        )),
+    }
+}
+
 #[tauri::command]
 pub async fn local_server_manage(
     state: State<'_, AppState>,
@@ -468,6 +655,15 @@ pub async fn local_server_stop(state: State<'_, AppState>, id: String) -> AppRes
 }
 
 #[tauri::command]
+pub async fn local_server_telemetry(
+    state: State<'_, AppState>,
+    id: String,
+) -> AppResult<crate::core::local_server::telemetry::ServerTelemetry> {
+    let _ = state;
+    crate::server_worker::invoke("local_server_telemetry", serde_json::json!({"id":id})).await
+}
+
+#[tauri::command]
 pub async fn local_server_console(
     state: State<'_, AppState>,
     id: String,
@@ -485,10 +681,11 @@ pub async fn local_server_update(
     name: String,
     ram_mb: u32,
     max_players: u16,
+    mc_version: Option<String>,
     account_id: Option<String>,
 ) -> AppResult<LocalServerConfig> {
     let _ = state;
-    crate::server_worker::invoke("local_server_update", serde_json::json!({"id":id,"name":name,"ramMb":ram_mb,"maxPlayers":max_players,"accountId":account_id})).await
+    crate::server_worker::invoke("local_server_update", serde_json::json!({"id":id,"name":name,"ramMb":ram_mb,"maxPlayers":max_players,"mcVersion":mc_version,"accountId":account_id})).await
 }
 
 #[tauri::command]

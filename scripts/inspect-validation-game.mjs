@@ -1,0 +1,15 @@
+import { DatabaseSync } from 'node:sqlite';
+import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+const db = new DatabaseSync(join(process.env.APPDATA, 'github/Luxmc/data/luxmc.db'), { readOnly: true });
+const profile = db.prepare("SELECT game_dir,loader_version FROM profiles WHERE name LIKE 'Validação 3.6%' ORDER BY created_at DESC LIMIT 1").get();
+db.close();
+if (!profile) throw new Error('Instância de validação não encontrada.');
+console.log(JSON.stringify({ configuredLoader: profile.loader_version, dependencies: JSON.parse(readFileSync(join(profile.game_dir, 'modrinth.index.json'), 'utf8')).dependencies }));
+const path = join(profile.game_dir, 'logs/latest.log');
+const lines = readFileSync(path, 'utf8').split('\n');
+const selected = new Set();
+lines.forEach((line, i) => { if (/ERROR|Exception|Controlify|Shutdown|crash|terminated/i.test(line)) for (let j = Math.max(0, i - 1); j <= Math.min(lines.length - 1, i + 7); j++) selected.add(j); });
+console.log([...selected].map(i => lines[i]).filter(line => !/access.?token|refresh.?token|authorization|session.?id|Bearer|--uuid|--username/i.test(line)).join('\n').slice(-16000));
+const crashes = join(profile.game_dir, 'crash-reports');
+if (existsSync(crashes)) for (const file of readdirSync(crashes)) console.log(JSON.stringify({ crashReport: file, size: statSync(join(crashes, file)).size }));

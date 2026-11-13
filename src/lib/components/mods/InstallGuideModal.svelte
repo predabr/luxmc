@@ -6,13 +6,15 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	let { onClose }: { onClose: () => void } = $props();
 </script>
 
+<svelte:window onkeydown={(e) => { if (e.key === 'Escape') onClose(); }} />
+
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="fixed inset-0 z-[999999] bg-bg-overlay/80 backdrop-blur-sm flex items-center justify-center p-6 cursor-pointer"
 	onclick={onClose}
 >
-	<div class="bg-bg-elevated border border-fg/10 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4" onclick={(e) => e.stopPropagation()}>
+	<div role="dialog" aria-modal="true" tabindex="-1" class="bg-bg-elevated border border-fg/10 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4" onclick={(e) => e.stopPropagation()}>
 		<div class="flex items-center justify-between border-b border-fg/5 pb-3">
 			<div class="flex items-center gap-2 text-fg font-extrabold text-sm">
 				<HelpCircle class="w-4 h-4 text-brand-400" />

@@ -28,6 +28,13 @@
     "enabled": "Activo",
     "disabled": "Desactivado"
   },
+  "instanceModsView": {
+    "label": "Modo de visualización de mods",
+    "list": "Lista",
+    "cards": "Tarjetas",
+    "circles": "Iconos circulares",
+    "triangles": "Iconos triangulares"
+  },
   "showcaseCatalogue": {
     "type": "Buscar favorito en el catálogo",
     "results": "Resultados para favoritos",
@@ -146,7 +153,7 @@
   "app": {
     "name": "Luxmc",
     "tagline": "Launcher de Minecraft para Windows y Linux",
-    "version": "v4.0.1",
+    "version": "v4.1.0",
     "pressForShortcuts": "Presiona {{key}} para atajos de teclado",
     "systemOnline": "Sistema en línea",
     "navigation": "Navegación",
@@ -3309,6 +3316,11 @@
         "message": "Ningún servidor aceptó conexiones en la dirección y el puerto seleccionados.",
         "solution": "Abre el mundo en LAN, espera a que se actualice la sala y comprueba que el anfitrión siga conectado."
       },
+      "network_mod_mismatch": {
+        "title": "Incompatibilidad de canales de mods",
+        "message": "Un servidor rechazó canales de red de mods durante una consulta de la lista de servidores. Esto suele indicar diferencias de Minecraft, loader o versiones de mods entre cliente y servidor, pero el mensaje por sí solo no identifica el mod ni confirma la causa del cierre.",
+        "solution": "Compara la versión de Minecraft, el loader y las versiones de los mods/modpack en el cliente y el servidor. Si solo ocurrió al actualizar la lista de servidores, intenta entrar de nuevo; no elimines mods al azar. Si el juego sigue cerrándose, revisa latest.log y el informe de crash."
+      },
       "mod_conflict": {
         "title": "Conflicto entre mods",
         "message": "Un conflicto relacionado con {{mod}} impidió cargar el juego.",
@@ -3374,7 +3386,9 @@
     "cancelling": "Cancelando…",
     "complete": "Instalación completada",
     "failed": "Error de instalación",
-    "open": "Abrir instancia"
+    "open": "Abrir instancia",
+    "expandProgress": "Expandir progreso de descarga",
+    "collapseProgress": "Contraer progreso de descarga"
   },
   "loginDesign": {
     "customizerHint": "Después de entrar, gestiona tus skins y capas en el personalizador del launcher.",
@@ -3566,7 +3580,18 @@
     "together": "Con amigos",
     "technology": "Construir y automatizar",
     "downloads": "descargas",
-    "installPack": "Instalar"
+    "installPack": "Instalar",
+    "closeFilters": "Cerrar filtros",
+    "views": {
+      "label": "Modo de visualización",
+      "grid": "Normal",
+      "compact": "Mínimo",
+      "large": "Grande",
+      "interactive": "Interactivo — reorganizar tarjetas",
+      "shapeLabel": "Presentación de tarjetas",
+      "square": "Portadas cuadradas",
+      "row": "Vista en filas"
+    }
   },
   "presenceDesign": {
     "players": "{{count}} jugadores",
@@ -3855,6 +3880,29 @@
     "joinTitle": "Entrar al servidor",
     "storage": "Servidores locales y mundos",
     "sharing": "Conectando por P2P…"
+  },
+  "publicAccess": {
+    "title": "Acceso por Internet",
+    "description": "Permite que tus amigos se conecten a este servidor de Minecraft con cualquier launcher Java compatible.",
+    "hostRequirement": "Tus amigos entran como jugadores, no como anfitriones. El mundo permanece en tu PC; mantén Luxmc/el servidor y la conexión a Internet activos mientras juegan.",
+    "scope": "La autorización cambia únicamente el puerto TCP de este servidor en el firewall y solicita al router que reenvíe ese mismo puerto. En Windows, la regla solo se aplica a redes marcadas como Privadas. Luxmc intenta retirar las reglas al detener el servidor; el sistema puede volver a solicitar autorización. No se abren otros puertos.",
+    "enable": "Activar acceso externo",
+    "disable": "Desactivar acceso externo",
+    "confirmTitle": "¿Autorizar el acceso externo?",
+    "confirmText": "Si está activo, el servidor se reiniciará para escuchar conexiones de red; si está detenido, el cambio se aplicará al iniciarlo. El sistema solicitará permiso para una regla de firewall limitada al puerto de Minecraft, y Luxmc pedirá al router que reenvíe ese puerto mediante UPnP.",
+    "limits": "El acceso por Internet no está garantizado: el router debe admitir UPnP y el proveedor no debe bloquear las conexiones ni usar CGNAT. Mantén el PC encendido. La dirección puede cambiar y no incluye dominio.",
+    "cancel": "Cancelar",
+    "confirm": "Autorizar y activar",
+    "copy": "Copiar dirección",
+    "copied": "Copiado",
+    "clientHelp": "Comparte esta dirección con tus amigos. Deben ir a Multijugador → Conexión directa, usar una cuenta válida de Minecraft: Java Edition y la misma versión/modpack. No necesitan Luxmc. Prueba desde otra red, no desde el mismo Wi-Fi.",
+    "whitelistHelp": "La whitelist está activada. Añade el nombre exacto de cada amigo en la pestaña Jugadores antes de que se conecte; los demás serán rechazados.",
+    "noAddress": "El router reenvió el puerto, pero no proporcionó una IP pública. Revisa el router y prueba desde otra red.",
+    "portHelp": "Inicia este servidor una vez y detenlo para seleccionar un puerto. Después, activa el acceso externo.",
+    "startFirst": "Inicia el servidor y espera a que esté listo. Al activar el acceso externo, se reiniciará para aplicar la configuración.",
+    "needsReenable": "La autorización no está activa en esta sesión. Actívala de nuevo para recrear la regla del firewall y el reenvío temporal del router.",
+    "cgnat": "El router informó una dirección privada o compartida. Esto suele indicar CGNAT u otro router anterior; las conexiones externas podrían no funcionar.",
+    "renewError": "No se pudo renovar el reenvío UPnP: {{error}}"
   },
   "serverPanel": {
     "createPlayitTunnel": "Crear túnel en Playit",

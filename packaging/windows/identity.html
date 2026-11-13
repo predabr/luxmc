@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Lux MC Launcher — identidade do instalador</title>
+<style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+    body {
+        position: relative;
+        background: linear-gradient(180deg, #0a1120 0%, #080e19 46%, #060a13 100%);
+        color: #edf5ff;
+        font-family: "Segoe UI", "Segoe UI Variable", sans-serif;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: geometricPrecision;
+    }
+    .ambient {
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(44% 24% at 50% 44%, rgba(109, 170, 255, .16), transparent 72%),
+            radial-gradient(60% 22% at 50% 2%, rgba(109, 170, 255, .10), transparent 70%),
+            radial-gradient(72% 24% at 50% 100%, rgba(63, 113, 187, .14), transparent 74%);
+    }
+    .vignette {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(6, 10, 19, .92) 0%, rgba(6, 10, 19, 0) 26%, rgba(6, 10, 19, 0) 66%, rgba(6, 10, 19, .94) 100%);
+    }
+    .brand { position: absolute; left: 56px; top: 76px; right: 56px; z-index: 3; }
+    .eyebrow { font-size: 15px; font-weight: 600; letter-spacing: 5px; color: #8caed8; }
+    .brand h1 { margin: 20px 0 0; font-size: 76px; line-height: .94; letter-spacing: -3px; font-weight: 750; }
+    .brand .sub { margin-top: 18px; font-size: 26px; font-weight: 500; letter-spacing: 9px; color: #a9c8ef; }
+    .emblem {
+        position: absolute;
+        left: 50%;
+        top: 47%;
+        width: 424px;
+        height: 424px;
+        transform: translate(-50%, -50%);
+        z-index: 2;
+    }
+    .emblem .glow {
+        position: absolute;
+        inset: -72px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(109, 170, 255, .30) 0%, rgba(109, 170, 255, .11) 44%, transparent 72%);
+    }
+    .emblem .ring {
+        position: absolute;
+        inset: 0;
+        border: 3px solid rgba(109, 170, 255, .42);
+        border-radius: 50%;
+    }
+    .emblem .ring.inner {
+        inset: 44px;
+        border: 3px dashed rgba(140, 175, 235, .32);
+    }
+    .emblem .tick {
+        position: absolute;
+        width: 15px;
+        height: 15px;
+        background: #6daaff;
+        transform: rotate(45deg);
+        box-shadow: 0 0 12px rgba(109, 170, 255, .65);
+    }
+    .emblem .tick.top { left: 50%; top: -8px; margin-left: -7.5px; }
+    .emblem .tick.bottom { left: 50%; bottom: -8px; margin-left: -7.5px; }
+    .emblem .tick.left { left: -8px; top: 50%; margin-top: -7.5px; }
+    .emblem .tick.right { right: -8px; top: 50%; margin-top: -7.5px; }
+    .emblem .mark {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 244px;
+        transform: translate(-50%, -50%);
+        filter: drop-shadow(0 12px 30px rgba(9, 16, 32, .8));
+    }
+    .footer { position: absolute; left: 56px; right: 56px; bottom: 58px; z-index: 3; }
+    .footer .rule { width: 46px; height: 4px; margin-bottom: 24px; background: #6daaff; }
+    .footer strong { display: block; font-size: 32px; line-height: 1.16; letter-spacing: -.6px; font-weight: 700; }
+    .footer p { margin: 16px 0 0; font-size: 15px; letter-spacing: .4px; color: #9eb4ce; }
+
+    body.header-mode .brand {
+        left: 32px;
+        right: auto;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    body.header-mode .eyebrow,
+    body.header-mode .footer { display: none; }
+    body.header-mode .brand h1 { margin: 0; font-size: 74px; letter-spacing: -2px; }
+    body.header-mode .brand .sub { margin-top: 8px; font-size: 19px; letter-spacing: 7px; }
+    body.header-mode .emblem {
+        left: auto;
+        right: 42px;
+        top: 50%;
+        width: 186px;
+        height: 186px;
+        transform: translateY(-50%);
+    }
+    body.header-mode .emblem .ring.inner { inset: 20px; }
+    body.header-mode .emblem .mark { width: 108px; }
+    body.header-mode .emblem .tick { width: 11px; height: 11px; }
+    body.header-mode .emblem .tick.top { top: -6px; margin-left: -5.5px; }
+    body.header-mode .emblem .tick.bottom { bottom: -6px; margin-left: -5.5px; }
+    body.header-mode .emblem .tick.left { left: -6px; margin-top: -5.5px; }
+    body.header-mode .emblem .tick.right { right: -6px; margin-top: -5.5px; }
+    body.header-mode .vignette {
+        background: linear-gradient(90deg, rgba(6, 10, 19, .78) 0%, rgba(6, 10, 19, 0) 60%);
+    }
+</style>
+</head>
+<body>
+    <div class="ambient"></div>
+    <div class="brand">
+        <div class="eyebrow">SEU MUNDO. SUA TURMA.</div>
+        <h1>LUX MC</h1>
+        <div class="sub">LAUNCHER</div>
+    </div>
+    <div class="emblem">
+        <div class="glow"></div>
+        <div class="ring"></div>
+        <div class="ring inner"></div>
+        <div class="tick top"></div>
+        <div class="tick right"></div>
+        <div class="tick bottom"></div>
+        <div class="tick left"></div>
+        <img class="mark" src="/packaging/windows/mark.png" alt="Luxmc">
+    </div>
+    <div class="footer">
+        <div class="rule"></div>
+        <strong>Uma nova aventura.<br>Do seu jeito.</strong>
+        <p>Minecraft · Modpacks · Amigos</p>
+    </div>
+    <div class="vignette"></div>
+    <script>
+        if (new URLSearchParams(location.search).has('header')) document.body.classList.add('header-mode');
+        const reveal = () => requestAnimationFrame(() => requestAnimationFrame(() => { window.artReady = true; }));
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(reveal);
+        else reveal();
+    </script>
+</body>
+</html>

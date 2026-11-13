@@ -98,33 +98,51 @@ impl MinecraftClient {
             .get(MC_PROFILE)
             .bearer_auth(mc_token)
             .send()
-            .await?
-            .error_for_status()?;
-        if resp.status() == reqwest::StatusCode::NOT_FOUND {
-            return Err(AppError::NotFound("minecraft profile not found".into()));
-        }
-        let body: MinecraftProfileResponse = resp.json().await?;
-        let active_skin = body
-            .skins
-            .iter()
-            .find(|s| s.state.as_deref() == Some("ACTIVE"))
-            .or_else(|| body.skins.first());
-        let active_cape = body
-            .capes
-            .iter()
-            .find(|c| c.state.as_deref() == Some("ACTIVE"))
-            .or_else(|| body.capes.first());
-
-        let fix_url = |u: Option<String>| u.map(|s| if s.starts_with("http://") { s.replacen("http://", "https://", 1) } else { s });
-
-        Ok(super::MinecraftProfile {
-            id: body.id,
-            name: body.name,
-            skin_url: fix_url(active_skin.map(|s| s.url.clone())),
-            skin_variant: active_skin.and_then(|s| s.variant.clone()),
-            cape_url: fix_url(active_cape.map(|c| c.url.clone())),
-        })
+            .await?;
+        parse_profile_response(resp).await
     }
+}
+
+async fn parse_profile_response(resp: reqwest::Response) -> AppResult<super::MinecraftProfile> {
+    if resp.status() == reqwest::StatusCode::NOT_FOUND {
+        return Err(AppError::NotFound(
+            concat!(
+                "A Microsoft autorizou o login, mas esta conta não tem um perfil do Minecraft Java. ",
+                "Confirme se ela possui Minecraft: Java Edition e finalize a criação do perfil em minecraft.net. ",
+                "Contas apenas de Bedrock não podem entrar neste launcher."
+            )
+            .into(),
+        ));
+    }
+    let body: MinecraftProfileResponse = resp.error_for_status()?.json().await?;
+    let active_skin = body
+        .skins
+        .iter()
+        .find(|s| s.state.as_deref() == Some("ACTIVE"))
+        .or_else(|| body.skins.first());
+    let active_cape = body
+        .capes
+        .iter()
+        .find(|c| c.state.as_deref() == Some("ACTIVE"))
+        .or_else(|| body.capes.first());
+
+    let fix_url = |u: Option<String>| {
+        u.map(|s| {
+            if s.starts_with("http://") {
+                s.replacen("http://", "https://", 1)
+            } else {
+                s
+            }
+        })
+    };
+
+    Ok(super::MinecraftProfile {
+        id: body.id,
+        name: body.name,
+        skin_url: fix_url(active_skin.map(|s| s.url.clone())),
+        skin_variant: active_skin.and_then(|s| s.variant.clone()),
+        cape_url: fix_url(active_cape.map(|c| c.url.clone())),
+    })
 }
 
 #[async_trait]
@@ -149,5 +167,41 @@ impl AuthProvider for MinecraftClient {
     }
     async fn profile(&self, mc_access_token: &str) -> AppResult<super::MinecraftProfile> {
         MinecraftClient::profile(self, mc_access_token).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    #[tokio::test]
+    async fn missing_java_profile_returns_an_actionable_login_error() {
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .unwrap();
+        let address = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut request = [0; 1024];
+            let _ = stream.read(&mut request).await;
+            stream
+                .write_all(
+                    b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                )
+                .await
+                .unwrap();
+        });
+
+        let response = reqwest::Client::new()
+            .get(format!("http://{address}/minecraft/profile"))
+            .send()
+            .await
+            .unwrap();
+        let error = parse_profile_response(response).await.unwrap_err();
+
+        assert!(matches!(error, AppError::NotFound(_)));
+        assert!(error.to_string().contains("Minecraft: Java Edition"));
+        assert!(error.to_string().contains("minecraft.net"));
     }
 }

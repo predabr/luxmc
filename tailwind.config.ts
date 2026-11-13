@@ -49,7 +49,38 @@ const config: Config = {
 				success: "rgb(var(--success) / <alpha-value>)",
 				warning: "rgb(var(--warning) / <alpha-value>)",
 				danger: "rgb(var(--danger) / <alpha-value>)",
-				info: "rgb(var(--info) / <alpha-value>)"
+				info: "rgb(var(--info) / <alpha-value>)",
+				brass: {
+					300: "rgb(var(--brass-300) / <alpha-value>)",
+					400: "rgb(var(--brass-400) / <alpha-value>)",
+					500: "rgb(var(--brass-500) / <alpha-value>)",
+					600: "rgb(var(--brass-600) / <alpha-value>)",
+					700: "rgb(var(--brass-700) / <alpha-value>)",
+					DEFAULT: "rgb(var(--brass-500) / <alpha-value>)"
+				},
+				copper: {
+					400: "rgb(var(--copper-400) / <alpha-value>)",
+					500: "rgb(var(--copper-500) / <alpha-value>)",
+					600: "rgb(var(--copper-600) / <alpha-value>)",
+					DEFAULT: "rgb(var(--copper-500) / <alpha-value>)"
+				},
+				amethyst: {
+					300: "rgb(var(--amethyst-300) / <alpha-value>)",
+					400: "rgb(var(--amethyst-400) / <alpha-value>)",
+					500: "rgb(var(--amethyst-500) / <alpha-value>)",
+					DEFAULT: "rgb(var(--amethyst-400) / <alpha-value>)"
+				},
+				cable: {
+					blue: "rgb(var(--cable-blue) / <alpha-value>)",
+					green: "rgb(var(--cable-green) / <alpha-value>)",
+					yellow: "rgb(var(--cable-yellow) / <alpha-value>)",
+					purple: "rgb(var(--cable-purple) / <alpha-value>)",
+					red: "rgb(var(--cable-red) / <alpha-value>)"
+				},
+				machine: {
+					DEFAULT: "rgb(var(--luxmc-panel) / <alpha-value>)",
+					deep: "rgb(var(--luxmc-panel-deep) / <alpha-value>)"
+				}
 			},
 			borderRadius: {
 				xs: "var(--radius-xs)",
