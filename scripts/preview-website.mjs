@@ -113,7 +113,7 @@ const server = createServer(async (incoming, outgoing) => {
         params,
         waitUntil: (promise) => void Promise.resolve(promise).catch(() => {}),
       });
-      outgoing.writeHead(response.status, {...securityHeaders,...Object.fromEntries(response.headers), ...(response.headers.getSetCookie().length ? {'Set-Cookie':response.headers.getSetCookie()} : {})});
+      outgoing.writeHead(response.status, {...routeHeaders(new URL(request.url).pathname),...Object.fromEntries(response.headers), ...(response.headers.getSetCookie().length ? {'Set-Cookie':response.headers.getSetCookie()} : {})});
       outgoing.end(Buffer.from(await response.arrayBuffer()));
       return;
     }

@@ -5,12 +5,13 @@ const assert = require('node:assert/strict');
     const browser = await chromium.launch({ headless: true, executablePath: process.env.LUXMC_CHROMIUM_EXECUTABLE });
     try {
         for (const [tag, display, title] of [
-            ['v3.7.0', 'v4.0.1', 'Luxmc 4.0.1'],
-            ['v4.0.1', 'v4.0.1', 'Luxmc 4.0.1'],
-            ['v4.0.2-revision.2', 'v4.0.1', 'Luxmc 4.0.1 — revisão 2'],
-            ['v4.0.1-build.123456.1', 'v4.0.1', 'Luxmc 4.0.1 — build 123456.1'],
-            ['v4.0.0-build.123455.1', 'v4.0.1', 'Luxmc 4.0.1'],
-            ['v4.1.0', 'v4.1.0', 'Luxmc 4.1.0']
+            ['v3.7.0', 'v4.1.0', 'Luxmc 4.1.0'],
+            ['v4.0.1', 'v4.1.0', 'Luxmc 4.1.0'],
+            ['v4.1.1-revision.2', 'v4.1.0', 'Luxmc 4.1.0 — revisão 2'],
+            ['v4.1.0-build.123456.1', 'v4.1.0', 'Luxmc 4.1.0 — build 123456.1'],
+            ['v4.0.0-build.123455.1', 'v4.1.0', 'Luxmc 4.1.0'],
+            ['v4.1.0', 'v4.1.0', 'Luxmc 4.1.0'],
+            ['v4.2.0', 'v4.2.0', 'Luxmc 4.2.0']
         ]) {
             const page = await browser.newPage({locale:'pt-BR'});
             await page.route('**/api/latest-release*', route => route.fulfill({ json: { tag_name: tag, assets: [] } }));
@@ -21,7 +22,7 @@ const assert = require('node:assert/strict');
             assert.ok(versions.every(node => node.text === display && node.title === title));
             await page.close();
         }
-        console.log('Site release identity passed: cached previous release, current release, same-version revision and future release.');
+        console.log('Site release identity passed: older tags keep the shipped version, suffixes annotate it and future releases upgrade it.');
     } finally {
         await browser.close();
     }
