@@ -33,9 +33,8 @@ const {setupLauncherDemo} = require('../scripts/launcher-video-fixture.cjs');
             window.electronAPI.invoke=invoke;
             window.__TAURI_INTERNALS__.invoke=invoke;
         });
-        await page.route('https://github.com/predabr/luxmc/releases/latest/download/latest.json',async route=>{
-            const revision=await page.evaluate(()=>window.remoteRevision);
-            await route.fulfill({json:{version:'4.0.0',displayVersion:'4.0.0',revision,notes:'# Luxmc 4.0.0\n\n## Ajustes\n- Armazenamento e interface.',platforms:{'windows-x86_64':{url:'https://github.com/predabr/luxmc/releases/download/v4.0.0-build.38553346641.2/Lux.MC.Launcher.exe',sha256:'a'.repeat(64),size:123}}}});
+        await page.route('https://api.github.com/repos/predabr/luxmc/releases/latest',async route=>{
+            await route.fulfill({json:{tag_name:'v4.0.0-build.38553346641.2',html_url:'https://github.com/predabr/luxmc/releases',body:'# Luxmc 4.0.0\n\n## Ajustes\n- Armazenamento e interface.',assets:[]}});
         });
         await page.goto('http://127.0.0.1:1420/settings');
         await page.getByRole('tab',{name:'Armazenamento',exact:true}).click();
@@ -81,7 +80,7 @@ const {setupLauncherDemo} = require('../scripts/launcher-video-fixture.cjs');
         await page.goto('http://127.0.0.1:1420/mods');
         await page.locator('.catalog-navigation').waitFor();
         await page.evaluate(()=>{document.documentElement.classList.add('has-custom-wallpaper');document.documentElement.style.setProperty('--interface-opacity','.18');});
-        assert.match(await page.locator('.catalog-navigation').evaluate(el=>getComputedStyle(el).backgroundColor),/0\.18/);
+        assert.match(await page.locator('.catalog-card').first().evaluate(el=>getComputedStyle(el).backgroundColor),/0\.18/);
         await page.goto('http://127.0.0.1:1420/skins');
         await page.locator('.studio-preview').waitFor();
         await page.evaluate(()=>{document.documentElement.classList.add('has-custom-wallpaper');document.documentElement.style.setProperty('--interface-opacity','.18');});
