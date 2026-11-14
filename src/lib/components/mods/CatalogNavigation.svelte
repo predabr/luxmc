@@ -15,7 +15,7 @@
 
 <nav class="catalog-navigation" aria-label={uiText("ui.931d062a37647b8d")}>
 	{#each types as type (type.id)}
-		<button type="button" class="catalog-type" aria-current={selectedType === type.id ? "page" : undefined} onclick={() => selectedType = type.id}>
+		<button type="button" class="catalog-type" aria-pressed={selectedType === type.id} aria-current={selectedType === type.id ? "page" : undefined} onclick={() => selectedType = type.id}>
 			<type.icon class="type-icon h-4 w-4" aria-hidden="true" />
 			<span>{type.label}</span>
 		</button>

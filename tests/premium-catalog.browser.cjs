@@ -32,7 +32,7 @@ const fs = require('node:fs');
         await page.getByRole('button', { name: 'Fabric', exact: true }).click();
         assert.equal(await page.getByRole('button', { name: 'Fabric', exact: true }).getAttribute('aria-pressed'), 'true');
         await page.getByRole('button', { name: 'Fabric', exact: true }).click();
-        await page.locator('.catalog-drawer-close').click();
+        await page.keyboard.press('Escape');
         await page.evaluate(async () => (await import('/src/lib/stores/theme.svelte.ts')).themeStore.setTheme('light', false));
         await page.waitForTimeout(300);
         await shot(page, `${output}/modpacks-light.png`);

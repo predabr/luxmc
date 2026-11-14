@@ -25,6 +25,13 @@ let sidecarProcess: ChildProcess | null = null;
 let nextRequestId = 1;
 const pendingRequests = new Map<number, { resolve: (val: unknown) => void; reject: (err: unknown) => void; timeout: ReturnType<typeof setTimeout> }>();
 
+function handleConsolePipeError(error: NodeJS.ErrnoException): void {
+  if (error.code !== "EPIPE") throw error;
+}
+
+process.stdout.on("error", handleConsolePipeError);
+process.stderr.on("error", handleConsolePipeError);
+
 if (process.defaultApp) {
   if (process.argv.length >= 2) {
     app.setAsDefaultProtocolClient("luxmc", process.execPath, [path.resolve(process.argv[1])]);

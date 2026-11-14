@@ -1,0 +1,306 @@
+# Progresso — 11/11/2026 (sessão de correções e redesign)
+
+> Salvo antes do desligamento do PC. Estado local, sem git.
+
+## Status geral
+- Servidor de teste "oi" (MC 26.3, 2048 MB, porta 33047) inicia e roda limpo.
+- Janelas de CMD/terminal piscando: **CORRIGIDO E VERIFICADO** (ver causa raiz abaixo).
+- Gamerules "Incorrect argument": **CORRIGIDO E VERIFICADO** (0 ocorrências no console).
+- Telemetria (RAM/CPU/heap) com valores reais: **CORRIGIDO E VERIFICADO**.
+- Redesign da página Servidores + console arredondado: **APLICADO e com svelte-check 0 erros**.
+- Testes: Rust `local_server::settings` 9/9, `local_server::telemetry` 2/2, vitest 242/243 (1 flake de timeout, passa isolado), svelte-check 0 erros/0 warnings.
+- Pendente: Server List Ping real via script externo (script saía sem resposta — investigar handshake/fechamento da conexão) e relatório final da missão em pt-BR.
+
+## Causa raiz das janelas de CMD (CORRIGIDO)
+O processo `luxmc-server.exe` (worker) é **cópia** de `luxmc.exe` guardada em
+`%APPDATA%\github\Luxmc\data\server-worker\<revisao>\luxmc-server.exe`, copiada **uma única vez**
+(`if !executable.exists()`). A cópia era de 17:54 (build anterior ao fix `CREATE_NO_WINDOW`),
+então a telemetria rodava nesse binário velho e o `jcmd` abria terminal visível a cada ~1–2 s.
+
+Correções em `src-tauri/src/server_worker.rs`:
+1. **Refresh do exe**: copia de novo quando a fonte é mais nova que o destino (staging `.new` →
+   rename → fallback copy best-effort). Silencia falhas (arquivo em uso).
+2. **Guard de lock em `connect()`**: se `worker.lock` está preso mas não há `endpoint.json`,
+   espera até 15 s pelo auto-reparo e depois retorna erro PT-BR claro (evita fila infinita de
+   cópias de 100 MB travando toda a IPC).
+3. **Auto-reparo no worker `run()`**: accept timeout 120 s → ticks de 10 s; se `endpoint.json`
+   sumir, reescreve; idle-exit após 12 ticks (mantém 120 s).
+4. **Resposta quando o semáforo de 16 requisições acaba**: antes `continue` silencioso (cliente
+   travava para sempre); agora responde erro PT-BR "O serviço de servidores está ocupado…".
+
+Binários: todos os spawns (`telemetry.rs` jcmd, `diagnostics.rs` powershell/java, `firewall.rs`
+powershell, `server_worker.rs`, `core/process.rs`) já têm `CREATE_NO_WINDOW (0x08000000)`.
+Verificação: amostragem a cada 400 ms por 40 s com servidor online + telemetria ativa →
+**NENHUMA janela de console**.
+
+## Gamerules (CORRIGIDO E VERIFICADO)
+- Backend `settings.rs::startup_commands()` version-tiered: nomes snake_case a partir de
+  1.21.11/26.x/25w44a (`keep_inventory`, `advance_time`, `natural_health_regeneration`,
+  `spawn_mobs`, `spawn_monsters`, `command_blocks_work`), camelCase em 1.21.9–1.21.10
+  (`keepInventory`, `doDaylightCycle`, `naturalRegeneration`, `doMobSpawning`, `spawnMonsters`
+  desde 25w35a, `commandBlocksEnabled` desde 25w37a), básicos desde 1.6.1, sem regras
+  inexistentes (`doAnimalSpawning` nunca existiu no Java; `functionCommandLimit` é Bedrock).
+- Frontend `gamerules.ts`: mapa `SNAKE_CASE_RENAMES` + `usesSnakeCaseGamerules()` + `mapValue`
+  (doFireTick→128/0, checks de movimento invertidos); catálogo corrigido
+  (`snowAccumulationHeight` int 0–8, `spawnMonsters`, remoções).
+- Console real do servidor 26.3: `gamerule spawn_monsters true` etc. respondidos pelo RCON sem
+  nenhum `Incorrect argument` (0 linhas).
+
+## Telemetria (CORRIGIDO E VERIFICADO)
+- `telemetry.rs::parse_heap_output` aceita o formato novo do Java 25:
+  `total reserved N K, committed N K, used N K` (mantém legado `total N K, used N K`).
+  Teste novo `java25_reserved_committed_used_output_is_parsed` passa.
+- `commands/system.rs::system_resource_sample` agora chama `refresh_memory()` (antes: total 0).
+- Leitura real (servidor online, pid 23288): processMemoryMb 597–598, heapUsed 227→229 MB,
+  heapCommitted 366 MB, heapMax 2048 MB (= RAM configurada), heapSource `jcmd`,
+  systemUsed 18946/32639 MB, CPU real, tps/mspt null, detail honesto.
+
+## Redesign (APLICADO)
+- `ServersPanel.svelte` reescrito: blocos arrastáveis (HTML5 drag com indicador antes/depois
+  por eixo), paleta de 8 cores por bloco, ordem + cores persistidas em
+  `localStorage` `luxmc.localServerOrder` / `luxmc.localServerColors`, cards 20 px com faixa
+  de acento colorida, seletor "Selecionado", ações play/paleta/excluir.
+- `ConsolePanel.svelte` novo estilo: chips pílula, busca/seleção arredondadas, terminal 20 px,
+  linhas em bolhas arredondadas com barra warn/error, timestamps em pílula, input pílula com
+  badge `>` latão, placeholder neutro (`list, say Olá, time set day`).
+- `src/app.css`: tokens `--radius-*` arredondados nos dois temas
+  (xs 8, sm 10, md 14, lg 18, xl 22, 2xl 30, base 14).
+- 52 `border-radius` 10/12/14 px → 14/16/18 px em todos os painéis de servidor
+  (Overview/World/Players/Performance/Settings/Mods/Plugins/Backups/About/Wizard/Workspace…).
+
+## Modo de execução / ambiente
+- `tauri dev` rodando com `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222`
+  (shell `sh_1cd67e94a001SpeHt3GwNcmuRH`), vite na 1420.
+- Drivers CDP no raiz do repo: `tmp-drive2.cjs` (inicia + screenshots), `tmp-start2.cjs`
+  (invoke direto), `tmp-final.cjs` (telemetria+screenshots), `tmp-verify2.cjs` (fluxo completo
+  com dismiss do modal "Remind me later"), `tmp-rcon-stop.cjs` (parada graciosa via RCON).
+- Modal de update bloqueia cliques: dismiss = botão "Remind me later" (driver `dismiss()`).
+- Conta: Spect3rBW `8a5bec034d584f96908ae56015586a6d`; servidor "oi"
+  `b855869b-06c1-416c-8c15-a8190d5f7fa7`.
+
+## Próximos passos (ao voltar) — CONCLUÍDO em12/11/2026
+1. ✅ Server List Ping externo: **funcionando** (script corrigido — host com prefixo varint, status
+   request id `0x00`, tratamento de `close`). Resultado:26.3 / protocol777 /0–10 jogadores /3 ms.
+2. ✅ Isolamento de2ª instância: dois servidores online ao mesmo tempo (portas33047 e25565, PIDs e
+   diretórios separados) + conflito de porta com sugestão PT-BR de porta livre testada (25600).
+3. ✅ `tests/local-server.browser.cjs` PASS (Edge).
+4. ✅ `cargo test --lib` completo: **373 passed /0 failed** (19 ignored). vitest **243/243**.
+   svelte-check **0/0**.
+5. ✅ Relatório final da missão em pt-BR: `docs/validation/relatorio-final-servidores-2026-11-12.md`
+   (conectividade externa marcada como **Não verificado**).
+- Drivers `tmp-*.cjs` removidos da raiz; servidor de teste "oi" parado com segurança; instância de
+  teste "isola-b" excluída.
+
+## Redesign dos blocos de servidores — reficção em12/11/2026 (pedido do usuário)
+- Motivo: o redesign anterior era sutil (faixa de4 px) e o usuário não via mudança. Refeito em
+  `ServersPanel.svelte`: card = **bloco colorido** (gradiente e borda dominados pela cor escolhida),
+  pílula de status com ponto pulsante (Online/Offline/Iniciando), chips com ícones (versão/jogadores/
+  RAM), botões Iniciar/Parar maiores com tinte, faixa de8 swatches24 px **sempre visível** no rodapé
+  do card + botão `Padrão`, hover com elevação, drag com ghost rotacionado e indicadores luminosos.
+- **Causa raiz visual encontrada:** com papel de parede personalizado (`html.has-custom-wallpaper`),
+  a regra global `app.css` ~linha687 aplica `background-color: rgb(var(--bg-elevated)/var(--interface-opacity,.18)) !important`
+  a todo `<button>`, anulando as cores dos swatches (computed ficava `rgba(17,18,22,0.18)`).
+  Corrigido no componente com seletor de especificidade maior (`.card .dot`, `.card .icon-btn*`) +
+  `background-color … !important` (autoria vence autoria por especificidade: (0,3,0)/(0,5,0) >
+  (0,2,3)).
+- Verificado: cores reais no DOM (brass `rgb(217,186,120)`, ametista `rgb(179,135,250)`, azul
+  `rgb(96,165,250)`, verde `rgb(34,197,94)`…), screenshots `design-bloco-padrao.png`,
+  `design-bloco-ametista.png`, `design-swatches.png` em `%TEMP%\opencode`; svelte-check 0/0.
+
+## Canvas de nós do Gerenciador de Servidor (12/11/2026)
+- Novo `ServerNodeCanvas.svelte`: workspace de canvas infinito (fundo cósmico, poeira estelar,
+  fórmulas fracas tipo f(x)/ψ Schrödinger), pan (arrastar fundo) e zoom (roda/botões, 35–200%).
+- Abas de servidor flutuantes no topo, fora das caixas: aba ativa com brilho ametista, setas
+  anterior/próximo, botão +. Sem instâncias → canvas limpo só com "+ Criar Servidor".
+- Nós arrastáveis (clique no cabeçalho sem arrastar expande/recolhe) conectados por curvas Bezier
+  coloridas em SVG recalculadas ao vivo: Servidor, Software, Modpacks (só com mod loader), Mundo,
+  Regras, Recursos, Controle.
+- Dados 100% reais: `platform.settings`/`loader`/`telemetry` (Regras reflete server.properties),
+  `saveServerSettings`, `updateLocalServer` (RAM), `start/stopLocalServer`, `loadersVersions` +
+  `set_loader`, `modsSearch(contentType modpack, loader)` para o sub-nó de modpacks.
+- Inspetor de estilo flutuante por nó: forma (arredondada/pílula/círculo/personalizada), raio,
+  espessura de borda, opacidade do vidro, textura (grade/pontos) e 8 temas de cor; posições,
+  estilos, zoom e pan persistidos em `luxmc.nodeCanvas.v1`.
+- Descoberta real do backend: `set_loader` recusa trocar loader em mundo já gerado ("Este mundo já
+  usa outro loader…") — a UI mostra o toast do erro e mantém o estado consistente.
+- Verificado via CDP: abas/nós/fios no DOM, sub-nó Modpacks listando catálogo Fabric real
+  (Fabulously Optimized, Sodium Plus, Vanilla Perfected…), screenshot `canvas-final.png`;
+  servidor de teste "demo-fabric" criado para a prova e excluído depois; svelte-check 0/0.
+
+## Canvas como interface única — UI legada eliminada (12/11/2026, pedido do usuário)
+- `ServerWorkspace.svelte` reescrito: sem rail lateral, sem "Painel Clássico", sem "Visão geral",
+  sem seções que trocam de tela. O canvas infinito é a interface permanente; o painel legítimo
+  (Console, Jogadores, Mods, Backups, Desempenho, Configurações) abre como **folha de vidro
+  flutuante dentro do próprio canvas** (`aside.sheet`), com botão picked no dock.
+- Dock vira barra horizontal inferior-central (Console/Jogadores/Mods/Backups/Desempenho/
+  Configurações); zero botões que saem do canvas (verificado: `classicRemnants: false` no DOM).
+- Portas físicas de conexão (`span.port.in/.out`) em cada nó onde os cabos Bezier se plugam;
+  arraste com snapping magnético de 10 px.
+- LOD tipográfico: zoom < 75% → modo esquemático (corpos recolhidos, rótulos contra-escalados
+  `min(13.5/zoom, 22px)`); zoom < 50% → modo mapa (rótulos centrais até 40/zoom px). Nítido em
+  qualquer zoom (verificado a 48% e 35%).
+- Troca de loader otimista: o sub-nó de modpacks monta/desmonta instantaneamente ao clicar; se o
+  backend recusar (mundo já gerado), o estado reverte com o toast real do erro.
+- Controles polidos: switches animados nas Regras, gauge de RAM (alocada vs sistema) nos Recursos,
+  bloco proeminente INICIAR/ENCERRAR SERVIDOR no Controle; menu de contexto (botão direito) abre o
+  inspetor de estilo do nó.
+- Verificado via CDP: 11 portas, 5 cabos, sheet de Console/Mods dentro do canvas, LOD esquemático
+  e mapa; screenshots `final-canvas.png`, `final-sheet.png`, `final-lod-map.png`; svelte-check 0/0.
+
+## Canvas v2 — interface 100% de nós, zero painéis (12/11/2026, spec master do usuário)
+- `ServerNodeCanvas.svelte` reescrito do zero (`luxmc.nodeCanvas.v2`): todo painel legado virou nó.
+  11 tipos de nó — Servidor, Software, Modpacks (sub-nó só com mod loader), Mundo (sliders + regras
+  com divisória), Recursos, EULA, Controle, Console, Jogadores, Backups, Configuração — ligados por
+  10 arestas Bezier com cor por sistema: azul elétrico (Core), esmeralda (Mundo), âmbar (Recursos/
+  Backups), ametista (EULA), carmesim (Controle).
+- `ServerWorkspace.svelte` enxugado: topbar + faixa de avisos + canvas + wizard. `aside.sheet`,
+  dock e os imports Console/Players/World/Mods/Backups/Performance/Settings/AboutPanel **removidos**;
+  rota `/hosting/server` não recebe mais `?section=` (deep-link de painel abolido).
+- Espelhamento ao vivo do nome: input no nó Configuração muta `platform.overview` otimista
+  (título do cartão atualiza a cada tecla) e persiste via `updateLocalServer` no blur; erro reverte.
+- EULA honesto: badge de compliance (aceito na criação) sem checkbox fake — o backend não tem API
+  de gravação do eula.txt pós-criação.
+- Recursos: gauge circular SVG com aro de metal escovado (gradiente), leitura digital
+  `2.0 / 31.5 GiB`, sparkline de CPU do processo, TPS/uptime/heap reais da telemetria.
+- Handles de canto (3 pílulas no topo direito, hover): ciclo de forma, ciclo de cor e inspetor
+  (também via botão direito). Pinos de porta renderizados só onde existe cabo real
+  (`incoming`/`outgoing` derivados das arestas) — nenhum conector solto.
+- Verificação CDP no app rodando (svelte-check 0/0 antes): 10 nós (modpacks oculto no vanilla),
+  9 cabos, cores computadas conferidas (azul ×4, verde ×1, ametista ×1, âmbar ×2, vermelho ×1),
+  `dockLegacy: 0`; espelhamento provado ("Espelho Live" → título do cartão → restaurado "oi");
+  Console abriu com 14 linhas reais + envio de comando; LOD `lod-map` a 35% com wireframes nítidos
+  (`canvas-v2-lod-map.png`); troca Fabric montou o sub-nó de modpacks instantaneamente e reverteu ao
+  ser recusada pelo backend (mundo gerado), voltando ao Vanilla; screenshots `canvas-v2-full.png`,
+  `canvas-v2-final.png` em `%TEMP%\opencode`. Modal de update do launcher segue reabrindo e
+  interceptando cliques (fechar com "Remind me later"); o usuário estava usando o app durante os
+  testes (navegou para /mods no meio) — automação encerrada para não atrapalhar.
+
+## Spec master v2 — polimento e 3 bugs reais corrigidos (12/11/2026)
+- **Cabo flutuante raiz (crítico):** o SVG dos fios ficava em `left/top: -2000px` enquanto os paths
+  usam coordenadas da camada — todos os cabos desenhavam 2000 px fora de posição (só um arco solto
+  aparecia no canto). Medição numérica antes do fix: erro de até 2785 px até o pino mais próximo.
+  Fix: SVG em `inset 0` com `overflow: visible` (origem do user-space = origem da camada). Depois do
+  fix: 8/9 cabos terminam a 0,6–0,9 px do centro do pino (um a 3,6 px, dentro do pino de 11 px) via
+  `getPointAtLength` + `getScreenCTM`.
+- **Micro-pills ilegíveis no zoom-out:** `--lodpx` era unitless e `calc(13.5 * var(--lodpx))`
+  resultava sem unidade → `font-size` inválido → rótulos ficavam ~3,7 px reais na tela. Fix: px na
+  fórmula (`calc(12px * var(--lodpx))`, variável unitless). Modo mapa: pílula com `width:auto`
+  abraçando **ícone da categoria + título** a tamanho de tela constante (ícone 24 px, título 12 px
+  na tela a 35%); portas e padding também contra-escalados.
+- **Cabos desaparecendo no zoom-out:** traço de 2 px em coordenadas do mundo × 0,35 = 0,7 px na
+  tela. Fix: `stroke-width: calc(2px * var(--lodpx))` no LOD (traço = 2 px de tela em qualquer zoom;
+  confirmado 5,7142 px na camada a 35%).
+- **Texturas de grade/pontos removidas** (spec proíbe artefatos de grade): campo `texture` fora do
+  `NodeStyle`, do inspetor, do default do Console e do CSS (`.node::before` incluído).
+- **Física dos cabos**: `transition: d 420ms` nos paths (flexam fluidos no fan-out/recolher) e
+  `transition: none` com a camada em `dragging` (rastreio em tempo real durante o arraste). Larguras
+  dos nós agora medidas (`bind:clientWidth`) e usadas na ancoragem dos cabos — pílulas do modo mapa
+  têm largura variável e os fios continuam plugadas na borda real.
+- Wizard (spec §7) conferido: os 5 passos já existem mapeados em APIs reais (identidade com Java/
+  Bedrock travada e snapshot toggle; matriz de software; runtimes Java com instalação gerenciada —
+  backend não tem campo de JVM args, então nada foi inventado; mundo/rede/RAM com perfis; catálogo
+  de regras + EULA + timeline de instalação real com auto-start). Topbar espelha o nome porque
+  `platform.config` deriva de `overview` (mesma fonte mutada pelo espelhamento).
+- Extra: 2 warnings de CSS legados em `ModCard.svelte` (`-webkit-line-clamp` sem o padrão) corrigidos.
+- Verificação final: svelte-check **0/0**; screenshot `canvas-v2-lod-final.png` (35%: todos os cabos
+  coloridos plugados nos pinos, pílulas com ícone+título, zero artefatos). Drivers tmp removidos.
+
+## Canvas infinito v4 " multi-��ncoras, in��rcia e dropdowns de vidro (13/11/2026)
+- **Roteamento multi-���ncora (spec '2):** servidor centrado com pinos nas **quatro bordas** (top/right/
+  bottom/left) ' pinos por m���dulo alocados ao lado mais pr���ximo; cabos B'zier neon grossos
+  recalculando em tempo real durante arraste (`transition: none` na camada em drag). CDP provou os 4
+  lados ([bottom,left,right,top] com mundo abaixo do hub), 9 pinos 100% em borda, erro m'ximo
+  pino''ncora 1,6 px, tra'co computado 3,5 px.
+- **F���sica de arraste OS-grade (spec '3):** damping no mousemove + **in��rcia com momentum** no
+  soltar (glide at��� parar) + snap final de 10 px no mundo. Testes sint'ticos escalados por zoom
+  ('tela = 'mundo ' zoom, lido de `DOMMatrix(transform).a`).
+- **Dropdowns de vidro (spec '5):** `GlassSelect.svelte` gen'rico (`generics="T extends string"` '
+  `bind:value` checa contra uni'os literais) com prop `accent`; integrado no n��� de mundo do canvas
+  (dificuldade/gamemode, herda `--node-theme`) e no wizard (ametista). Sem `backdrop-filter` (global
+  `main * { backdrop-filter: none !important }` em app.css:413 mata ' ' opacidade 0.95 j' mata o
+  efeito); fundo em token `rgb(var(--bg-elevated) / 0.95)` (regra global de wallpaper resolve em
+  0.94 ' consistente com a plataforma).
+- LOD: `body-node` oculto em schematic (<75%) ' testes de GlassSelect exigem '75% (lod-full);
+  `--lodpx` unitless com px na f���rmula.
+- svelte-check **0/0**; screenshots orbitais em `%TEMP%\opencode`.
+
+## Mods restaurada + servidores instant'neos + topbar nova (13/11/2026)
+- **Aba /mods quebrada (erro interno):** `{/if}' ���rf'' em `+page.svelte:819` (parse
+  `block_unexpected_close` derrubava a rota inteira). Removido; em seguida 8 erros mascarados
+  apareceram ' feature de filtros pela metade (`filtersOpen` inexistente, `SlidersHorizontal` sem
+  import, `expanded` n' o era bindable). Completado: estado `filtersOpen` + bot' o
+  `.catalog-filter-toggle` (badge de contagem) + prop `expanded = $bindable(false)` no
+  `ModSearchBar` com gaveta col'aps'vel (`grid-template-rows 0fr'1fr`, 260ms). CDP: 36 cards,
+  toggle abre 505px / fecha colapsado.
+- **Lista de servidores mais r'pida:** causa raiz ' `startPolling()` s��� rodava no mount do
+  `ServerWorkspace` ' primeira entrada baixava a lista do zero. Fix: `void
+  platform.refreshServers()` no boot do `+layout.svelte` (onMount) + `"/hosting/server"` como
+  primeira rota do `warmRoutes`. Medi' ' o: navega' ' o suave sidebar''hosting/server renderiza o
+  servidor em **~115 ms** (3 medi' ' es: 124/116/113 ms).
+- **Topbar redesign:** emblema gen'rico "L" (`/branding/luxmc-emblem-128.png`) removido ' cubo
+  isom' trico em SVG inline com 3 faces em gradientes brass (`--brass-300/400/500/600/700`,
+  stops via `style` ' var() n' o funciona em atributos de apresenta' ' o) e edges hairline
+  `.emblem-edges`. Bordas: `border-bottom` plano fora; `::after` com hairline em gradiente
+  brass'ametista'transparente + `box-shadow: inset 0 1px 0` (highlight de vidro); `.win-btn`
+  polido (raio 9px, fundo transl'cido, `:focus-visible` ametista). CDP confirmou SVG + gradiente
+  + img antiga ausente; screenshot `topbar-nova.png`.
+- svelte-check **0/0** ap���s cada frente.
+## 2026-11-13 — Lote 2: modal travado, filtros à direita, caixa do servidor, RAM auto, migrador, downloads e instalador
+
+### Frontend
+- **Modal de guia em /mods**: `<InstallGuideModal>` era renderizado incondicionalmente (sempre visível, impossível fechar). Agora vive dentro de `{#if showInstallGuide}`, com `role="dialog"`, `aria-modal`, `tabindex="-1"` e Escape via `<svelte:window>`. Verificado via CDP: overlay ausente.
+- **Filtros à direita (estilo Modrinth)**: `<ModSearchBar>` movido para `<aside class="catalog-rail">` à direita; `.catalog-layout` grid `minmax(0,1fr) 296px` com `grid-column`/`grid-row` explícitos (auto-placement empurrava o conteúdo para a linha 2 — "coisas lá pra baixo"). Toggle de filtros compacto (`align-self: flex-start`, 86px). CDP: rail 296px à direita, mesma linha do conteúdo, 32 cards, toggle close/reopen OK.
+- **ModSearchBar**: mecanismo de colapso interno (`drawer-collapse`, prop `expanded`) removido; painel sempre visível (a página controla o rail).
+- **Caixa do gerenciador de servidores**: `.workspace` com radius 18px, sombra de vidro, moldura em hairline gradiente (brass→amethyst→border) via `::after` + mask-composite; controles de janela em cápsula de vidro (radius 13px), botões sem borda (hover neutro, close vermelho). CDP confirmou numericamente.
+- **RAM "Auto" (crash de modpacks, ex. Cursed Walking)**: frontend sempre enviava 4096 e derrotava o `smart_modpack_ram` do backend. Defaults agora são 0 (Auto) em ModpackInstaller, página /mods, PackCollections (amigos) e zod `ramMb min(0)`; UI mostra "Auto" + chips 4/6/8/12 GB.
+- **Migrador de launchers**: `ExternalInstance` ganha `icon`/`ramMb`; Prism lê `name=`, `iconKey=`, `MaxMemAlloc=` (ícones resolvidos em data-URL a partir de `{raiz}/icons/{key}.ext`); CurseForge lê `allocatedMemory` + investiga instance/icon/logo/cover.png|jpg; `importer_execute_import` aceita `icon`/`ramMb`, sanitiza (data:/http/builtin, ≤6MB) e INSERT grava ícone+RAM; cópia ampliada (coremods/openloader/packmenu/custommainmenu). Frontend (UniversalImporterModal) envia ícone/RAM.
+
+### Backend / Performance
+- reqwest com features `http2` + `gzip`; client compartilhado com `tcp_keepalive(30s)` e `http2_adaptive_window(true)`.
+- `mods_install_with_deps_core`: staging de mods paralelizado com `buffer_unordered(16)` (era sequencial).
+- Janelas de download dos loaders (fabric/forge/neoforge/quilt) `min(12)`→`min(24)`; prefetch do instalador 6→12. BOM UTF-8 removido dos .rs após bulk edit.
+- cargo check OK (7 warnings pré-existentes de dead code).
+
+### Instalador Windows (estilo Modrinth, flat)
+- Novo `packaging/windows/sidebar.bmp` 164×314 gerado via System.Drawing (navy escuro, cubo isométrico brass flat, wordmark LUXMC, arcos sutis) — sem 3D.
+- `headerImage` removido do tauri.conf.json (páginas internas limpas); textos do template NSIS padronizados ("Bem-vindo ao instalador do ${PRODUCTNAME}", "${PRODUCTNAME} instalado!", run "Abrir o ${PRODUCTNAME}").
+
+### Caça a erros (varredura final)
+- CDP varreu console/página/HTTP em /mods e /hosting/server: 8 erros → **0 erros**.
+  - Paleta adaptativa (node-vibrant) carregava banner externo com `crossOrigin` (bisecthosting sem ACAO) → novo comando Rust `util_image_data_url` (https, ≤8MB, content-type image, thumb 512px PNG) traz a imagem pelo backend; Vibrant roda sobre data-URL com cache de 24 entradas.
+  - Updater: `fetch` para github.com/…/latest.json sempre falhava (redirect sem ACAO) → bloco removido; o fallback api.github.com (ACAO *) cobre versão/revision/notas/assets.
+- svelte-check 0/0; cargo check OK; app rebuildado e relançado pelo tauri dev.
+
+## 2026-11-13 — Lote 3: redesign completo dos botões (estilo Modrinth, flat)
+
+### Factory central
+- `src/lib/components/ui/button.ts` reescrita: base pill (`rounded-full`), gap-2, `whitespace-nowrap`, transição só de cores (sem transform). Variantes flat: primary/play `bg-brand-500 hover:bg-brand-400 active:bg-brand-600 border-transparent` (gradiente removido), secondary `bg-fg/[0.07] hover:bg-fg/[0.11] active:bg-fg/[0.14]`, ghost/outline/microsoft/danger/ghostBrand achatados. Tamanhos: sm h-9 px-4, md h-10 px-5 text-[13px], lg h-11 px-6, xl h-12, pill, hero h-14, icon h-10 w-10, novo iconSm h-9 w-9. `Button.svelte` inalterado (usa a factory).
+
+### app.css global
+- `.launcher-button { border-radius: 999px }` global; sheen `::before` removido (`content: none`); gradientes de `background-image` (secondary/outline/primary/microsoft/play/danger) → none; sombras inset 3D de todos os variantes → none; antiga regra `border-radius: var(--radius-lg)` removida.
+- Movimentos removidos: hover lift `translateY(-1px/-2px)` (normal e refined-ui), active `scale(.98)` → `translateY(1px)` (press sutil mantido), nav-link active `scale(.98)` → none, bounce de ícone no hover/focus (`translate: 0 -2px`) → none.
+- Sheen sweep `::after` do primary/play (keyframe `luxmc-button-sheen`) removido.
+- Ripple de clique removido: action `src/lib/actions/buttonFeedback.ts` deletada (uso único no layout raiz), `use:buttonFeedback` removido de `+layout.svelte`, `.launcher-button-wave` removida do CSS.
+- Regras de wallpaper achatadas: primary/play flat (sem gradiente/borda/sombra); hover com wallpaper não troca mais `border-color` (só clareia fundo, sem sombra).
+- refined-ui: primary `background: rgb(var(--brand-action))` com borda transparente e sem glow/sombra.
+
+### Overrides pontuais
+- `+page.svelte` (home): ícone play `rounded-2xl` → `rounded-full`; `ThemeSection.svelte`: ícone danger do wallpaper `rounded-lg` → `rounded-full`.
+- Correção de quebra: fragmentos órfãos no fim do app.css (lixo de edição, linhas 914–924) causavam `Unexpected }` do postcss → 500 Internal Error em todas as páginas; removidos (arquivo termina no bloco `prefers-reduced-motion`).
+
+### Verificação
+- Auditoria visual por CDP nas 8 páginas (`/`, `/instances`, `/mods`, `/settings`, `/skins`, `/friends`, `/news`, `/hosting/server`): cutscene de boot reinicia a cada `goto` — script pula com Esc; todas renderizam pills flat, hover só clareia fundo, sem lift/sheen/ripple. Screenshots em `%TEMP%\opencode\audit-*.png`.
+- svelte-check **0/0**. Nenhum arquivo Rust editado neste lote.
+
+### Lote 3b — revisão estrutural "igual Modrinth" (geometria real das refs)
+- Erro corrigido: o lote anterior forçou TUDO pill; as refs do Modrinth mostram pill **só nos CTAs** (Play/New instance) e toggles — dropdowns, nav e menus são **rounded ~10px cinza escuro**, e o item ativo é **tintado**, não preenchido.
+- **Factory (`button.ts`)**: base `rounded-sm` (10px); pill via marcadores (`--primary`, `--play`, `--brand-outline`). Secondary agora **sem borda** (`bg-fg/[0.07] hover:bg-fg/[0.11]`). Alturas Modrinth: sm 32px, md 36px, lg 40px, xl 44px, hero 48px, icon 36px. Novo variante `tinted` (item ativo: `bg-brand-500/12 text-brand-400`) e `brandOutline` (chip outline brass, pill).
+- **app.css**: `.launcher-button` default `var(--radius-sm)`; pill só primary/play/brand-outline; native `select` cinza (`fg/0.07`, borda `fg/0.08`, radius 10px, semibold); `.launcher-nav-link` 40px/10px (antes 44px/22px) sem sombra inset; `.launcher-tab` 36px/10px; `.mod-view-switch` container cinza com itens 8px e ativo tintado (sem glow); `.settings-navigation` e `.instance-settings-navigation` viram coluna **flat** (sem cápsula de vidro), itens 38px; indicador de nav (barra 3px + glow) desativado e bounce de ícone no ativo removido.
+- **Sidebar**: itens 40px/10px; ativo **tintado** (antes `bg-brand-500` preenchido); "+ New Instance" = `brandOutline` (chip outline brass, como o "New instance" verde do Modrinth).
+- **Settings** (`+page.svelte`): tabs eram `variant: primary` + `min-h-14` (56px!) → agora `tinted`/`ghost`, `min-h-10` (40px), ícones 16px, sem `surface-glass` (coluna flat como o modal do Modrinth).
+- **Instance settings** (`instances/[id]`): ativo `primary` → `tinted`.
+- **GlassSelect (ui + server)**: popup 10px com borda `fg/0.08`, itens `rounded-xs` min-h-9; trigger do server sem gradiente/lift/sombras pesadas (cinza flat, hover clareia).
+- **CatalogNavigation (/mods)**: tabs de tipo 38px/10px, cinza `fg/0.05`, ativo tintado sem inset ring/glow.
+- **Buscas normalizadas para 10px cinza** (`fg/[0.07]`, borda `fg/[0.08]`): home, InstanceFilters (era pill), /mods (era rounded-2xl py-4 com shadow-inner), instance settings, friends, BedrockSetup, DependencyMap, owner.
+- **Auditoria visual** (CDP, 8 páginas): home/instances/mods/settings/skins/friends/news/hosting renderizam no padrão das refs — dropdowns "Name/All" cinza rounded, Play pill + kebab circular, toolbar de pills flat, nav tintada. Modal de update do launcher tem `role="dialog"` e é escondido por CSS injetado no script de auditoria (o style se perde a cada `goto`; agora reinjetado por página).
+- svelte-check **0/0**; sem erro postcss no HMR.
