@@ -15,7 +15,7 @@ const { setupLauncherDemo } = require('../scripts/launcher-video-fixture.cjs');
                 Object.assign(window.launcherDemo.state.settings, { language: 'pt-BR', languageMode: 'manual', blur: false, animations: true, respectReducedMotion: false, performanceMode: false });
             });
             await page.goto('http://127.0.0.1:1420/');
-            await page.getByRole('button', { name: 'Microsoft', exact: true }).waitFor();
+            await page.getByRole('button', { name: 'Entrar com Microsoft' }).waitFor();
             assert.equal(await page.locator('aside.login-story').count(), 0);
             assert.equal(await page.locator('section.login-story').count(), 1);
             await page.evaluate(() => document.fonts.ready);
@@ -24,9 +24,9 @@ const { setupLauncherDemo } = require('../scripts/launcher-video-fixture.cjs');
             if (width === 1440) {
                 assert.equal(await page.locator('.login-story').evaluate(node => getComputedStyle(node).backgroundColor), 'rgba(0, 0, 0, 0)');
                 assert.equal(await page.locator('.login-story').isVisible(), true);
+                await page.getByText('Suas versões, seus modpacks e sua turma. Escolha a conta que você usa e organize tudo no Luxmc.', { exact: true }).waitFor();
+                assert.equal(await page.locator('a[href*="skin-studio"]').count(), 0);
             }
-            await page.getByText('Suas skins e capas ficam no personalizador do launcher após entrar.', { exact: true }).waitFor();
-            assert.equal(await page.locator('a[href*="skin-studio"]').count(), 0);
             assert.equal(await page.evaluate(() => document.documentElement.classList.contains('reduce-motion')), false);
             if (output) await page.screenshot({ path: `${output}/login-${width}.png` });
             await page.close();
