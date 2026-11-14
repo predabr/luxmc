@@ -311,4 +311,5 @@ Verificação: amostragem a cada 400 ms por 40 s com servidor online + telemetri
 - `scripts/preview-website.mjs` agora aplica **todos** os blocos de `_headers` por rota (antes só o primeiro bloco `/*`), que é o motivo de o teste de navegador nunca ter pegado o CSP estrito.
 - `tests/commerce.browser.cjs`: exige `img.receipt-image` visível após "Ver comprovante" e usa o rótulo atual do código de amizade (`Código de amizade enviado pelo jogador`, que mudou em b6e0b7d). Teste completo verde localmente com Edge.
 - Falha do Release 4.1.0 (`test:browser:content` em mods-catalog) já havia sido corrigida em a70a7aa (abas achatadas); release.yml não roda testes Rust, por isso a falha era outra.
+- Testes de navegador desatualizados pelo 4.1.0 (rodavam fora do CI e nunca pegaram as mudanças): `workshop` agora expande o painel da fila recolhível e `catalog-room-polish` verifica o novo carregamento de arte do card (opacidade 0→1 com ícone como capa, sem o dim fixo 0.4). Suíte completa `test:browser:content` verde localmente.
 - Pendente: publicar o site (`pnpm deploy:website` precisa de login OAuth no wrangler) e reativar a tag `v4.1.0` no commit corrigido.

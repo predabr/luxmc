@@ -38,8 +38,9 @@ const base = process.env.LUXMC_BROWSER_BASE_URL || 'http://127.0.0.1:1420';
         const card = page.locator('.catalog-card').filter({ hasText: 'Pack sem galeria' });
         await card.waitFor();
         await page.waitForFunction(() => {
-            const image = document.querySelector('.catalog-card img.relative');
-            return image?.complete && image.naturalWidth > 0 && image.style.opacity === '0.4' && getComputedStyle(image).objectFit === 'cover';
+            const card = [...document.querySelectorAll('.catalog-card')].find(node => node.getAttribute('aria-label') === 'Pack sem galeria');
+            const image = card?.querySelector('img.relative');
+            return !!image && image.complete && image.naturalWidth > 0 && image.style.opacity === '1' && getComputedStyle(image).objectFit === 'cover';
         });
         assert.equal(await page.evaluate(() => window.polishAnimations.some(animation => animation.id === 'luxmc-catalog-reveal')), true);
         fs.mkdirSync('docs/validation/local-polish', { recursive: true });
