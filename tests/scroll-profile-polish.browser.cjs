@@ -46,10 +46,14 @@ const {setupLauncherDemo} = require('../scripts/launcher-video-fixture.cjs');
             }
             const feedback = await page.evaluate(async () => {
                 const {appState} = await import('/src/lib/stores/app.svelte.ts');
-                const node = document.createElement('button'); node.className = 'launcher-button'; node.textContent = 'Test feedback';
-                node.onclick = () => { appState.isLaunching = true; };
-                document.querySelector('main').append(node); node.click();
-                const hasWave = Boolean(node.querySelector('.launcher-button-wave')); appState.isLaunching = false; node.remove(); return hasWave;
+                const wait = () => new Promise(resolve => setTimeout(resolve, 60));
+                appState.isLaunching = true;
+                await wait();
+                const busy = document.documentElement.classList.contains('resource-busy');
+                appState.isLaunching = false;
+                await wait();
+                const cleared = !document.documentElement.classList.contains('resource-busy');
+                return busy && cleared;
             });
             assert.equal(feedback,true);
             assert.deepEqual(errors,[]); await page.close();
