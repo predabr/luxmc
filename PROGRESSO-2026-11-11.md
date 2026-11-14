@@ -304,3 +304,11 @@ Verificação: amostragem a cada 400 ms por 40 s com servidor online + telemetri
 - **Buscas normalizadas para 10px cinza** (`fg/[0.07]`, borda `fg/[0.08]`): home, InstanceFilters (era pill), /mods (era rounded-2xl py-4 com shadow-inner), instance settings, friends, BedrockSetup, DependencyMap, owner.
 - **Auditoria visual** (CDP, 8 páginas): home/instances/mods/settings/skins/friends/news/hosting renderizam no padrão das refs — dropdowns "Name/All" cinza rounded, Play pill + kebab circular, toolbar de pills flat, nav tintada. Modal de update do launcher tem `role="dialog"` e é escondido por CSS injetado no script de auditoria (o style se perde a cada `goto`; agora reinjetado por página).
 - svelte-check **0/0**; sem erro postcss no HMR.
+
+## 13/11 — CI verde e comprovantes do painel do dono
+- CI quebrado desde 094be0e: versão `4.1.0` sem notas em `docs/releases/v4.1.0.md` (teste Rust do changelog exige a entrada atual). Notas criadas e incluídas em `changelog.rs`; `cargo test --lib changelog::` verde.
+- Comprovantes do painel do dono não abriam: CSP de `/painel-luxmc*` em `website/_headers` não permitia `blob:` no `img-src`, e a página fica sujeita a **dois** CSPs (o geral tem blob, o restrito não) — o preview do comprovante usa `URL.createObjectURL`. Corrigido para `img-src 'self' data: blob:`.
+- `scripts/preview-website.mjs` agora aplica **todos** os blocos de `_headers` por rota (antes só o primeiro bloco `/*`), que é o motivo de o teste de navegador nunca ter pegado o CSP estrito.
+- `tests/commerce.browser.cjs`: exige `img.receipt-image` visível após "Ver comprovante" e usa o rótulo atual do código de amizade (`Código de amizade enviado pelo jogador`, que mudou em b6e0b7d). Teste completo verde localmente com Edge.
+- Falha do Release 4.1.0 (`test:browser:content` em mods-catalog) já havia sido corrigida em a70a7aa (abas achatadas); release.yml não roda testes Rust, por isso a falha era outra.
+- Pendente: publicar o site (`pnpm deploy:website` precisa de login OAuth no wrangler) e reativar a tag `v4.1.0` no commit corrigido.

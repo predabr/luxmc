@@ -15,12 +15,22 @@ import { onRequest as microsoft } from "../website/functions/api/microsoft/[acti
 
 const root = resolve("website"),
   port = Number(process.env.LUXMC_SITE_PORT || 8790);
-const securityHeaders={};
-for(const line of (await readFile(join(root,"_headers"),"utf8")).split(/\r?\n/).slice(1)) {
-  if(!line.trim()) break;
-  const separator=line.indexOf(':');
-  if(separator>0) securityHeaders[line.slice(0,separator).trim()]=line.slice(separator+1).trim();
+const headerRules = [];
+{
+  const lines = (await readFile(join(root, "_headers"), "utf8")).split(/\r?\n/).slice(1);
+  let current = null;
+  for (const line of lines) {
+    if (!line.trim()) { current = null; continue; }
+    if (!line.startsWith(" ")) { current = { pattern: line.trim(), headers: {} }; headerRules.push(current); continue; }
+    const separator = line.indexOf(":");
+    if (current && separator > 0) {
+      const name = line.slice(0, separator).trim(), value = line.slice(separator + 1).trim();
+      if (current.headers[name]) current.headers[name] = `${current.headers[name]}, ${value}`;
+      else current.headers[name] = value;
+    }
+  }
 }
+const routeHeaders = pathname => Object.assign({}, ...headerRules.filter(rule => rule.pattern.endsWith("*") ? pathname.startsWith(rule.pattern.slice(0, -1)) : pathname === rule.pattern).map(rule => rule.headers));
 const sqlite = new DatabaseSync(":memory:");
 sqlite.exec("PRAGMA foreign_keys=ON");
 for (const migration of (await readdir(join(root, "migrations")))
@@ -132,7 +142,7 @@ const server = createServer(async (incoming, outgoing) => {
     }
     const content = await readFile(path);
     outgoing.writeHead(status, {
-      ...securityHeaders,
+      ...routeHeaders(pathname === "/" ? "/" : pathname),
       "Content-Type": mime[extname(path)] || "application/octet-stream",
       "Cache-Control": "no-store",
       "X-Content-Type-Options": "nosniff",
