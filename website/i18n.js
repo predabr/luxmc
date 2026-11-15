@@ -263,7 +263,10 @@
       "social.step1": "Adicione seus amigos à conta LuxMC.",
       "social.step2": "Abra seu mundo para LAN no Minecraft.",
       "social.step3": "Crie o convite pelo launcher e compartilhe.",
-      "social.inviteNote": "Conexão direta ou relay. Túnel criptografado."
+      "social.inviteNote": "Conexão direta ou relay. Túnel criptografado.",
+      "discord.bandTitle": "Entre no Discord oficial do LuxMC.",
+      "discord.bandBody": "Suporte direto com a equipe, novidades em primeira mão e a turma jogando junto.",
+      "discord.cta": "Entrar no Discord"
     },
     en: {
       "roadmap.label": "IN VERSION 4.0.1",
@@ -524,7 +527,10 @@
       "social.step1": "Add your friends to your LuxMC account.",
       "social.step2": "Open your Minecraft world to LAN.",
       "social.step3": "Create the invitation in the launcher and share it.",
-      "social.inviteNote": "Direct connection or relay. Encrypted tunnel."
+      "social.inviteNote": "Direct connection or relay. Encrypted tunnel.",
+      "discord.bandTitle": "Join the official LuxMC Discord.",
+      "discord.bandBody": "Get direct support from the team, follow the news first and play with the community.",
+      "discord.cta": "Join the Discord"
     },
     es: {
       "roadmap.label": "EN LA VERSIÓN 4.0.1",
@@ -785,7 +791,10 @@
       "social.step1": "Añade a tus amigos a tu cuenta LuxMC.",
       "social.step2": "Abre tu mundo de Minecraft a LAN.",
       "social.step3": "Crea la invitación en el launcher y compártela.",
-      "social.inviteNote": "Conexión directa o relay. Túnel cifrado."
+      "social.inviteNote": "Conexión directa o relay. Túnel cifrado.",
+      "discord.bandTitle": "Únete al Discord oficial de LuxMC.",
+      "discord.bandBody": "Soporte directo del equipo, novedades en primera fila y la comunidad jugando junta.",
+      "discord.cta": "Unirse al Discord"
     }
   };
   const browserLanguage = (navigator.languages?.[0] || navigator.language || "en").toLowerCase();
