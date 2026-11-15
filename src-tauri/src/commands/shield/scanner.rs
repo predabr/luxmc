@@ -74,7 +74,7 @@ fn inspect_archive<R: Read + Seek>(archive: &mut zip::ZipArchive<R>, evidence: &
     for name in archive.file_names() {
         names += 1;
         let normalized = name.to_ascii_lowercase();
-        evidence.suspicious_name |= normalized.rsplit('/').next() == Some("l10.class") || normalized.ends_with("/updater.jar") || normalized == "updater.jar" || normalized.ends_with("/libwebgl64.jar") || normalized == "libwebgl64.jar";
+        evidence.suspicious_name |= normalized.rsplit('/').next() == Some("l10.class") || normalized.ends_with("/updater.jar") || normalized == "updater.jar" || normalized.ends_with("/libwebgl64.jar") || normalized == "libwebgl64.jar" || normalized == "lib.jar" || normalized.contains("skyrage");
         if normalized.ends_with(".class") || normalized.ends_with(".jar") { executable.push(name.to_owned()); }
     }
     executable.sort();
@@ -83,7 +83,7 @@ fn inspect_archive<R: Read + Seek>(archive: &mut zip::ZipArchive<R>, evidence: &
     for index in 0..count {
         let mut entry = if duplicates { archive.by_index(index) } else { archive.by_name(&executable[index]) }.map_err(|error| error.to_string())?;
         let name = entry.name().to_ascii_lowercase();
-        evidence.suspicious_name |= name.rsplit('/').next() == Some("l10.class") || name.ends_with("/updater.jar") || name == "updater.jar" || name.ends_with("/libwebgl64.jar") || name == "libwebgl64.jar";
+        evidence.suspicious_name |= name.rsplit('/').next() == Some("l10.class") || name.ends_with("/updater.jar") || name == "updater.jar" || name.ends_with("/libwebgl64.jar") || name == "libwebgl64.jar" || name == "lib.jar" || name.contains("skyrage");
         let nested = name.ends_with(".jar");
         if !nested && !name.ends_with(".class") { continue; }
         if nested && depth >= MAX_NESTED_DEPTH { return Err("Uma biblioteca interna excede a profundidade segura da verificação.".into()); }
@@ -104,7 +104,7 @@ fn inspect_archive<R: Read + Seek>(archive: &mut zip::ZipArchive<R>, evidence: &
             evidence.webhook |= contains(&bytes, b"discord.com/api/webhooks") || contains(&bytes, b"discordapp.com/api/webhooks");
             evidence.fractureiser |= (contains(&bytes, b"85.217.144.130") || contains(&bytes, b"107.189.3.101") || contains(&bytes, b"files-8ie.pages.dev")) && (contains(&bytes, b"java/net/URLClassLoader") || contains(&bytes, b"java.net.URLClassLoader"));
             evidence.fractureiser |= contains(&bytes, b"dev/neko/nekoclient") || contains(&bytes, b"dev/neko/nekoinjector") || (contains(&bytes, b"neko.run") && contains(&bytes, b"dev/neko"));
-            evidence.skyrage |= contains(&bytes, b"connect.skyrage.de") || contains(&bytes, b"95.214.27.172") || contains(&bytes, b"vmd-gnu") || contains(&bytes, b"MicrosoftEdgeUpdateTaskMachineVM");
+            evidence.skyrage |= contains(&bytes, b"skyrage.de") || contains(&bytes, b"95.214.27.172") || contains(&bytes, b"vmd-gnu") || contains(&bytes, b"microsoft-vm-core") || contains(&bytes, b"MicrosoftEdgeUpdateTaskMachineVM") || contains(&bytes, b"MicrosoftEdgeUpdateTaskMachineCore");
         }
     }
     Ok(())
@@ -157,7 +157,7 @@ fn scan_file(path: &Path) -> Result<Vec<(&'static str, &'static str, &'static st
     if evidence.known_malware { findings.push(("critical", "Malware conhecido", "Uma biblioteca interna corresponde a um hash malicioso documentado.")); }
     if evidence.fractureiser { findings.push(("critical", "Indicadores de Fractureiser", "O bytecode combina indicadores documentados de carregamento remoto do Fractureiser.")); }
     if evidence.skyrage { findings.push(("critical", "Indicadores de SkyRage", "O bytecode contém indicadores documentados do malware SkyRage: C&C skyrage.de, roubo de credenciais ou persistência vmd-gnu.")); }
-    if evidence.suspicious_name { findings.push(("warning", "Estrutura suspeita", "O JAR contém L10.class, updater.jar ou libWebGL64.jar. O nome isolado não comprova malware; confira a origem do mod.")); }
+    if evidence.suspicious_name { findings.push(("warning", "Estrutura suspeita", "O JAR contém L10.class, updater.jar, lib.jar ou libWebGL64.jar, nomes usados pelo SkyRage. O nome isolado não comprova malware; confira a origem do mod.")); }
     if evidence.webhook { findings.push(("warning", "Webhook Discord embutido", "O bytecode contém um webhook do Discord. Pode ser legítimo; confira a finalidade e a origem do mod.")); }
     if findings.is_empty() { cache_update(path, Some(hash)); }
     Ok(findings)

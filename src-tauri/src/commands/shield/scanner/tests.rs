@@ -71,6 +71,27 @@ fn content_hash_invalidates_cache_even_with_same_size_and_timestamp() {
 }
 
 #[test]
+fn skyrage_indicators_block_launch_even_without_a_known_hash() {
+    let root = tempfile::tempdir().unwrap();
+    jar(&root.path().join("skyrage.jar"), "Example.class", b"inert markers: connect.skyrage.de 95.214.27.172 vmd-gnu");
+    jar(&root.path().join("c2.jar"), "Other.class", b"download t23e7v6uz8idz87ehugwq.skyrage.de payload");
+    let result = scan_mods_directory(root.path());
+    assert_eq!(result.threats.iter().filter(|threat| threat.code == "skyrage").count(), 2);
+    assert!(result.threats.iter().all(|threat| threat.severity == "critical"));
+    assert!(enforce_scan(&result).is_err());
+}
+
+#[test]
+fn fractureiser_download_hosts_require_remote_loader_bytecode() {
+    let root = tempfile::tempdir().unwrap();
+    jar(&root.path().join("loader.jar"), "Example.class", b"inert markers: 107.189.3.101 files-8ie.pages.dev java/net/URLClassLoader");
+    jar(&root.path().join("hostonly.jar"), "Example.class", b"inert markers: 107.189.3.101");
+    let result = scan_mods_directory(root.path());
+    assert_eq!(result.threats.iter().filter(|threat| threat.code == "fractureiser").count(), 1);
+    assert!(enforce_scan(&result).is_err());
+}
+
+#[test]
 fn names_alone_are_warnings_and_documented_hashes_are_recognized() {
     let root = tempfile::tempdir().unwrap();
     jar(&root.path().join("names.jar"), "L10.class", b"benign example");
