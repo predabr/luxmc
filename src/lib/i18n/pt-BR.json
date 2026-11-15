@@ -4214,5 +4214,10 @@
     "profileLoading": "Preparando o perfil…",
     "profileFailed": "Não foi possível abrir o perfil. Feche e tente novamente.",
     "close": "Fechar"
+  },
+  "modsPanel": {
+    "disabledCount": "desativados",
+    "packsCount": "pacotes",
+    "filteredCount": "exibidos"
   }
 }

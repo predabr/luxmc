@@ -146,3 +146,21 @@ pub async fn reconcile_profile(
 
     list_by_profile(db, profile_id).await
 }
+
+pub async fn refresh_mod_count(db: &Db, profile_id: &str, game_dir: &std::path::Path) -> AppResult<i64> {
+    let directory = game_dir.join("mods");
+    let count = tokio::task::spawn_blocking(move || {
+        std::fs::read_dir(directory)
+            .map(|entries| entries.flatten().filter(|entry| entry.path().is_file() && canonical_mod_file(&entry.file_name().to_string_lossy()).is_some()).count() as i64)
+            .unwrap_or(0)
+    })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))?;
+    sqlx::query("UPDATE profiles SET mod_count = ? WHERE id = ? AND mod_count != ?")
+        .bind(count)
+        .bind(profile_id)
+        .bind(count)
+        .execute(db.pool())
+        .await?;
+    Ok(count)
+}

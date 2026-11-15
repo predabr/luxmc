@@ -4214,5 +4214,10 @@
     "profileLoading": "Preparing profile…",
     "profileFailed": "Unable to open the profile. Close and try again.",
     "close": "Close"
+  },
+  "modsPanel": {
+    "disabledCount": "disabled",
+    "packsCount": "packs",
+    "filteredCount": "shown"
   }
 }

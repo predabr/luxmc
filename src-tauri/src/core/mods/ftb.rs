@@ -197,7 +197,7 @@ pub async fn versions(http: &reqwest::Client, project_id: &str, mc_version: &str
     let pack = fetch_pack(http, project_id.parse::<u64>().map_err(|_| AppError::InvalidInput("Projeto FTB inválido".into()))?).await.ok_or_else(|| AppError::NotFound("Modpack FTB não encontrado".into()))?;
     let filter = mc_version.trim().to_owned();
     let filtered = !filter.is_empty() && !filter.eq_ignore_ascii_case("all") && filter != "Qualquer Versão";
-    Ok(pack_versions(&pack).into_iter().filter(|version| !filtered || target(version, "game").and_then(|value| value["version"].as_str()) == Some(filter.as_str())).filter_map(version_entry).collect())
+    Ok(ordered_versions(&pack).into_iter().filter(|version| !filtered || target(version, "game").and_then(|value| value["version"].as_str()) == Some(filter.as_str())).filter_map(version_entry).collect())
 }
 
 pub async fn version(http: &reqwest::Client, project_id: &str, version_id: &str) -> AppResult<serde_json::Value> {
@@ -260,7 +260,7 @@ pub async fn details(http: &reqwest::Client, project_id: &str) -> AppResult<ModP
         loaders: loaders(&pack),
         game_versions: game_versions(&pack),
         latest_version: latest.and_then(|version| version["name"].as_str()).map(str::to_owned),
-        updated_at: pack["updated"].as_i64().and_then(|seconds| chrono::DateTime::from_timestamp(seconds, 0)).map(|date| date.to_rfc3339()),
+        updated_at: latest.and_then(|version| version["released"].as_i64()).or_else(|| pack["updated"].as_i64()).and_then(|seconds| chrono::DateTime::from_timestamp(seconds, 0)).map(|date| date.to_rfc3339()),
         created_at: None,
         source: "ftb".into(),
         source_url: Some(format!("https://www.feed-the-beast.com/modpacks/{}", pack["id"].as_u64().unwrap_or_default())),
@@ -283,8 +283,14 @@ pub async fn changelog(http: &reqwest::Client, project_id: &str, version_id: &st
     Ok(text.chars().take(200_000).collect())
 }
 
+fn ordered_versions(pack: &serde_json::Value) -> Vec<&serde_json::Value> {
+    let mut versions = pack_versions(pack);
+    versions.sort_by(|left, right| right["released"].as_i64().unwrap_or(0).cmp(&left["released"].as_i64().unwrap_or(0)).then(right["id"].as_u64().unwrap_or(0).cmp(&left["id"].as_u64().unwrap_or(0))));
+    versions
+}
+
 pub fn latest_release<'a>(pack: &'a serde_json::Value) -> Option<&'a serde_json::Value> {
-    pack_versions(pack).into_iter().filter(|version| version["type"].as_str() != Some("archived")).max_by_key(|version| version["released"].as_i64().unwrap_or(0))
+    ordered_versions(pack).into_iter().find(|version| version["type"].as_str() != Some("archived"))
 }
 
 pub fn release_version_id(version: &serde_json::Value) -> Option<String> {
@@ -396,6 +402,19 @@ mod tests {
         assert_eq!(entry_path("./mods", ".gitkeep"), None);
         assert_eq!(entry_path(".", "mod.jar"), None);
         assert_eq!(entry_path("./mods", ""), None);
+    }
+
+    #[test]
+    fn versions_are_offered_newest_first_even_when_the_api_lists_them_oldest_first() {
+        let pack = serde_json::json!({ "versions": [
+            {"id": 10, "name": "1.0.0", "type": "release", "released": 100},
+            {"id": 12, "name": "1.1.0", "type": "release", "released": 300},
+            {"id": 11, "name": "1.0.1", "type": "release", "released": 200},
+            {"id": 13, "name": "2.0.0-beta", "type": "archived", "released": 400}
+        ]});
+        let order: Vec<u64> = ordered_versions(&pack).into_iter().filter_map(|version| version["id"].as_u64()).collect();
+        assert_eq!(order, vec![13, 12, 11, 10]);
+        assert_eq!(latest_release(&pack).and_then(release_version_id).as_deref(), Some("12"));
     }
 
     #[test]

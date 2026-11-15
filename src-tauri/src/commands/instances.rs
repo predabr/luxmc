@@ -1477,7 +1477,7 @@ pub fn instance_import_ftb_core<'a>(
     let cancel = state.import_cancel.clone();
     let app_stream = app.clone();
     let owned = std::sync::Arc::new(tokio::sync::Mutex::new(Vec::<(String, String)>::new()));
-    let concurrency = crate::core::downloader::max_concurrent_downloads().min(16);
+    let concurrency = crate::core::downloader::max_concurrent_downloads().clamp(2, 8);
     futures_util::stream::iter(files).map(|file| {
         let root = root.clone();
         let http = http.clone();
@@ -1491,30 +1491,43 @@ pub fn instance_import_ftb_core<'a>(
             let destination = match pack::destination(&root, &file.path) { Ok(path) => path, Err(_) => { failures.fetch_add(1, std::sync::atomic::Ordering::SeqCst); return; } };
             let sha1 = Some(file.sha1.as_str()).filter(|value| !value.is_empty());
             let size = Some(file.size).filter(|value| *value > 0);
-            if !pack::verify_existing(&destination, size, sha1, None, false).await {
+            if file.size == 0 || file.url.trim().is_empty() {
+                if let Some(parent) = destination.parent() { let _ = tokio::fs::create_dir_all(parent).await; }
+                if tokio::fs::write(&destination, []).await.is_err() {
+                    failures.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    return;
+                }
+            } else if !pack::verify_existing(&destination, size, sha1, None, false).await {
                 let temporary = destination.with_extension(format!("luxmc-{}.part", uuid::Uuid::new_v4()));
-                let downloaded = async {
-                    if let Some(parent) = destination.parent() { tokio::fs::create_dir_all(parent).await?; }
-                    crate::core::mods::resumable::download(&http, &file.url, &temporary, Some(&cancel)).await?;
-                    if !pack::verify_existing(&temporary, size, sha1, None, false).await {
-                        return Err(crate::error::AppError::InvalidInput(format!("Arquivo corrompido: {}", file.name)));
+                if let Some(parent) = destination.parent() { let _ = tokio::fs::create_dir_all(parent).await; }
+                let urls = pack::mirrors(&file.url).unwrap_or_else(|_| vec![file.url.clone()]);
+                let mut attempt = 0u32;
+                let mut failure: Option<String> = None;
+                while attempt < 4 {
+                    attempt += 1;
+                    if cancel.load(std::sync::atomic::Ordering::SeqCst) { failure = Some("cancelado".into()); break; }
+                    let url = &urls[(attempt as usize - 1) % urls.len()];
+                    match crate::core::mods::resumable::download(&http, url, &temporary, Some(&cancel)).await {
+                        Ok(()) if pack::verify_existing(&temporary, size, sha1, None, false).await => { failure = None; break; }
+                        Ok(()) => failure = Some(format!("Arquivo corrompido: {}", file.name)),
+                        Err(error) => failure = Some(error.to_string()),
                     }
-                    Ok::<(), crate::error::AppError>(())
-                }.await;
-                match downloaded {
-                    Ok(()) => {
-                        if tokio::fs::rename(&temporary, &destination).await.is_err() {
-                            let _ = tokio::fs::remove_file(&temporary).await;
-                            failures.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                            return;
-                        }
-                    }
-                    Err(error) => {
+                    if attempt < 4 { tokio::time::sleep(std::time::Duration::from_millis(400 * u64::from(attempt))).await; }
+                }
+                let downloaded = match failure {
+                    None => tokio::fs::rename(&temporary, &destination).await.map_err(|error| error.to_string()),
+                    Some(error) => {
                         let _ = tokio::fs::remove_file(&temporary).await;
-                        tracing::warn!(file = %file.path, error = %error, "FTB file download failed");
+                        tracing::warn!(file = %file.path, attempts = attempt, error = %error, "FTB file download failed");
                         failures.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                         return;
                     }
+                };
+                if let Err(error) = downloaded {
+                    let _ = tokio::fs::remove_file(&temporary).await;
+                    tracing::warn!(file = %file.path, error = %error, "FTB file could not be moved into place");
+                    failures.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    return;
                 }
             }
             owned.lock().await.push((file.path.clone(), file.sha1.clone()));

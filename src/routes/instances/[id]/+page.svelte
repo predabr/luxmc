@@ -2001,36 +2001,47 @@
 					</div>
 				{/if}
                 {#if subTab === "mods"}
-                <section class="rounded-2xl border border-border bg-bg-elevated overflow-hidden">
-                    <div class="flex flex-wrap items-center justify-between gap-3 p-5 border-b border-border">
-                        <div>
-                            <h2 class="text-base font-semibold text-fg">{uiText("home.installedMods")}</h2>
-                            <p class="mt-1 text-xs text-fg-muted">{uiText("ui.38f7365f2d19005d")} {activeProfile?.name ?? uiText("ui.9c95cb0e794ba1f0")}.</p>
+                <section class="instance-mods-panel" aria-labelledby="instance-mods-title">
+                    <header class="mods-panel-head">
+                        <div class="mods-panel-identity">
+                            <span class="mods-panel-icon"><Puzzle class="h-5 w-5" /></span>
+                            <div class="min-w-0">
+                                <h2 id="instance-mods-title" class="mods-panel-title">{uiText("home.installedMods")}</h2>
+                                <p class="mods-panel-subtitle">{uiText("ui.38f7365f2d19005d")} {activeProfile?.name ?? uiText("ui.9c95cb0e794ba1f0")}{#if activeProfile} · {activeProfile.mcVersion} · {activeProfile.loader}{/if}</p>
+                            </div>
                         </div>
-                        <a href={contentCatalogUrl} class={button({ variant: 'primary', size: 'sm' })}><Download class="h-4 w-4" />{uiText("ui.491774c8d38fada1")}</a>
-                    </div>
-                    <div class="flex flex-wrap items-center gap-2 p-4 border-t border-border">
-                        <div class="relative min-w-48 flex-1">
-                            <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-fg-subtle pointer-events-none" />
-                            <input type="search" aria-label={uiText("ui.1bae8d6a32c4bf2f")} bind:value={searchQuery} placeholder={uiText("ui.958087c3687d84e7")} class="w-full h-10 rounded-sm border border-fg/[0.08] bg-fg/[0.07] pl-10 pr-3 text-xs text-fg placeholder:text-fg-subtle focus:outline-none focus:border-brand-400" />
+                        <a href={contentCatalogUrl} class={button({ variant: 'primary', size: 'sm', class: 'shrink-0' })}><Download class="h-4 w-4" />{uiText("ui.491774c8d38fada1")}</a>
+                    </header>
+                    <div class="mods-panel-toolbar">
+                        <div class="mods-panel-search">
+                            <Search class="mods-panel-search-icon h-4 w-4" />
+                            <input type="search" aria-label={uiText("ui.1bae8d6a32c4bf2f")} bind:value={searchQuery} placeholder={uiText("ui.958087c3687d84e7")} class="mods-panel-search-input" />
                         </div>
-                        <button type="button" class={button({ variant: 'secondary', size: 'sm' })} onclick={handleOpenModsFolder}><FolderOpen class="h-4 w-4" />{uiText("screenshots.openFolderBtn")}</button>
-                        <button type="button" class={button({ variant: 'secondary', size: 'sm' })} onclick={() => handleCheckModUpdates()} disabled={isCheckingUpdates || isLoadingData}><RefreshCw class="h-4 w-4 {isCheckingUpdates ? 'animate-spin' : ''}" />{isCheckingUpdates ? 'Verificando…' : uiText("mods.checkUpdates")}</button>
-                        <button type="button" class={button({ variant: 'secondary', size: 'sm' })} disabled={isImportingDrop} onclick={handleAddModFile}><Plus class="h-4 w-4" />{uiText("ui.21ce7cc4e47f9c45")}</button>
-                        <div class="mod-view-switch" role="group" aria-label={uiText("instanceModsView.label")}>
-                            <button type="button" class:active={instanceModView === "list"} class="mod-view-button" aria-label={uiText("instanceModsView.list")} title={uiText("instanceModsView.list")} aria-pressed={instanceModView === "list"} onclick={() => instanceModView = "list"}><List class="h-4 w-4" /></button>
-                            <button type="button" class:active={instanceModView === "cards"} class="mod-view-button" aria-label={uiText("instanceModsView.cards")} title={uiText("instanceModsView.cards")} aria-pressed={instanceModView === "cards"} onclick={() => instanceModView = "cards"}><LayoutGrid class="h-4 w-4" /></button>
-                            <button type="button" class:active={instanceModView === "circles"} class="mod-view-button" aria-label={uiText("instanceModsView.circles")} title={uiText("instanceModsView.circles")} aria-pressed={instanceModView === "circles"} onclick={() => instanceModView = "circles"}><Circle class="h-4 w-4" /></button>
-                            <button type="button" class:active={instanceModView === "triangles"} class="mod-view-button" aria-label={uiText("instanceModsView.triangles")} title={uiText("instanceModsView.triangles")} aria-pressed={instanceModView === "triangles"} onclick={() => instanceModView = "triangles"}><Triangle class="h-4 w-4" /></button>
+                        <div class="mods-panel-actions">
+                            <button type="button" class={button({ variant: 'secondary', size: 'sm' })} title={uiText("screenshots.openFolderBtn")} onclick={handleOpenModsFolder}><FolderOpen class="h-4 w-4" /><span class="mods-action-label">{uiText("screenshots.openFolderBtn")}</span></button>
+                            <button type="button" class={button({ variant: 'secondary', size: 'sm' })} onclick={() => handleCheckModUpdates()} disabled={isCheckingUpdates || isLoadingData}><RefreshCw class="h-4 w-4 {isCheckingUpdates ? 'animate-spin' : ''}" /><span class="mods-action-label">{isCheckingUpdates ? 'Verificando…' : uiText("mods.checkUpdates")}</span></button>
+                            <button type="button" class={button({ variant: 'secondary', size: 'sm' })} disabled={isImportingDrop} onclick={handleAddModFile}><Plus class="h-4 w-4" /><span class="mods-action-label">{uiText("ui.21ce7cc4e47f9c45")}</span></button>
+                            <div class="mod-view-switch" role="group" aria-label={uiText("instanceModsView.label")}>
+                                <button type="button" class:active={instanceModView === "list"} class="mod-view-button" aria-label={uiText("instanceModsView.list")} title={uiText("instanceModsView.list")} aria-pressed={instanceModView === "list"} onclick={() => instanceModView = "list"}><List class="h-4 w-4" /></button>
+                                <button type="button" class:active={instanceModView === "cards"} class="mod-view-button" aria-label={uiText("instanceModsView.cards")} title={uiText("instanceModsView.cards")} aria-pressed={instanceModView === "cards"} onclick={() => instanceModView = "cards"}><LayoutGrid class="h-4 w-4" /></button>
+                                <button type="button" class:active={instanceModView === "circles"} class="mod-view-button" aria-label={uiText("instanceModsView.circles")} title={uiText("instanceModsView.circles")} aria-pressed={instanceModView === "circles"} onclick={() => instanceModView = "circles"}><Circle class="h-4 w-4" /></button>
+                                <button type="button" class:active={instanceModView === "triangles"} class="mod-view-button" aria-label={uiText("instanceModsView.triangles")} title={uiText("instanceModsView.triangles")} aria-pressed={instanceModView === "triangles"} onclick={() => instanceModView = "triangles"}><Triangle class="h-4 w-4" /></button>
+                            </div>
                         </div>
                     </div>
-                    <div class="flex flex-wrap items-center justify-between gap-2 px-4 pb-4 text-xs text-fg-muted" aria-live="polite">
-                        <span>{isLoadingData ? uiText("ui.318209e40ba847c9") : `${filteredMods.length} mods · ${resourcePacks.length + shaderPacks.length + dataPacks.length} pacotes`} · {enabledModCount} {uiText("ui.089963539b553aec")}</span>
-                        <span>{uiText("ui.0129b013747c67a1")}</span>
+                    <div class="mods-panel-meta" aria-live="polite">
+                        {#if isLoadingData}
+                            <span class="mods-stat">{uiText("ui.318209e40ba847c9")}</span>
+                        {:else}
+                            <span class="mods-stat is-primary">{instanceMods.length} <span class="mods-stat-label">{uiText("ui.3ee1f063d3fea8fb")}</span></span>
+                            {#if instanceMods.length > enabledModCount}<span class="mods-stat">{(instanceMods.length - enabledModCount)} {uiText("modsPanel.disabledCount")}</span><span class="mods-stat">{enabledModCount} {uiText("ui.089963539b553aec")}</span>{/if}
+                            {#if resourcePacks.length + shaderPacks.length + dataPacks.length > 0}<span class="mods-stat">{resourcePacks.length + shaderPacks.length + dataPacks.length} {uiText("modsPanel.packsCount")}</span>{/if}
+                            {#if normalizedSearch}<span class="mods-stat is-filtered">{filteredMods.length} {uiText("modsPanel.filteredCount")}</span>{/if}
+                        {/if}
+                        <span class="mods-drop-hint">{uiText("ui.0129b013747c67a1")}</span>
                     </div>
-                </section>
-                {#if selectedModNames.length > 0}
-                    <div class="flex flex-wrap items-center gap-2 rounded-xl border border-brand-500/20 bg-brand-500/5 px-4 py-3">
+                    {#if selectedModNames.length > 0}
+                    <div class="mods-panel-selection">
                         <span class="text-xs font-semibold text-fg mr-auto">{selectedModNames.length} {uiText("ui.b86f90bb0eaec7af")}</span>
                         <button type="button" class={button({ variant: 'secondary', size: 'sm' })} disabled={isChangingMods} onclick={() => toggleSelectedMods(true)}><ToggleRight class="h-4 w-4" />{uiText("ui.631205572827d2f7")}</button>
                         <button type="button" class={button({ variant: 'secondary', size: 'sm' })} disabled={isChangingMods} onclick={() => toggleSelectedMods(false)}><ToggleLeft class="h-4 w-4" />{uiText("ui.67afbeec3df01c59")}</button>
@@ -2039,6 +2050,7 @@
                 {/if}
 
 
+					<div class="mods-panel-alerts">
 					{#if shieldResult && !shieldResult.isClean}
 						<div class="bg-red-500/15 border border-red-500/40 rounded-2xl p-4 flex items-center justify-between gap-3 mb-4 text-red-200 shadow-md">
 							<div class="flex items-center gap-3">
@@ -2084,10 +2096,12 @@
 						</div>
 					{/if}
 
+					</div>
                     {#if instanceMods.length > 0 && filteredMods.length === 0}
-                        <p class="py-6 text-center text-sm text-fg-muted">{uiText("ui.96eec50d7e6f654e")}</p>
+                        <p class="mods-panel-empty">{uiText("ui.96eec50d7e6f654e")}</p>
                     {:else if instanceMods.length > 0}
-						<div class="instance-mod-row instance-mod-header items-center gap-4 px-4 py-3 border-b border-fg/10 text-xs font-semibold text-fg/70 select-none rounded-t-2xl">
+                    <div class="mods-panel-list">
+						<div class="instance-mod-row instance-mod-header items-center gap-4 px-4 py-3 border-b border-fg/10 text-xs font-semibold text-fg/70 select-none">
 							<div class="flex min-w-0 items-center gap-3">
 								<input
 									type="checkbox"
@@ -2263,7 +2277,9 @@
 								</div>
 							{/snippet}
 						</VirtualList>
+                    </div>
 					{/if}
+                </section>
                 {/if}
                 {#each packGroups.filter(group => group.id === subTab) as group (group.id)}
                     {@const packs = normalizedSearch ? group.items.filter(pack => pack.name.toLowerCase().includes(normalizedSearch)) : group.items}

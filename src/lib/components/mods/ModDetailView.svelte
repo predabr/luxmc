@@ -10,6 +10,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	import { pageMotion } from "$lib/actions/pageMotion";
 	import SourceBadge from "./SourceBadge.svelte";
 	import { projectCompatibility } from "$lib/utils/projectCompatibility";
+	import { contentSourceLabel } from "$lib/utils/contentSource";
 	import { favorites } from "$lib/stores/favorites.svelte";
 	import type { ModSearchResultItem, ModProjectDetails, ModVersion } from "$lib/api";
 
@@ -81,7 +82,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 			<span>{uiText("ui.6e6e6985a71399bd")}</span>
 		</button>
 		<div class="flex items-center gap-2 text-xs text-fg/40 font-mono shrink-0">
-			<span>{uiText("ui.0dd6da8d793f9da3")} <strong class="text-fg uppercase">{item.source}</strong></span>
+			<span>{uiText("ui.0dd6da8d793f9da3")} <strong class="text-fg">{contentSourceLabel(item.source)}</strong></span>
 			<span>•</span>
 			<span>{uiText("ui.3ea36adcd1e02c94")} {item.sourceId}</span>
 		</div>
@@ -276,7 +277,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 					<div class="bg-bg-elevated rounded-2xl border border-fg/5 divide-y divide-white/5 text-xs">
 						<div class="p-3 flex items-center justify-between">
 							<span class="text-fg/40">{uiText("ui.1bdb4add5da2415f")}</span>
-							<span class="font-bold text-fg capitalize">{item.source}</span>
+							<span class="font-bold text-fg">{contentSourceLabel(item.source)}</span>
 						</div>
 						<div class="p-3 flex items-center justify-between">
 							<span class="text-fg/40">{uiText("mods.downloads")}</span>

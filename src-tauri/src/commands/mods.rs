@@ -615,16 +615,7 @@ async fn mods_install_single_core(state: &AppState, request: ModInstallRequest) 
         };
         crate::db::schema::mods::upsert(&db, &mod_row).await?;
 
-        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM mods WHERE profile_id = ?")
-            .bind(&resolved_profile_id)
-            .fetch_one(db.pool())
-            .await
-            .unwrap_or((0,));
-        let _ = sqlx::query("UPDATE profiles SET mod_count = ? WHERE id = ?")
-            .bind(count.0)
-            .bind(&resolved_profile_id)
-            .execute(db.pool())
-            .await;
+        let _ = crate::db::schema::mods::refresh_mod_count(&db, &resolved_profile_id, std::path::Path::new(&profile.game_dir)).await;
 
     }
 
@@ -730,8 +721,7 @@ pub async fn mods_install_with_deps_core(
                 if old_path.is_file() { tokio::fs::remove_file(old_path).await?; }
             }
         }
-        sqlx::query("UPDATE profiles SET mod_count = (SELECT COUNT(*) FROM mods WHERE profile_id = ?) WHERE id = ?")
-            .bind(&profile.id).bind(&profile.id).execute(db.pool()).await?;
+        crate::db::schema::mods::refresh_mod_count(&db, &profile.id, std::path::Path::new(&profile.game_dir)).await?;
         Ok(planned.keys().cloned().collect())
     }.await;
     let _ = tokio::fs::remove_dir_all(&staging).await;
@@ -890,16 +880,21 @@ pub async fn mods_remove(
     }
 
     crate::db::schema::mods::delete(&db, &profileId, &projectId).await?;
-    let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM mods WHERE profile_id = ?")
-        .bind(&profileId)
-        .fetch_one(db.pool())
-        .await
-        .unwrap_or((0,));
-    let _ = sqlx::query("UPDATE profiles SET mod_count = ? WHERE id = ?")
-        .bind(count.0)
-        .bind(&profileId)
-        .execute(db.pool())
-        .await;
+    match sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?").bind(&profileId).fetch_optional(db.pool()).await? {
+        Some(profile) => { let _ = crate::db::schema::mods::refresh_mod_count(&db, &profileId, std::path::Path::new(&profile.game_dir)).await; }
+        None => {
+            let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM mods WHERE profile_id = ?")
+                .bind(&profileId)
+                .fetch_one(db.pool())
+                .await
+                .unwrap_or((0,));
+            let _ = sqlx::query("UPDATE profiles SET mod_count = ? WHERE id = ?")
+                .bind(count.0)
+                .bind(&profileId)
+                .execute(db.pool())
+                .await;
+        }
+    }
     Ok(())
 }
 

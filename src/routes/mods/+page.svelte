@@ -15,6 +15,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	} from "lucide-svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { catalogCompatibility, matchesContentLoader } from "$lib/utils/catalogCompatibility";
+	import { contentSourceLabel } from "$lib/utils/contentSource";
 	import { profiles } from "$lib/stores/profiles.svelte";
     import { settings } from '$lib/stores/settings.svelte';
 	import { modpackInstallation } from "$lib/stores/modpackInstallation.svelte";
@@ -138,7 +139,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 
 	const currentSortLabel = $derived(sortOptions.find(s => s.id === selectedSort)?.label ?? "Downloads");
 	const activeFilters = $derived([
-        ...(selectedSource !== "all" ? [{ label: selectedSource === "modrinth" ? "Modrinth" : "CurseForge", clear: () => selectedSource = "all" as const }] : []),
+        ...(selectedSource !== "all" ? [{ label: contentSourceLabel(selectedSource), clear: () => selectedSource = "all" as const }] : []),
 		...(selectedVersion !== "Qualquer Versão" ? [{ label: selectedVersion, clear: () => selectedVersion = "Qualquer Versão" }] : []),
 		...(selectedLoader ? [{ label: selectedLoader, clear: () => selectedLoader = null }] : []),
 		...(selectedCategory ? [{ label: selectedCategory, clear: () => selectedCategory = null }] : [])
@@ -509,10 +510,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 
 			const ct = installType.toLowerCase().replace(/\s+/g, "");
 			await modsInstall({ profileId: pid, projectId: item.sourceId, versionId: vid, source: item.source, contentType: ct, worldName: ct === "datapack" ? installWorld : undefined, iconUrl: item.iconUrl });
-			if (pid && pid !== "default") {
-				const p = profiles.list.find(p => p.id === pid);
-				if (p && ct === "mod") profiles.update(pid, { modCount: (p.modCount ?? 0) + 1 });
-			}
+			if (pid && pid !== "default") { void profiles.refresh(); }
 			targetInstanceId = pid;
 			installedIds = new Set([...installedIds, `${pid}:${id}`]);
 			const pn = profiles.list.find(p => p.id === pid)?.name;
