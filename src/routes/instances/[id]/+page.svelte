@@ -641,23 +641,29 @@
 	let isUpdatingAllMods = $state(false);
 	let updatingModProjects = $state<string[]>([]);
 
-	async function handleCheckModUpdates() {
+	let lastModCheck = 0;
+	async function handleCheckModUpdates(silent = false) {
 		if (!instanceId || isCheckingUpdates) return;
 		const id = instanceId;
 		isCheckingUpdates = true;
-		toast(uiText("ui.b007b33cf6aea8c4"), "info");
+		if (!silent) toast(uiText("ui.b007b33cf6aea8c4"), "info");
 		try {
 			const updates = await modsCheckUpdates(id);
 			if (id !== instanceId) return;
+			lastModCheck = Date.now();
+			const previous = new Set(availableModUpdates.map(update => update.projectId));
 			availableModUpdates = updates || [];
-			if (availableModUpdates.length === 0) {
+			const fresh = availableModUpdates.filter(update => !previous.has(update.projectId));
+			if (silent) {
+				if (fresh.length) { playSound("chime"); toast(uiText("ui.c535dc1fd400aa4d", {arg0: (fresh.length)}), "info"); }
+			} else if (availableModUpdates.length === 0) {
 				toast(uiText("ui.ec926c5c381f50e2"), "success");
 			} else {
 				playSound("chime");
 				toast(uiText("ui.c535dc1fd400aa4d", {arg0: (availableModUpdates.length)}), "info");
 			}
 		} catch (e) {
-			toast(uiText("ui.bf3e6e55e38be20f") + String(e), "error");
+			if (!silent) toast(uiText("ui.bf3e6e55e38be20f") + String(e), "error");
 		} finally {
 			isCheckingUpdates = false;
 		}
@@ -1317,7 +1323,10 @@
         };
         window.addEventListener('focus', refresh);
         document.addEventListener('visibilitychange', refresh);
-        return () => { window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); };
+        const checkUpdates = () => { if (document.hidden || isCheckingUpdates || appState.isLaunching || appState.isGameRunning) return; if (Date.now() - lastModCheck < 240_000) return; void handleCheckModUpdates(true); };
+        const timer = setInterval(checkUpdates, 600_000);
+        const first = setTimeout(checkUpdates, 12_000);
+        return () => { clearInterval(timer); clearTimeout(first); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); };
     });
 
     $effect(() => {
@@ -2006,7 +2015,7 @@
                             <input type="search" aria-label={uiText("ui.1bae8d6a32c4bf2f")} bind:value={searchQuery} placeholder={uiText("ui.958087c3687d84e7")} class="w-full h-10 rounded-sm border border-fg/[0.08] bg-fg/[0.07] pl-10 pr-3 text-xs text-fg placeholder:text-fg-subtle focus:outline-none focus:border-brand-400" />
                         </div>
                         <button type="button" class={button({ variant: 'secondary', size: 'sm' })} onclick={handleOpenModsFolder}><FolderOpen class="h-4 w-4" />{uiText("screenshots.openFolderBtn")}</button>
-                        <button type="button" class={button({ variant: 'secondary', size: 'sm' })} onclick={handleCheckModUpdates} disabled={isCheckingUpdates || isLoadingData}><RefreshCw class="h-4 w-4 {isCheckingUpdates ? 'animate-spin' : ''}" />{isCheckingUpdates ? 'Verificando…' : uiText("mods.checkUpdates")}</button>
+                        <button type="button" class={button({ variant: 'secondary', size: 'sm' })} onclick={() => handleCheckModUpdates()} disabled={isCheckingUpdates || isLoadingData}><RefreshCw class="h-4 w-4 {isCheckingUpdates ? 'animate-spin' : ''}" />{isCheckingUpdates ? 'Verificando…' : uiText("mods.checkUpdates")}</button>
                         <button type="button" class={button({ variant: 'secondary', size: 'sm' })} disabled={isImportingDrop} onclick={handleAddModFile}><Plus class="h-4 w-4" />{uiText("ui.21ce7cc4e47f9c45")}</button>
                         <div class="mod-view-switch" role="group" aria-label={uiText("instanceModsView.label")}>
                             <button type="button" class:active={instanceModView === "list"} class="mod-view-button" aria-label={uiText("instanceModsView.list")} title={uiText("instanceModsView.list")} aria-pressed={instanceModView === "list"} onclick={() => instanceModView = "list"}><List class="h-4 w-4" /></button>

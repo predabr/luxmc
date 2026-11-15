@@ -9,7 +9,7 @@
     import { button } from '$lib/components/ui/button';
     import { prepareAnimatedImage, isAnimatedImage, isGifFile } from '$lib/utils/animatedImage';
     import { planPrompt } from '$lib/stores/planPrompt.svelte';
-    import { profileCover } from '$lib/utils/profileImages';
+    import { profileCover, imageDimensions } from '$lib/utils/profileImages';
     import AccountBadges from '$lib/components/ui/AccountBadges.svelte';
     import MinecraftAvatar from '$lib/components/ui/MinecraftAvatar.svelte';
     import PackCollections from './PackCollections.svelte';
@@ -93,11 +93,15 @@
                 const value = await prepareAnimatedImage(file);
                 if (run === generation) draft[kind] = value;
             } else {
-                let bitmap = await createImageBitmap(file);
+                const dimensions = await imageDimensions(file);
+                const limit = kind === 'banner' ? 4096 : 2048;
+                const largest = dimensions ? Math.max(dimensions.width, dimensions.height) : 0;
+                const ratio = largest > limit ? limit / largest : 0;
+                let bitmap = await createImageBitmap(file, dimensions && ratio ? { resizeWidth: Math.max(1, Math.round(dimensions.width * ratio)), resizeHeight: Math.max(1, Math.round(dimensions.height * ratio)), resizeQuality: 'high' } : undefined);
                 if (run !== generation) { bitmap.close(); return; }
                 if (Math.max(bitmap.width, bitmap.height) > 4096) {
-                    const original = bitmap, ratio = 4096 / Math.max(original.width, original.height);
-                    try { bitmap = await createImageBitmap(original, {resizeWidth:Math.max(1,Math.round(original.width * ratio)),resizeHeight:Math.max(1,Math.round(original.height * ratio)),resizeQuality:'high'}); }
+                    const original = bitmap, fallback = 4096 / Math.max(original.width, original.height);
+                    try { bitmap = await createImageBitmap(original, {resizeWidth:Math.max(1,Math.round(original.width * fallback)),resizeHeight:Math.max(1,Math.round(original.height * fallback)),resizeQuality:'high'}); }
                     finally { original.close(); }
                     if (run !== generation) { bitmap.close(); return; }
                 }
@@ -156,20 +160,20 @@
                 <div><h3 class="text-lg font-semibold">{t('profileStudio.appearanceTitle')}</h3><p class="mt-1 text-xs leading-5 text-fg-muted">{t('profileStudio.appearanceHelp')}</p></div>
                 <ProfileStyleEditor bind:value={draft.profileStyle} {plan} disabled={locked} previewName={draft.displayName || profile.username} previewImage={draft.portrait || profile.avatarUrl || '/grass_head.png'} previewBanner={draft.banner} />
                 {#if crop}<ProfileImageEditor image={crop.image} kind={crop.kind} onapply={value => { if (crop) draft[crop.kind] = value; closeCrop(); }} oncancel={closeCrop} />{/if}
-                <div class="grid gap-4 sm:grid-cols-2">
+                <div class="grid gap-3 sm:grid-cols-2">
                     {#each ['banner','portrait'] as kind}
-                        <div class="rounded-2xl border border-border bg-bg-subtle/35 p-4">
-                            <div class="flex items-center justify-between gap-2"><h4 class="text-xs font-semibold">{t(`publicProfile.${kind}`)}</h4>{#if isAnimatedImage(kind === 'banner' ? draft.banner : draft.portrait)}<span class="rounded-md border border-brand-400/25 bg-brand-500/10 px-2 py-0.5 text-[10px] text-brand-400">GIF</span>{/if}</div>
-                            <div class="mt-3 grid h-28 place-items-center overflow-hidden rounded-xl border border-border bg-bg-elevated">
-                                {#if kind === 'banner' && draft.banner}<img src={draft.banner} alt="" class="h-full w-full object-cover" />{:else if kind === 'portrait'}{#if draft.portrait}<img src={draft.portrait} alt="" class="h-20 w-20 rounded-2xl object-cover" />{:else}<MinecraftAvatar username={profile.username} avatarUrl={profile.avatarUrl} class="h-20 w-20" />{/if}{:else}<Image class="h-7 w-7 text-fg-subtle" />{/if}
+                        <div class="flex flex-col rounded-2xl border border-border bg-bg-subtle/30 p-3">
+                            <div class="flex items-center gap-2"><h4 class="text-[11px] font-semibold uppercase tracking-wide text-fg-subtle">{t(`publicProfile.${kind}`)}</h4>{#if isAnimatedImage(kind === 'banner' ? draft.banner : draft.portrait)}<span class="rounded border border-brand-400/25 bg-brand-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-brand-400">GIF</span>{/if}{#if kind === 'banner' ? draft.banner : draft.portrait}<button type="button" disabled={locked} aria-label={`${t(kind === 'banner' ? 'profileStudio.removeCover' : 'profileStudio.minecraftAvatar')}`} class="ml-auto rounded-lg p-1 text-fg-muted transition-colors hover:bg-danger/10 hover:text-danger" onclick={() => { closeCrop(); if (kind === 'banner') draft.banner=''; else draft.portrait=''; }}><X class="h-3.5 w-3.5" /></button>{/if}</div>
+                            <div class="mt-2 grid h-24 place-items-center overflow-hidden rounded-xl border border-border bg-bg-elevated">
+                                {#if kind === 'banner' && draft.banner}<img src={draft.banner} alt="" class="h-full w-full object-cover" />{:else if kind === 'portrait'}{#if draft.portrait}<img src={draft.portrait} alt="" class="h-16 w-16 rounded-xl object-cover" />{:else}<MinecraftAvatar username={profile.username} avatarUrl={profile.avatarUrl} class="h-16 w-16" />{/if}{:else}<Image class="h-6 w-6 text-fg-subtle" />{/if}
                             </div>
-                            <label class="mt-3 flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-border bg-bg-elevated px-3 py-2 text-xs font-medium hover:border-brand-400/50 focus-within:ring-2 focus-within:ring-brand-400"><Upload class="h-3.5 w-3.5" />{t('publicProfile.chooseImage')}<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={locked} aria-label={t(kind === 'banner' ? 'profileStudio.selectBanner' : 'profileStudio.selectPortrait')} onchange={event => void upload(event, kind as 'banner' | 'portrait')} class="sr-only" /></label>
-                            <p class="mt-2 text-[10px] text-fg-muted">{t('publicProfile.gifRequiresPlus')}</p>
-                            <button type="button" disabled={locked || !(kind === 'banner' ? draft.banner : draft.portrait)} class={button({variant:'ghost',size:'sm',block:true,class:'mt-2'})} onclick={() => { closeCrop(); if (kind === 'banner') draft.banner=''; else draft.portrait=''; }}>{t(kind === 'banner' ? 'profileStudio.removeCover' : 'profileStudio.minecraftAvatar')}</button>
+                            <label class="mt-2 flex min-h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-border bg-bg-elevated px-2.5 text-[11px] font-medium transition-colors hover:border-brand-400/50 focus-within:ring-2 focus-within:ring-brand-400"><Upload class="h-3.5 w-3.5" />{t('publicProfile.chooseImage')}<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={locked} aria-label={t(kind === 'banner' ? 'profileStudio.selectBanner' : 'profileStudio.selectPortrait')} onchange={event => void upload(event, kind as 'banner' | 'portrait')} class="sr-only" /></label>
+                            <p class="mt-1.5 text-center text-[10px] leading-4 text-fg-subtle">{kind === 'banner' ? t('profileStudio.coverHelp') : t('publicProfile.gifRequiresPlus')}</p>
+                            {#if kind === 'banner'}<button type="button" disabled={locked || !draft.banner} class={button({variant:'ghost',size:'sm',block:true,class:'mt-1'})} onclick={() => { closeCrop(); draft.banner=''; }}>{t('profileStudio.removeCover')}</button>{/if}
                         </div>
                     {/each}
                 </div>
-                <p class="text-xs leading-5 text-fg-muted">{t('profileStudio.imageHelp')}</p>
+
                 {#if processingImage}<p role="status" class="flex gap-2 text-xs text-fg-muted"><LoaderCircle class="h-4 w-4 animate-spin" />{t('publicProfile.processingImage')}</p>{/if}
                 <section class="space-y-3"><h4 class="text-xs font-semibold">{t('profileStudio.coverPresets')}</h4><div class="grid grid-cols-2 gap-3 sm:grid-cols-4">{#each ['prism','aurora','horizon','constellation'] as presetId}<button type="button" disabled={locked} class="cover-tile" aria-label={t('profileStudio.applyCover',{name:t(`profileStudio.${presetId}`)})} onclick={() => preset(presetId as 'prism' | 'aurora' | 'horizon' | 'constellation')}><span class="cover-art cover-art--{presetId}" aria-hidden="true"></span><span>{t(`profileStudio.${presetId}`)}</span></button>{/each}</div><p class="text-xs leading-5 text-fg-muted">{t('profileStudio.coverHelp')}</p></section>
             {:else}

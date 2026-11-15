@@ -1,7 +1,7 @@
 let importId = "";
 import { instanceBeginImport, instanceEndImport, profilesDelete } from "$lib/api/instances";
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
-import { modsVersions, modsDownloadToTemp, instanceImportMrpack, instanceImportModpack, instanceCancelImport, type ModSearchResultItem } from "$lib/api";
+import { modsVersions, modsDownloadToTemp, instanceImportMrpack, instanceImportModpack, instanceImportFtb, instanceCancelImport, type ModSearchResultItem } from "$lib/api";
 import { listen } from "$lib/api/client";
 import { profiles } from "$lib/stores/profiles.svelte";
 import { toast } from "$lib/stores/toasts.svelte";
@@ -75,6 +75,29 @@ const operation = $state({ paused: false, busy: false, cancelling: false, item: 
                 operation.phase = ev.payload.phase;
 				operation.percent = ev.payload.percent ?? 0;
 			});
+			const iconUrl = item.iconUrl || "";
+			const detectedLoader = item.categories?.find(c => ["forge", "fabric", "neoforge", "quilt"].includes(c.toLowerCase()))?.toLowerCase()
+				|| (item.title.toLowerCase().includes("forge") && !item.title.toLowerCase().includes("neoforge") ? "forge" : "")
+				|| (item.title.toLowerCase().includes("neoforge") ? "neoforge" : "")
+				|| (item.title.toLowerCase().includes("fabric") ? "fabric" : "");
+			let cp: Awaited<ReturnType<typeof instanceImportModpack>>;
+			let installedVersion = { id: "", name: "", versionNumber: "" };
+			let tempPath = "";
+			if (item.source === "ftb") {
+				const ver = selectedVersion === "Qualquer Versão" || modpackVersionId ? "" : selectedVersion;
+				let versions = await modsVersions(item.sourceId, ver, "ftb");
+				if (modpackVersionId) versions = versions.filter(version => version.id === modpackVersionId);
+				if (selectedLoader) versions = versions.filter(version => matchesContentLoader(version.loaders || [], selectedLoader));
+				versions = versions.filter(version => version.releaseType !== "archived");
+				const chosen = versions[0] ?? (await modsVersions(item.sourceId, "", "ftb"))[0];
+				if (!chosen) throw new Error(uiText("ui.c38446c7df13fc52", {arg0:item.title,arg1:"Feed The Beast"}));
+				if (current && !current.modpackVersionId) { current.modpackVersionId = chosen.id; persist(); }
+				operation.text = uiText("ui.18333ba6ce43048e", {arg0: (item.title)});
+				operation.percent = -1;
+				if (operation.cancelling) throw new Error(uiText("ui.bb9811b14ec4fb48"));
+				cp = await instanceImportFtb(item.sourceId, chosen.id, name, iconUrl, ramMb, importId);
+				installedVersion = { id: chosen.id, name: chosen.name, versionNumber: chosen.versionNumber || chosen.name };
+			} else {
 			const ver = selectedVersion === "Qualquer Versão" || modpackVersionId ? "" : selectedVersion;
 			let versions = modpackVersionId ? [await packReferenceVersion({source:item.source as 'modrinth'|'curseforge',projectId:item.sourceId,versionId:modpackVersionId,name:item.title})] : await modsVersions(item.sourceId, ver, item.source);
 			if (modpackVersionId) versions = versions.filter(version => version.id === modpackVersionId);
@@ -88,25 +111,22 @@ const operation = $state({ paused: false, busy: false, cancelling: false, item: 
 			operation.text = uiText("ui.18333ba6ce43048e", {arg0: (f.filename)});
 			operation.percent = -1;
 			if (operation.cancelling) throw new Error(uiText("ui.bb9811b14ec4fb48"));
-            const tempPath = await modsDownloadToTemp(f.url, current ? `${current.id}${f.filename.toLowerCase().endsWith(".mrpack") ? ".mrpack" : ".zip"}` : f.filename, importId);
+            tempPath = await modsDownloadToTemp(f.url, current ? `${current.id}${f.filename.toLowerCase().endsWith(".mrpack") ? ".mrpack" : ".zip"}` : f.filename, importId);
             await verifyPackDownload(tempPath,f.size || 0,f.sha1 || '',importId);
             if (operation.cancelling) throw new Error(uiText("ui.bb9811b14ec4fb48"));
 			operation.text = uiText("ui.cbc82784c96e08ef");
             operation.phase = 'preparing';
 			operation.percent = 0;
-			const iconUrl = item.iconUrl || "";
-			const detectedLoader = item.categories?.find(c => ["forge", "fabric", "neoforge", "quilt"].includes(c.toLowerCase()))?.toLowerCase()
-				|| (item.title.toLowerCase().includes("forge") && !item.title.toLowerCase().includes("neoforge") ? "forge" : "")
-				|| (item.title.toLowerCase().includes("neoforge") ? "neoforge" : "")
-				|| (item.title.toLowerCase().includes("fabric") ? "fabric" : "");
-			const cp = !f.filename.toLowerCase().endsWith(".mrpack")
+			cp = !f.filename.toLowerCase().endsWith(".mrpack")
 				? await instanceImportModpack(tempPath, name, item.versions[0] || "1.20.1", detectedLoader, iconUrl, ramMb, importId)
 				: await instanceImportMrpack(tempPath, name, iconUrl, ramMb, importId);
             if (operation.cancelling) { if (cp.importedNew && !paused) await profilesDelete(cp.id); throw new Error("Instalação cancelada"); }
-            await instanceLinkPack(cp.id,{source:item.source as 'modrinth'|'curseforge',projectId:item.sourceId,versionId:versions.find(version => version.files.includes(f))!.id,name:item.title});
             const installed = versions.find(version => version.files.includes(f))!;
+            installedVersion = { id: installed.id, name: installed.name, versionNumber: installed.versionNumber || installed.name };
+            await instanceLinkPack(cp.id,{source:item.source as 'modrinth'|'curseforge',projectId:item.sourceId,versionId:installed.id,name:item.title});
+			}
             const { modpackUpdates } = await import('./modpackUpdates.svelte');
-            modpackUpdates.installed(cp.id, item.source, item.sourceId, installed.id, installed.versionNumber || installed.name);
+            modpackUpdates.installed(cp.id, item.source, item.sourceId, installedVersion.id, installedVersion.versionNumber || installedVersion.name);
             if (operation.cancelling) { if (cp.importedNew && !paused) await profilesDelete(cp.id); throw new Error("Instalação cancelada"); }
 			profiles.add({
 				id: cp.id,
@@ -127,7 +147,7 @@ const operation = $state({ paused: false, busy: false, cancelling: false, item: 
 			profiles.activeId = cp.id;
 
 			operation.profileId = cp.id; operation.phase = 'complete'; operation.percent = 100; operation.text = uiText("downloadsDesign.complete");
-            await discardPackDownload(tempPath,importId).catch(() => {});
+            if (tempPath) await discardPackDownload(tempPath,importId).catch(() => {});
             void import('$lib/utils/contentPrefetch').then(({ prefetchInstanceContent }) => prefetchInstanceContent(cp.id, true));
             void profiles.refresh().catch(() => {});
 			fireModpackSuccessConfetti();

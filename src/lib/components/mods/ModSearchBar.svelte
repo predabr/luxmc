@@ -13,18 +13,19 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		selectedCategory = $bindable(null),
 		contentType = "Modpack"
 	}: {
-		selectedSource: "all" | "modrinth" | "curseforge";
+		selectedSource: "all" | "modrinth" | "curseforge" | "ftb";
 		selectedVersion: string;
 		selectedLoader: string | null;
 		selectedCategory: string | null;
 		contentType?: string;
 	} = $props();
 
-    const sources = $derived([
+    const sources = $derived<Array<{ id: "all" | "modrinth" | "curseforge" | "ftb"; label: string; icon?: typeof Globe }>>([
         { id: 'all', label: uiText('ui.8a0108a42be96e26'), icon: Globe },
         { id: 'modrinth', label: 'Modrinth' },
-        { id: 'curseforge', label: 'CurseForge' }
-    ] as const);
+        { id: 'curseforge', label: 'CurseForge' },
+        ...(contentType === 'Modpack' ? [{ id: 'ftb' as const, label: 'Feed The Beast' }] : [])
+    ]);
     const activeCount = $derived(Number(selectedSource !== 'all') + Number(selectedVersion !== 'Qualquer Versão') + Number(!!selectedLoader) + Number(!!selectedCategory));
 	const showLoaders = $derived(contentType === 'Mod' || contentType === 'Modpack');
 	const showCategories = $derived(contentType === 'Modpack' || contentType === 'Mod');
@@ -81,7 +82,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					<legend class="filter-label">{uiText('catalogFilters.source')}</legend>
 					{#each sources as source (source.id)}
 						<button type="button" aria-pressed={selectedSource === source.id} onclick={() => selectedSource = source.id}>
-							<span class="provider-symbol" class:provider-modrinth={source.id === 'modrinth'} class:provider-curseforge={source.id === 'curseforge'}>
+							<span class="provider-symbol" class:provider-modrinth={source.id === 'modrinth'} class:provider-curseforge={source.id === 'curseforge'} class:provider-ftb={source.id === 'ftb'}>
 								{#if source.id === 'all'}<Globe class="h-4 w-4" />{:else}<ProviderLogo source={source.id} class="h-4 w-4" />{/if}
 							</span><span>{source.label}</span>{#if selectedSource === source.id}<Check class="ml-auto h-3.5 w-3.5" />{/if}
 						</button>

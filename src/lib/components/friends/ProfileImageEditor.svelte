@@ -7,15 +7,23 @@
     let canvas = $state<HTMLCanvasElement>();
     let horizontal = $state(50), vertical = $state(50), zoom = $state(1);
     let error = $state('');
+    const previewWidth = $derived(kind === 'portrait' ? 640 : 2560), previewHeight = $derived(kind === 'portrait' ? 640 : 768);
+    const source = $derived.by(() => {
+        if (image.width <= previewWidth && image.height <= previewHeight) return { bitmap: image as CanvasImageSource, width: image.width, height: image.height };
+        const scale = Math.max(previewWidth / image.width, previewHeight / image.height);
+        const scaled = new OffscreenCanvas(Math.max(1, Math.round(image.width * scale)), Math.max(1, Math.round(image.height * scale)));
+        scaled.getContext('2d')?.drawImage(image, 0, 0, scaled.width, scaled.height);
+        return { bitmap: scaled as CanvasImageSource, width: scaled.width, height: scaled.height };
+    });
     $effect(() => {
         if (!canvas) return;
         const width = kind === 'portrait' ? 320 : 1280, height = kind === 'portrait' ? 320 : 384;
         canvas.width = width; canvas.height = height;
-        const scale = Math.max(width / image.width, height / image.height) * zoom;
+        const scale = Math.max(width / source.width, height / source.height) * zoom;
         const cropWidth = width / scale, cropHeight = height / scale;
         const context = canvas.getContext('2d');
         context?.clearRect(0, 0, width, height);
-        context?.drawImage(image, (image.width - cropWidth) * horizontal / 100, (image.height - cropHeight) * vertical / 100, cropWidth, cropHeight, 0, 0, width, height);
+        context?.drawImage(source.bitmap, (source.width - cropWidth) * horizontal / 100, (source.height - cropHeight) * vertical / 100, cropWidth, cropHeight, 0, 0, width, height);
     });
     function apply() {
         if (!canvas) return;

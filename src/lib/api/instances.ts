@@ -217,6 +217,17 @@ export async function instanceImportMrpack(
 	return api.invoke("instance_import_mrpack", { filePath, profileName, icon, ramMb, operationId });
 }
 
+export async function instanceImportFtb(
+	projectId: string,
+	versionId: string,
+	profileName: string,
+	icon?: string,
+	ramMb?: number,
+    operationId?: string
+): Promise<ProfileRow> {
+	return api.invoke("instance_import_ftb", { projectId, versionId, profileName, icon, ramMb, operationId });
+}
+
 export async function instanceHealthCheck(profileId: string): Promise<HealthCheckResult> {
 	return api.invoke("instance_health_check", { profileId });
 }

@@ -102,11 +102,22 @@ async function apply(profileId: string, versionId: string, source: string, proje
     }
 }
 
+let watcher: ReturnType<typeof setInterval> | null = null;
+function watch(): void {
+    if (watcher || typeof window === 'undefined') return;
+    const tick = () => { if (!document.hidden) void checkLibrary().catch(() => {}); };
+    watcher = setInterval(tick, 900_000);
+    setTimeout(tick, 45_000);
+    window.addEventListener('focus', tick);
+    document.addEventListener('visibilitychange', tick);
+}
+
 export const modpackUpdates = {
     get task() { return task; },
     forProfile(profileId: string) { return entries[profileId]; },
     check,
     checkLibrary,
+    watch,
     apply,
     installed(profileId: string, source: string, projectId: string, versionId: string, version: string) {
         const entry = entryFor(profileId);

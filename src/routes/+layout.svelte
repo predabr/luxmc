@@ -103,7 +103,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { useTranslation, setActiveLocale } from "$lib/i18n/useTranslation.svelte";
 	import { themeStore } from "$lib/stores/theme.svelte";
 	import { newsState } from "$lib/stores/news.svelte";
+	import { modpackUpdates } from "$lib/stores/modpackUpdates.svelte";
 	onMount(() => newsState.startAutoRefresh());
+	onMount(() => { modpackUpdates.watch(); });
 	const { t } = useTranslation();
 	$effect(() => {
 		const lang = settings.value.language;

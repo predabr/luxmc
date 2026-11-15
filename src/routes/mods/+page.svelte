@@ -67,9 +67,9 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 
 	let curseforgeActive = $state(true);
 	let searchQuery = $state("");
-	let selectedSource = $state<"all" | "modrinth" | "curseforge">("all");
+	let selectedSource = $state<"all" | "modrinth" | "curseforge" | "ftb">("all");
 	let selectedType = $state("Modpack");
-    $effect(() => { if (selectedType === "World") untrack(() => { selectedSource = "curseforge"; }); });
+    $effect(() => { if (selectedType === "World") untrack(() => { selectedSource = "curseforge"; }); if (selectedType !== "Modpack" && selectedSource === "ftb") untrack(() => { selectedSource = "all"; }); });
 	let selectedLoader = $state<string | null>(null);
 	let selectedCategory = $state<string | null>(null);
 	let selectedVersion = $state("Qualquer Versão");
