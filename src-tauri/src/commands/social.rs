@@ -42,6 +42,32 @@ pub enum SocialRequest {
 
 static IDENTITY_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
+const SOCIAL_KEYRING_SERVICE: &str = "io.github.Luxmc";
+
+fn keyring_user(account_id: &str) -> String {
+    use sha2::Digest;
+    format!("social-identity-{:x}", sha2::Sha256::digest(account_id.as_bytes()))
+}
+
+fn keyring_identity(account_id: &str) -> Option<String> {
+    let user = keyring_user(account_id);
+    let entry = keyring::Entry::new(SOCIAL_KEYRING_SERVICE, &user)
+        .or_else(|_| keyring::Entry::new_with_target(&format!("{SOCIAL_KEYRING_SERVICE}-{user}"), SOCIAL_KEYRING_SERVICE, &user))
+        .ok()?;
+    match entry.get_password() {
+        Ok(token) if token.len() == 64 && token.bytes().all(|b| b.is_ascii_hexdigit()) => Some(token),
+        _ => None,
+    }
+}
+
+fn store_keyring_identity(account_id: &str, token: &str) {
+    let user = keyring_user(account_id);
+    if let Ok(entry) = keyring::Entry::new(SOCIAL_KEYRING_SERVICE, &user)
+        .or_else(|_| keyring::Entry::new_with_target(&format!("{SOCIAL_KEYRING_SERVICE}-{user}"), SOCIAL_KEYRING_SERVICE, &user)) {
+        let _ = entry.set_password(token);
+    }
+}
+
 async fn load_identity(pool: &sqlx::SqlitePool, account_id: &str) -> AppResult<Option<String>> {
     Ok(sqlx::query_scalar("SELECT token FROM social_identities WHERE account_id = ?")
         .bind(account_id).fetch_optional(pool).await?)
@@ -67,6 +93,7 @@ pub(crate) async fn identity(account_id: &str) -> AppResult<String> {
     match tokio::fs::read_to_string(&path).await {
         Ok(token) if token.len() == 64 && token.bytes().all(|b| b.is_ascii_hexdigit()) => {
             save_identity(db.pool(), account_id, &token).await?;
+            store_keyring_identity(account_id, &token);
             return Ok(token);
         }
         Ok(_) => return Err(AppError::InvalidState("Invalid social identity".into())),
@@ -76,9 +103,13 @@ pub(crate) async fn identity(account_id: &str) -> AppResult<String> {
     let token = match load_identity(db.pool(), account_id).await? {
         Some(token) if token.len() == 64 && token.bytes().all(|b| b.is_ascii_hexdigit()) => token,
         Some(_) => return Err(AppError::InvalidState("Invalid saved social identity".into())),
-        None => format!("{}{}", uuid::Uuid::new_v4().simple(), uuid::Uuid::new_v4().simple()),
+        None => match keyring_identity(account_id) {
+            Some(token) => token,
+            None => format!("{}{}", uuid::Uuid::new_v4().simple(), uuid::Uuid::new_v4().simple()),
+        },
     };
     save_identity(db.pool(), account_id, &token).await?;
+    store_keyring_identity(account_id, &token);
     let mut options = tokio::fs::OpenOptions::new();
     options.write(true).create_new(true);
     #[cfg(unix)]
