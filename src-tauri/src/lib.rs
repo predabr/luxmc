@@ -641,6 +641,7 @@ pub async fn run() {
             commands::mods::mods_resolve_names,
             commands::mods::mods_resolve_icons,
             commands::instances::instance_import_modpack,
+            commands::instances::instance_import_ftb,
             commands::instances::instance_repair_modpack,
             commands::instances::instance_cancel_import,
             commands::instances::instance_begin_import,

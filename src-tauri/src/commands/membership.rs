@@ -19,7 +19,7 @@ pub async fn membership_request(account_id: String, request: MembershipRequest) 
 
 pub(crate) async fn membership_request_core(account_id: String, request: MembershipRequest) -> AppResult<serde_json::Value> {
     if account_id.is_empty() || account_id.len() > 128 { return Err(AppError::InvalidInput("Conta inválida.".into())); }
-    let token = if account_id.starts_with("luxmc:") { super::lux_account::token(&account_id).await? } else { super::social::identity(&account_id).await? };
+    let token = super::social::site_token(&account_id).await?;
     let body = serde_json::to_value(request)?;
     let action = body.get("action").and_then(|value| value.as_str()).ok_or_else(|| AppError::InvalidInput("Pedido inválido.".into()))?;
     if serde_json::to_vec(&body)?.len() > 24576 { return Err(AppError::InvalidInput("Preferências muito grandes.".into())); }

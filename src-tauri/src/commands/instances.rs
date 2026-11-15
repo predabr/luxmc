@@ -1436,6 +1436,181 @@ pub struct ImportedProfileResult {
     pub imported_new: bool,
 }
 
+pub fn instance_import_ftb_core<'a>(
+    app: Option<tauri::AppHandle>,
+    state: &'a AppState,
+    project_id: String,
+    version_id: String,
+    profile_name: String,
+    icon: Option<String>,
+    ram_mb: Option<i64>,
+) -> futures_util::future::BoxFuture<'a, AppResult<ProfileRow>> {
+    Box::pin(async move {
+    use tauri::Emitter;
+    use crate::core::mods::{ftb, pack_download as pack};
+    let import_started = std::time::Instant::now();
+    let _import = state.import_lock.try_lock().map_err(|_| crate::error::AppError::InvalidState("Já existe uma importação em andamento.".into()))?;
+    if !state.import_job.load(std::sync::atomic::Ordering::SeqCst) { state.import_cancel.store(false, std::sync::atomic::Ordering::SeqCst); }
+    pack::cancelled(Some(&state.import_cancel))?;
+    let meta = ftb::version(&state.http, &project_id, &version_id).await?;
+    let files = ftb::pack_files(&state.http, &project_id, &version_id).await?;
+    if files.is_empty() { return Err(crate::error::AppError::InvalidState("A versão do Feed The Beast não listou arquivos para instalar.".into())); }
+    let mc_version = ftb::target_minecraft(&meta).ok_or_else(|| crate::error::AppError::InvalidInput("A versão do FTB não informou a versão do Minecraft.".into()))?;
+    let (loader, loader_version) = ftb::target_loader(&meta).ok_or_else(|| crate::error::AppError::InvalidInput("A versão do FTB não informou o loader.".into()))?;
+    if !matches!(loader.as_str(), "forge" | "neoforge" | "fabric" | "quilt") { return Err(crate::error::AppError::InvalidInput(format!("Loader {loader} não é compatível com o Luxmc."))); }
+    let version_name = meta["name"].as_str().unwrap_or(&version_id).to_owned();
+    let pack_name = ftb::pack_project(&state.http, &project_id).await.map(|pack| pack["name"].as_str().unwrap_or_default().to_owned()).unwrap_or_default();
+    tracing::info!(project = %project_id, version = %version_id, files = files.len(), "instance_import_ftb started");
+
+    let profile_id = uuid::Uuid::new_v4().to_string();
+    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| crate::error::AppError::InvalidState("could not determine data dir".into()))?;
+    let instance_dir = base_dir.data_dir().join("instances").join(&profile_id).join(".minecraft");
+    tokio::fs::create_dir_all(&instance_dir).await?;
+    tokio::fs::create_dir_all(instance_dir.join("mods")).await?;
+    if let Some(app) = &app { let _ = app.emit("modpack-progress", serde_json::json!({"phase":"downloading","current":0,"total":files.len(),"percent":1,"status":format!("Baixando {} arquivos do Feed The Beast...", files.len())})); }
+
+    let total = files.len() as u32;
+    let completed = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+    let failures = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+    let root = instance_dir.clone();
+    let http = state.http.clone();
+    let cancel = state.import_cancel.clone();
+    let app_stream = app.clone();
+    let owned = std::sync::Arc::new(tokio::sync::Mutex::new(Vec::<(String, String)>::new()));
+    let concurrency = crate::core::downloader::max_concurrent_downloads().min(16);
+    futures_util::stream::iter(files).map(|file| {
+        let root = root.clone();
+        let http = http.clone();
+        let cancel = cancel.clone();
+        let completed = completed.clone();
+        let failures = failures.clone();
+        let app = app_stream.clone();
+        let owned = owned.clone();
+        async move {
+            if cancel.load(std::sync::atomic::Ordering::SeqCst) { return; }
+            let destination = match pack::destination(&root, &file.path) { Ok(path) => path, Err(_) => { failures.fetch_add(1, std::sync::atomic::Ordering::SeqCst); return; } };
+            let sha1 = Some(file.sha1.as_str()).filter(|value| !value.is_empty());
+            let size = Some(file.size).filter(|value| *value > 0);
+            if !pack::verify_existing(&destination, size, sha1, None, false).await {
+                let temporary = destination.with_extension(format!("luxmc-{}.part", uuid::Uuid::new_v4()));
+                let downloaded = async {
+                    if let Some(parent) = destination.parent() { tokio::fs::create_dir_all(parent).await?; }
+                    crate::core::mods::resumable::download(&http, &file.url, &temporary, Some(&cancel)).await?;
+                    if !pack::verify_existing(&temporary, size, sha1, None, false).await {
+                        return Err(crate::error::AppError::InvalidInput(format!("Arquivo corrompido: {}", file.name)));
+                    }
+                    Ok::<(), crate::error::AppError>(())
+                }.await;
+                match downloaded {
+                    Ok(()) => {
+                        if tokio::fs::rename(&temporary, &destination).await.is_err() {
+                            let _ = tokio::fs::remove_file(&temporary).await;
+                            failures.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                            return;
+                        }
+                    }
+                    Err(error) => {
+                        let _ = tokio::fs::remove_file(&temporary).await;
+                        tracing::warn!(file = %file.path, error = %error, "FTB file download failed");
+                        failures.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                        return;
+                    }
+                }
+            }
+            owned.lock().await.push((file.path.clone(), file.sha1.clone()));
+            let current = completed.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+            if let Some(app) = &app {
+                if current % 8 == 0 || current == total {
+                    let _ = app.emit("modpack-progress", serde_json::json!({
+                        "phase": "downloading", "current": current, "total": total,
+                        "percent": ((current as f64 / total as f64) * 92.0) as u32,
+                        "status": format!("Baixando mods ({current}/{total})...")
+                    }));
+                }
+            }
+        }
+    }).buffer_unordered(concurrency).for_each(|_| async {}).await;
+    pack::cancelled(Some(&state.import_cancel))?;
+    let failed = failures.load(std::sync::atomic::Ordering::SeqCst);
+    if failed > 0 { return Err(crate::error::AppError::InvalidState(format!("Importação incompleta: {failed} arquivos não foram baixados. Tente novamente."))); }
+    let owned = owned.lock().await.clone();
+    let owned_paths: Vec<String> = owned.iter().map(|(path, _)| path.clone()).collect();
+    let owned_hashes: serde_json::Map<String, serde_json::Value> = owned.iter().filter(|(_, sha1)| !sha1.is_empty()).map(|(path, sha1)| (path.clone(), serde_json::Value::String(sha1.clone()))).collect();
+    let index = serde_json::json!({
+        "source": "ftb", "projectId": project_id, "sourceVersionId": version_id, "versionName": version_name,
+        "packName": pack_name, "minecraft": mc_version, "loader": loader, "loaderVersion": loader_version,
+        "files": owned_paths, "hashes": owned_hashes, "installedAt": chrono::Utc::now().to_rfc3339()
+    });
+    pack::atomic_write(&instance_dir.join(".luxmc/ftb-pack.json"), &serde_json::to_vec_pretty(&index)?).await?;
+    let mod_count = owned_paths.iter().filter(|path| path.starts_with("mods/") && path.to_lowercase().ends_with(".jar")).count();
+    if let Some(app) = &app { let _ = app.emit("modpack-progress", serde_json::json!({"phase":"indexing","current":total,"total":total,"percent":96,"status":"Registrando a instância..."})); }
+
+    let now = chrono::Utc::now();
+    let profile_row = ProfileRow {
+        id: profile_id,
+        name: profile_name,
+        icon: icon.unwrap_or_else(|| "default".into()),
+        mc_version: mc_version.clone(),
+        loader: loader.clone(),
+        loader_version: Some(loader_version),
+        java_path: None,
+        jvm_args: None,
+        resolution_w: None,
+        resolution_h: None,
+        fullscreen: false,
+        game_dir: instance_dir.to_string_lossy().to_string(),
+        created_at: now,
+        updated_at: now,
+        favorite: false,
+        notes: None,
+        last_played: None,
+        launch_count: 0,
+        mod_count: mod_count as i64,
+        disk_usage: 0,
+        ram_mb: Some(smart_pvp_ram(ram_mb, &mc_version, mod_count)),
+        instance_group: None,
+        auto_optimize: true,
+        use_vulkan: false,
+        use_gamemode: cfg!(target_os = "linux"),
+        use_mangohud: false,
+        force_dedicated_gpu: false,
+        use_gamescope: false,
+        gamescope_width: None,
+        gamescope_height: None,
+        gamescope_fsr: false,
+        force_full_verification: false,
+        pre_launch_hook: None,
+        post_exit_hook: None,
+    };
+    let registration_started = std::time::Instant::now();
+    if let Some(handle) = &app { let _ = handle.emit("modpack-progress", serde_json::json!({"phase":"validation","percent":96,"current":0,"total":0,"status":"Conferindo arquivos da instância…"})); }
+    commit_import(state, &profile_row, app.as_ref()).await?;
+    if let Some(handle) = &app { let _ = handle.emit("modpack-progress", serde_json::json!({"phase":"complete","percent":100,"current":1,"total":1,"status":"Instância instalada e conferida."})); }
+    let _ = crate::commands::experience::record_performance(&profile_row.id, serde_json::json!({"kind":"installation","seconds":import_started.elapsed().as_secs_f64(),"pid":0,"phases":[{"name":"files","seconds":registration_started.duration_since(import_started).as_secs_f64()},{"name":"registration_and_validation","seconds":registration_started.elapsed().as_secs_f64()}]})).await;
+    Ok(profile_row)
+    })
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_import_ftb(
+    app: tauri::AppHandle,
+    projectId: String,
+    versionId: String,
+    profileName: String,
+    icon: Option<String>,
+    ramMb: Option<i64>,
+    operationId: Option<String>,
+) -> AppResult<ImportedProfileResult> {
+    tokio::spawn(async move {
+    let state = app.state::<AppState>();
+    instance_check_import_job(&state, operationId.as_deref()).await?;
+    let started = chrono::Utc::now();
+    let profile = instance_import_ftb_core(Some(app.clone()), &state, projectId, versionId, profileName, icon, ramMb).await?;
+    Ok(ImportedProfileResult { imported_new: profile.created_at >= started, profile })
+    }).await.map_err(|error| crate::error::AppError::Internal(error.to_string()))?
+}
+
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_import_modpack(
@@ -2016,6 +2191,19 @@ async fn repair_import_duplicates(profile: &ProfileRow, cancel: Option<std::sync
         }
         preferred.extend(pack_pinned.iter().cloned());
     }
+    let ftb_bytes = tokio::fs::read(root.join(".luxmc/ftb-pack.json")).await.ok();
+    let mut ftb_active: std::collections::HashSet<String> = std::collections::HashSet::new();
+    if let Some(bytes) = &ftb_bytes {
+        if let Ok(index) = serde_json::from_slice::<serde_json::Value>(bytes) {
+            for path in index["files"].as_array().into_iter().flatten().filter_map(|value| value.as_str()) {
+                if let Some(name) = path.strip_prefix("mods/").filter(|name| is_valid_path_segment(name)) {
+                    if root.join("mods").join(name).is_file() { ftb_active.insert(name.to_owned()); }
+                    pack_pinned.insert(name.to_owned());
+                    preferred.insert(name.to_owned());
+                }
+            }
+        }
+    }
     let mr_active: std::collections::HashSet<_> = pack_pinned.iter().filter(|name|root.join("mods").join(name).is_file()).cloned().collect();
     let loader = profile.loader.clone();
     let repair_root = root.clone();
@@ -2056,6 +2244,19 @@ async fn repair_import_duplicates(profile: &ProfileRow, cancel: Option<std::sync
                     files.retain(|file| !file.get("fileID").or_else(|| file.get("fileId")).or_else(|| file.get("file_id")).and_then(|id| id.as_u64()).is_some_and(|id| removed.contains(&id)));
                 }
                 crate::core::mods::pack_download::atomic_write(&cf_path, &serde_json::to_vec_pretty(&manifest)?).await?;
+            }
+        }
+        if let Some(bytes) = ftb_bytes {
+            let removed: std::collections::HashSet<_> = ftb_active.into_iter().filter(|name| !root.join("mods").join(name).exists()).collect();
+            if !removed.is_empty() {
+                let mut index: serde_json::Value = serde_json::from_slice(&bytes)?;
+                if let Some(files) = index["files"].as_array_mut() {
+                    files.retain(|value| value.as_str().and_then(|path| path.strip_prefix("mods/")).is_none_or(|name| !removed.contains(name)));
+                }
+                if let Some(hashes) = index["hashes"].as_object_mut() {
+                    hashes.retain(|path, _| path.strip_prefix("mods/").is_none_or(|name| !removed.contains(name)));
+                }
+                crate::core::mods::pack_download::atomic_write(&root.join(".luxmc/ftb-pack.json"), &serde_json::to_vec_pretty(&index)?).await?;
             }
         }
         let root = std::path::PathBuf::from(&profile.game_dir).join("mods");

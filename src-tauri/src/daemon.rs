@@ -455,6 +455,17 @@ async fn dispatch_command(
             let res = crate::commands::instances::instance_import_modpack_core(None, &state, file_path, profile_name, mc_version, loader, icon, ram_mb).await.map_err(|e| e.to_string())?;
             Ok(serde_json::to_value(crate::commands::instances::ImportedProfileResult { imported_new:res.created_at >= started, profile:res }).map_err(|e| e.to_string())?)
         },
+        "instance_import_ftb" => {
+            crate::commands::instances::instance_check_import_job(&state, args.get("operationId").and_then(Value::as_str)).await.map_err(|e| e.to_string())?;
+            let project_id = args.get("projectId").or_else(|| args.get("project_id")).and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let version_id = args.get("versionId").or_else(|| args.get("version_id")).and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let profile_name = args.get("profileName").or_else(|| args.get("profile_name")).and_then(|v| v.as_str()).unwrap_or("Modpack").to_string();
+            let icon = args.get("icon").and_then(|v| v.as_str()).map(|s| s.to_string());
+            let ram_mb = args.get("ramMb").or_else(|| args.get("ram_mb")).and_then(|v| v.as_i64());
+            let started = chrono::Utc::now();
+            let res = crate::commands::instances::instance_import_ftb_core(None, &state, project_id, version_id, profile_name, icon, ram_mb).await.map_err(|e| e.to_string())?;
+            Ok(serde_json::to_value(crate::commands::instances::ImportedProfileResult { imported_new:res.created_at >= started, profile:res }).map_err(|e| e.to_string())?)
+        },
         "instance_import_mrpack" => {
             crate::commands::instances::instance_check_import_job(&state, args.get("operationId").and_then(Value::as_str)).await.map_err(|e| e.to_string())?;
             let file_path = args.get("filePath").or_else(|| args.get("file_path")).and_then(|v| v.as_str()).unwrap_or("").to_string();

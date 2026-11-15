@@ -142,11 +142,32 @@ mod identity_tests {
     }
 }
 
+pub(crate) async fn linked_portal_account(account_id: &str) -> Option<String> {
+    if account_id.starts_with("luxmc:") { return None; }
+    let db = crate::db::shared_db().await.ok()?;
+    let username = sqlx::query_scalar::<_, String>("SELECT username FROM accounts WHERE id = ?").bind(account_id).fetch_optional(db.pool()).await.ok()??;
+    sqlx::query_scalar::<_, String>("SELECT id FROM accounts WHERE id LIKE 'luxmc:%' AND lower(username) = lower(?) ORDER BY updated_at DESC LIMIT 1")
+        .bind(username).fetch_optional(db.pool()).await.ok()?
+}
+
+pub(crate) async fn site_token(account_id: &str) -> AppResult<String> {
+    if let Some(linked) = linked_portal_account(account_id).await {
+        if let Ok(token) = super::lux_account::token(&linked).await { return Ok(token); }
+    }
+    if account_id.starts_with("luxmc:") { return super::lux_account::token(account_id).await; }
+    identity(account_id).await
+}
+
+pub(crate) async fn registered_account(account_id: &str) -> bool {
+    account_id.starts_with("luxmc:") || linked_portal_account(account_id).await.is_some()
+}
+
 pub async fn social_request_core(account_id: String, request: SocialRequest) -> AppResult<serde_json::Value> {
     if account_id.is_empty() || account_id.len() > 128 { return Err(AppError::InvalidInput("Invalid account".into())); }
-    let token = if account_id.starts_with("luxmc:") { super::lux_account::token(&account_id).await? } else { identity(&account_id).await? };
+    let registered = registered_account(&account_id).await;
+    let token = site_token(&account_id).await?;
     let mut body = serde_json::to_value(request)?;
-    if account_id.starts_with("luxmc:") { body["registeredAccount"] = serde_json::Value::Bool(true); }
+    if registered { body["registeredAccount"] = serde_json::Value::Bool(true); }
     let action = body.get("action").and_then(|value| value.as_str()).unwrap_or_default();
     let client = reqwest::Client::builder()
         .user_agent(concat!("Luxmc/", env!("CARGO_PKG_VERSION")))

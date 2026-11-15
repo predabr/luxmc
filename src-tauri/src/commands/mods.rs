@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use tauri::State;
 
 use crate::core::mods::{
-    curseforge, ModProjectDetails, ModSearchResult, ModUpdate, ModVersion, ModrinthClient,
+    curseforge, ftb, ModProjectDetails, ModSearchResult, ModUpdate, ModVersion, ModrinthClient,
 };
 use crate::db::schema::mods::ModRow;
 use crate::error::{AppError, AppResult};
@@ -81,6 +81,12 @@ fn safe_file_name(name: &str) -> String {
         .unwrap_or_else(|| "mod.jar".to_string())
 }
 
+fn rank_results(mut results: Vec<ModSearchResult>, sort: &str, limit: u32) -> Vec<ModSearchResult> {
+    if sort == "downloads" { results.sort_by(|left, right| right.downloads.cmp(&left.downloads)); }
+    results.truncate(limit as usize);
+    results
+}
+
 fn dedup_results(mut combined: Vec<ModSearchResult>) -> Vec<ModSearchResult> {
     let mut seen_slugs: HashSet<String> = HashSet::new();
     let mut seen_titles: HashSet<String> = HashSet::new();
@@ -142,6 +148,30 @@ pub async fn mods_search_core(
     }
 
     let modrinth_client = ModrinthClient::new(state.http.clone());
+    let modpack_only = matches!(content_type.to_lowercase().as_str(), "modpack" | "modpacks" | "mod pack");
+
+    let ftb_results = if modpack_only && matches!(src.as_str(), "ftb" | "all") {
+        tokio::time::timeout(Duration::from_millis(6000), async {
+            ftb::search(&state.http, &query, &mc_version, loader.as_deref(), category.as_deref(), limit, offset, Some(sort)).await
+        })
+        .await
+        .unwrap_or_else(|_| {
+            tracing::warn!("Feed The Beast search timed out");
+            Ok(Vec::new())
+        })
+        .unwrap_or_else(|e| {
+            tracing::warn!(error = %e, "Feed The Beast search failed");
+            Vec::new()
+        })
+    } else {
+        Vec::new()
+    };
+
+    if modpack_only && src == "ftb" {
+        let sorted = rank_results(ftb_results, sort, limit);
+        cache.insert(cache_key, (Instant::now(), sorted.clone()));
+        return Ok(sorted);
+    }
 
     let (modrinth_results, curseforge_results) = match src.as_str() {
         "modrinth" => {
@@ -227,11 +257,8 @@ pub async fn mods_search_core(
 
     let mut combined = modrinth_results;
     combined.extend(curseforge_results);
-    let mut combined = dedup_results(combined);
-    if sort == "downloads" {
-        combined.sort_by(|a, b| b.downloads.cmp(&a.downloads));
-    }
-    combined.truncate(limit as usize);
+    combined.extend(ftb_results);
+    let combined = rank_results(dedup_results(combined), sort, limit);
 
     if cache.len() > 300 {
         cache.clear();
@@ -288,6 +315,7 @@ pub async fn mods_versions_core(
         "curseforge" => {
             curseforge::get_mod_versions(&state.http, &project_id, &mc_version).await
         }
+        "ftb" => ftb::versions(&state.http, &project_id, &mc_version).await,
         _ => {
             let modrinth_client = ModrinthClient::new(state.http.clone());
             modrinth_client.get_mod_versions(&project_id, &mc_version).await
@@ -328,6 +356,13 @@ pub async fn mods_version_history_core(state: &AppState, project_id: String, sou
             let more = next < versions.len();
             (versions.into_iter().skip(offset as usize).take(50).collect(), more.then_some(next as u32))
         },
+        "ftb" => {
+            if offset > 1000 { return Err(AppError::InvalidInput("Página inválida".into())); }
+            let versions = ftb::versions(&state.http, &project_id, "").await?;
+            let next = offset as usize + 50;
+            let more = next < versions.len();
+            (versions.into_iter().skip(offset as usize).take(50).collect(), more.then_some(next as u32))
+        },
         _ => return Err(AppError::InvalidInput("Provedor inválido".into())),
     };
     Ok(ModVersionHistoryPage { versions, next_offset })
@@ -347,6 +382,8 @@ pub async fn mods_project_details_core(
     let src = source.as_deref().unwrap_or("modrinth");
     if src == "curseforge" {
         curseforge::get_mod_details(&state.http, &project_id).await
+    } else if src == "ftb" {
+        ftb::details(&state.http, &project_id).await
     } else {
         let client = ModrinthClient::new(state.http.clone());
         client.get_project_details(&project_id).await
@@ -370,6 +407,7 @@ pub async fn mods_changelog_core(state: &AppState, project_id: String, version_i
     if source == "curseforge" {
         return curseforge::get_file_changelog(&state.http, &project_id, &version_id).await;
     }
+    if source == "ftb" { return ftb::changelog(&state.http, &project_id, &version_id).await; }
     if source != "modrinth" { return Err(crate::error::AppError::InvalidInput("Fonte inválida".into())); }
     let value: serde_json::Value = state.http.get(format!("https://api.modrinth.com/v2/version/{version_id}"))
         .timeout(std::time::Duration::from_secs(15)).send().await?.error_for_status()?.json().await?;

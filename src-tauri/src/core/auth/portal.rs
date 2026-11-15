@@ -11,8 +11,10 @@ pub(super) fn queue(account: AuthAccount, proof: (String, String)) {
 
 async fn synchronize(account: &AuthAccount, proof: &(String, String)) -> AppResult<()> {
     use crate::commands::{lux_account, social};
-    social::social_request_core(account.id.clone(), social::SocialRequest::Register { username: account.username.clone() }).await?;
-    let identity = social::identity(&account.id).await?;
+    if !social::registered_account(&account.id).await {
+        social::social_request_core(account.id.clone(), social::SocialRequest::Register { username: account.username.clone() }).await?;
+    }
+    let identity = social::site_token(&account.id).await?;
     let http = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none())
         .timeout(std::time::Duration::from_secs(15)).build()?;
     let start = http.post(format!("{}/api/microsoft/launcher_start", lux_account::portal_base()))

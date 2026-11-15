@@ -106,7 +106,7 @@ fn is_allowed_pack_host(host: &str) -> bool {
         "maven.architectury.dev", "maven.shedaniel.me", "maven.terraformersmc.com",
         "maven.blamejared.com", "maven.theillusivec4.top", "files.minecraftforge.net",
         "maven.minecraftforge.net", "libraries.minecraft.net", "resources.download.minecraft.net",
-        "jitpack.io",
+        "jitpack.io", "files.feed-the-beast.com", "api.feed-the-beast.com", "cdn.feed-the-beast.com",
     ];
     if exact.contains(&host.as_str()) {
         return true;
@@ -129,6 +129,7 @@ fn is_allowed_pack_host(host: &str) -> bool {
         ".geysermc.org",
         ".papermc.io",
         ".spongepowered.org",
+        ".feed-the-beast.com",
     ];
     suffixes.iter().any(|suffix| host.ends_with(suffix))
 }

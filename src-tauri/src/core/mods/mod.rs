@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::AppResult;
 
 pub mod curseforge;
+pub mod ftb;
 pub mod pack_download;
 pub mod resumable;
 

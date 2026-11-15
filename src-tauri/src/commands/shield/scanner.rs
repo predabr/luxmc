@@ -22,6 +22,8 @@ const KNOWN_SHA256: &[&str] = &[
 ];
 const KNOWN_SHA1: &[&str] = &[
     "dc43c4685c3f47808ac207d1667cc1eb915b2d82",
+    "52d08736543a240b0cbbbf2da03691ae525bb119",
+    "6ec85c8112c25abe4a71998eb32480d266408863",
     "c2d0c87a1fe99e3c44a52c48d8bcf65a67b3e9a5",
     "e299bf5a025f5c3fff45d017c3c2f467fa599915",
     "33677ca0e4c565b1f34baa74a79c09a3b690bf41",
@@ -60,6 +62,7 @@ struct Inspection {
     webhook: bool,
     suspicious_name: bool,
     fractureiser: bool,
+    skyrage: bool,
     known_malware: bool,
 }
 
@@ -71,7 +74,7 @@ fn inspect_archive<R: Read + Seek>(archive: &mut zip::ZipArchive<R>, evidence: &
     for name in archive.file_names() {
         names += 1;
         let normalized = name.to_ascii_lowercase();
-        evidence.suspicious_name |= normalized.rsplit('/').next() == Some("l10.class") || normalized.ends_with("/updater.jar") || normalized == "updater.jar";
+        evidence.suspicious_name |= normalized.rsplit('/').next() == Some("l10.class") || normalized.ends_with("/updater.jar") || normalized == "updater.jar" || normalized.ends_with("/libwebgl64.jar") || normalized == "libwebgl64.jar";
         if normalized.ends_with(".class") || normalized.ends_with(".jar") { executable.push(name.to_owned()); }
     }
     executable.sort();
@@ -80,7 +83,7 @@ fn inspect_archive<R: Read + Seek>(archive: &mut zip::ZipArchive<R>, evidence: &
     for index in 0..count {
         let mut entry = if duplicates { archive.by_index(index) } else { archive.by_name(&executable[index]) }.map_err(|error| error.to_string())?;
         let name = entry.name().to_ascii_lowercase();
-        evidence.suspicious_name |= name.rsplit('/').next() == Some("l10.class") || name.ends_with("/updater.jar") || name == "updater.jar";
+        evidence.suspicious_name |= name.rsplit('/').next() == Some("l10.class") || name.ends_with("/updater.jar") || name == "updater.jar" || name.ends_with("/libwebgl64.jar") || name == "libwebgl64.jar";
         let nested = name.ends_with(".jar");
         if !nested && !name.ends_with(".class") { continue; }
         if nested && depth >= MAX_NESTED_DEPTH { return Err("Uma biblioteca interna excede a profundidade segura da verificação.".into()); }
@@ -99,8 +102,9 @@ fn inspect_archive<R: Read + Seek>(archive: &mut zip::ZipArchive<R>, evidence: &
         } else {
             evidence.bytecode_bytes = evidence.bytecode_bytes.saturating_add(bytes.len() as u64);
             evidence.webhook |= contains(&bytes, b"discord.com/api/webhooks") || contains(&bytes, b"discordapp.com/api/webhooks");
-            evidence.fractureiser |= (contains(&bytes, b"85.217.144.130") || contains(&bytes, b"files-8ie.pages.dev")) && (contains(&bytes, b"java/net/URLClassLoader") || contains(&bytes, b"java.net.URLClassLoader"));
-            evidence.fractureiser |= contains(&bytes, b"dev/neko/nekoclient/Client") && contains(&bytes, b"neko.run");
+            evidence.fractureiser |= (contains(&bytes, b"85.217.144.130") || contains(&bytes, b"107.189.3.101") || contains(&bytes, b"files-8ie.pages.dev")) && (contains(&bytes, b"java/net/URLClassLoader") || contains(&bytes, b"java.net.URLClassLoader"));
+            evidence.fractureiser |= contains(&bytes, b"dev/neko/nekoclient") || contains(&bytes, b"dev/neko/nekoinjector") || (contains(&bytes, b"neko.run") && contains(&bytes, b"dev/neko"));
+            evidence.skyrage |= contains(&bytes, b"connect.skyrage.de") || contains(&bytes, b"95.214.27.172") || contains(&bytes, b"vmd-gnu") || contains(&bytes, b"MicrosoftEdgeUpdateTaskMachineVM");
         }
     }
     Ok(())
@@ -152,7 +156,8 @@ fn scan_file(path: &Path) -> Result<Vec<(&'static str, &'static str, &'static st
     let mut findings = Vec::new();
     if evidence.known_malware { findings.push(("critical", "Malware conhecido", "Uma biblioteca interna corresponde a um hash malicioso documentado.")); }
     if evidence.fractureiser { findings.push(("critical", "Indicadores de Fractureiser", "O bytecode combina indicadores documentados de carregamento remoto do Fractureiser.")); }
-    if evidence.suspicious_name { findings.push(("warning", "Estrutura suspeita", "O JAR contém L10.class ou updater.jar. O nome isolado não comprova malware; confira a origem do mod.")); }
+    if evidence.skyrage { findings.push(("critical", "Indicadores de SkyRage", "O bytecode contém indicadores documentados do malware SkyRage: C&C skyrage.de, roubo de credenciais ou persistência vmd-gnu.")); }
+    if evidence.suspicious_name { findings.push(("warning", "Estrutura suspeita", "O JAR contém L10.class, updater.jar ou libWebGL64.jar. O nome isolado não comprova malware; confira a origem do mod.")); }
     if evidence.webhook { findings.push(("warning", "Webhook Discord embutido", "O bytecode contém um webhook do Discord. Pode ser legítimo; confira a finalidade e a origem do mod.")); }
     if findings.is_empty() { cache_update(path, Some(hash)); }
     Ok(findings)
@@ -163,7 +168,7 @@ fn threat(path: &Path, severity: &str, threat_type: &str, description: String) -
         file_name: path.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_else(|| "mods".into()),
         file_path: path.to_string_lossy().into_owned(),
         severity: severity.into(),
-        code: match threat_type { "Malware conhecido" => "known_malware", "Indicadores de Fractureiser" => "fractureiser", "Estrutura suspeita" => "suspicious_structure", "Webhook Discord embutido" => "discord_webhook", _ => "scan_incomplete" }.into(),
+        code: match threat_type { "Malware conhecido" => "known_malware", "Indicadores de Fractureiser" => "fractureiser", "Indicadores de SkyRage" => "skyrage", "Estrutura suspeita" => "suspicious_structure", "Webhook Discord embutido" => "discord_webhook", _ => "scan_incomplete" }.into(),
         threat_type: threat_type.into(),
         description,
     }

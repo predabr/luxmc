@@ -369,7 +369,7 @@ pub async fn importer_execute_import(
     .bind(dest_dir.to_string_lossy().to_string())
     .bind(imported_mods as i64)
     .bind(final_ram)
-    .bind(final_icon)
+    .bind(final_icon.filter(|value| !value.trim().is_empty()).unwrap_or_else(|| "grass_block".into()))
     .bind(&now)
     .bind(&now)
     .execute(db.pool())
