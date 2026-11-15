@@ -132,7 +132,7 @@ pub(super) async fn prepare_from_meta(http: &reqwest::Client, libraries_dir: &st
     let mut seen = std::collections::HashSet::new();
     let os = crate::core::launcher::platform_mojang_name(crate::core::launcher::current_platform());
     let libraries = profile.libraries.into_iter().filter(|lib| seen.insert(lib.name.clone()) && lib.natives.as_ref().is_none_or(|natives| natives.contains_key(os))).collect::<Vec<_>>();
-    let artifacts = futures_util::stream::iter(libraries).map(|lib| {
+    let mut artifacts = futures_util::stream::iter(libraries).enumerate().map(|(index, lib)| {
         let http = http.clone();
         let libraries_dir = libraries_dir.to_path_buf();
         async move {
@@ -150,10 +150,10 @@ pub(super) async fn prepare_from_meta(http: &reqwest::Client, libraries_dir: &st
             let central = format!("https://repo1.maven.org/maven2/{relative}");
             super::ensure_maven_jar(&http, &dest, &central).await?;
         }
-        Ok::<_, crate::error::AppError>((dest, classifier.is_some()))
+        Ok::<_, crate::error::AppError>((index, dest, classifier.is_some()))
     }}).buffer_unordered(crate::core::downloader::max_concurrent_downloads().min(24)).try_collect::<Vec<_>>().await?;
-
-    let (native, regular): (Vec<_>, Vec<_>) = artifacts.into_iter().partition(|(_, native)| *native);
+    artifacts.sort_by_key(|(index, _, _)| *index);
+    let (native, regular): (Vec<_>, Vec<_>) = artifacts.into_iter().map(|(_, path, native)| (path, native)).partition(|(_, native)| *native);
     let native_archives = native.into_iter().map(|(path, _)| path).collect();
     let classpath_entries = regular.into_iter().map(|(path, _)| path).collect();
     let mut jvm_args = Vec::new();

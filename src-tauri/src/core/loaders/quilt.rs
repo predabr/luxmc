@@ -102,7 +102,7 @@ pub async fn prepare_quilt(
     use futures_util::{StreamExt, TryStreamExt};
     let mut seen = std::collections::HashSet::new();
     let libraries = profile.libraries.into_iter().filter(|lib| seen.insert(lib.name.clone())).collect::<Vec<_>>();
-    let classpath_entries = futures_util::stream::iter(libraries).map(|lib| {
+    let mut prepared = futures_util::stream::iter(libraries).enumerate().map(|(index, lib)| {
         let http = http.clone();
         let libraries_dir = libraries_dir.to_path_buf();
         async move {
@@ -118,8 +118,10 @@ pub async fn prepare_quilt(
             let central = format!("https://repo1.maven.org/maven2/{relative}");
             super::ensure_maven_jar(&http, &dest, &central).await?;
         }
-        Ok::<_, crate::error::AppError>(dest)
+        Ok::<_, crate::error::AppError>((index, dest))
     }}).buffer_unordered(crate::core::downloader::max_concurrent_downloads().min(24)).try_collect::<Vec<_>>().await?;
+    prepared.sort_by_key(|(index, _)| *index);
+    let classpath_entries = prepared.into_iter().map(|(_, dest)| dest).collect::<Vec<_>>();
 
     let mut jvm_args = Vec::new();
     if let Some(args) = profile.arguments {
