@@ -61,6 +61,21 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	let lastPointerX = 0;
 	let lastPointerY = 0;
 
+	let recoveryAttempts = 0;
+	let recoveryTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function scheduleViewerRecovery() {
+		if (recoveryTimer || recoveryAttempts >= 4) return;
+		recoveryAttempts += 1;
+		const attempts = recoveryAttempts;
+		recoveryTimer = setTimeout(() => {
+			recoveryTimer = null;
+			if (!mounted) return;
+			disposeViewer();
+			createViewer();
+		}, 1500 * attempts);
+	}
+
 	const running = $derived(active && visible && foreground && (interactive || (!(settings.value.pauseSkinWhileGaming && (appState.isGameRunning || appState.isLaunching)) && !appState.performanceMode)));
 
 	onMount(() => {
@@ -108,6 +123,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		return () => {
 			disposed = true;
             mounted=false;
+			if (recoveryTimer) { clearTimeout(recoveryTimer); recoveryTimer = null; }
 			intersection.disconnect();
 			resize.disconnect();
 			document.removeEventListener("visibilitychange", visibility);
@@ -133,10 +149,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			if (target.renderer.getContext().isContextLost()) throw new Error(uiText("ui.fcc0b41d0274c482"));
 			target.renderer.setRenderTarget(null);
 			target.renderer.render(target.scene, target.camera);
+			recoveryAttempts = 0;
 			return true;
 		} catch (error) {
 			if (!unavailable) console.error("Luxmc skin preview:", error);
 			unavailable = true;
+			scheduleViewerRecovery();
 			return false;
 		}
 	}
@@ -209,6 +227,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		} catch (error) {
 			console.error("Luxmc skin preview initialization:", error);
 			unavailable = true;
+			scheduleViewerRecovery();
 		}
 	}
 
