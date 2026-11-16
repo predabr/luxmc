@@ -332,6 +332,8 @@ export interface ShieldScanResult {
 	isClean: boolean;
 	threats: ShieldThreat[];
 	scanTimeMs: number;
+	purged?: boolean;
+	instanceName?: string | null;
 }
 
 export interface InstanceMinecraftOptions {

@@ -221,7 +221,7 @@ pub fn scan_mods_directory(mods_dir: &Path) -> ShieldScanResult {
         });
     }
     threats.sort_by(|first, second| first.file_path.cmp(&second.file_path).then_with(|| first.threat_type.cmp(&second.threat_type)));
-    ShieldScanResult { total_scanned: paths.len(), is_clean: threats.is_empty(), threats, scan_time_ms: start.elapsed().as_millis() as u64 }
+    ShieldScanResult { total_scanned: paths.len(), is_clean: threats.is_empty(), threats, scan_time_ms: start.elapsed().as_millis() as u64, purged: false, instance_name: None }
 }
 
 pub(crate) fn enforce_scan(result: &ShieldScanResult) -> AppResult<()> {

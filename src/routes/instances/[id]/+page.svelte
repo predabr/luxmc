@@ -886,6 +886,12 @@
 		isScanningShield = true;
 		try {
 			shieldResult = await instanceShieldScan(instanceId);
+			if (shieldResult.purged) {
+				shieldResult = null;
+				await profiles.refresh();
+				goto("/instances");
+				return;
+			}
 			if (!shieldResult.isClean && shieldResult.threats.length > 0) {
 				toast(uiText("ui.29f3471b4915d6e0", {arg0: (shieldResult.threats.length)}), "error");
 			}

@@ -17,6 +17,11 @@ fn clean_archives_and_absent_mods_pass() {
     assert!(result.is_clean);
     assert_eq!(result.total_scanned, 1);
     assert!(enforce_scan(&result).is_ok());
+    assert!(!result.purged);
+    assert!(result.instance_name.is_none());
+    assert!(!super::super::has_critical_threat(&result));
+    let serialized = serde_json::to_string(&result).unwrap();
+    assert!(serialized.contains("\"purged\":false"));
 }
 
 #[test]

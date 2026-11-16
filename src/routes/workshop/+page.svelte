@@ -34,7 +34,14 @@
     async function refresh() { history = await performanceHistory(); }
     onMount(() => { void action(refresh); });
     async function check() { const id = selected; const value = await validateModpack(id); if (id === selected) readiness=value; }
-    async function scan() { const id = selected; scanning=true; try { const value = await instanceShieldScan(id); if (id === selected) shield=value; } finally { scanning=false; } }
+    async function scan() {
+        const id = selected; scanning=true;
+        try {
+            const value = await instanceShieldScan(id);
+            if (value.purged) { shield = null; await profiles.refresh(); return; }
+            if (id === selected) shield=value;
+        } finally { scanning=false; }
+    }
     async function loadBackups() { const id = selected; const value = await instanceListWorldBackups(id); if (id === selected) backups=value; }
     async function exportTheme() { const path = await themeFileDestination(); if (path) { await themeExport(path); success=t('workshop.themeSaved'); } }
     async function importTheme() { const path = await themeFileChoose(); if (typeof path === 'string') { const value = await themeImport(path); settings.patch(value); if(value.theme) theme.setTheme(value.theme,false); if(value.accentTheme) theme.setAccent(value.accentTheme,false); if(value.customBackground) theme.setBackground(value.customBackground,false); if(value.customWallpaperUrl) theme.setCustomWallpaper(value.customWallpaperUrl,value.customWallpaperType,undefined,false); else { theme.clearCustomWallpaper(false); theme.setBackground(value.customBackground || "obsidian",false); } success=t('workshop.themeApplied'); } }

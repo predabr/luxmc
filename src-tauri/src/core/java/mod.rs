@@ -56,6 +56,12 @@ struct ComponentDownload {
     size: Option<u64>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct ResolvedRuntime {
+    path: String,
+    fingerprint: String,
+}
+
 #[derive(Clone)]
 pub struct JavaRuntimeManager {
     http: reqwest::Client,
@@ -130,13 +136,116 @@ impl JavaRuntimeManager {
         tokio::task::spawn_blocking(move || verified_java(&path, expected_major)).await.unwrap_or(false)
     }
 
+    fn verification_cache_path(&self) -> PathBuf {
+        self.data_dir.join("java").join("verification-cache.json")
+    }
+
+    fn read_verification_cache(&self) -> std::collections::HashMap<String, ResolvedRuntime> {
+        std::fs::read(self.verification_cache_path())
+            .ok()
+            .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+            .unwrap_or_default()
+    }
+
+    fn cache_entry(&self, major: u32) -> Option<ResolvedRuntime> {
+        self.read_verification_cache().get(&major.to_string()).cloned()
+    }
+
+    pub fn cached_fingerprint_matches(&self, path: &std::path::Path, major: u32) -> bool {
+        let Some(fingerprint) = runtime_fingerprint(path) else { return false };
+        self.cache_entry(major).is_some_and(|entry| entry.path == path.to_string_lossy() && entry.fingerprint == fingerprint)
+    }
+
+    pub fn record_verification(&self, major: u32, path: &std::path::Path) {
+        static CACHE_WRITE: std::sync::LazyLock<std::sync::Mutex<()>> = std::sync::LazyLock::new(|| std::sync::Mutex::new(()));
+        let Some(fingerprint) = runtime_fingerprint(path) else { return };
+        let _guard = CACHE_WRITE.lock();
+        let mut cache = self.read_verification_cache();
+        let key = major.to_string();
+        let entry = ResolvedRuntime { path: path.to_string_lossy().to_string(), fingerprint };
+        if cache.get(&key).map(|known| known.path == entry.path && known.fingerprint == entry.fingerprint).unwrap_or(false) { return; }
+        if cache.len() > 64 { cache.clear(); }
+        cache.insert(key, entry);
+        let destination = self.verification_cache_path();
+        if let Some(parent) = destination.parent() { let _ = std::fs::create_dir_all(parent); }
+        let temporary = destination.with_extension("json.tmp");
+        if let Ok(bytes) = serde_json::to_vec_pretty(&cache) {
+            let _ = std::fs::write(&temporary, bytes);
+            let _ = std::fs::rename(&temporary, &destination);
+        }
+    }
+
+    pub fn forget_verification(&self, major: u32) {
+        static CACHE_WRITE: std::sync::LazyLock<std::sync::Mutex<()>> = std::sync::LazyLock::new(|| std::sync::Mutex::new(()));
+        let _guard = CACHE_WRITE.lock();
+        let mut cache = self.read_verification_cache();
+        if cache.remove(&major.to_string()).is_none() { return; }
+        let destination = self.verification_cache_path();
+        let temporary = destination.with_extension("json.tmp");
+        if let Ok(bytes) = serde_json::to_vec_pretty(&cache) {
+            let _ = std::fs::write(&temporary, bytes);
+            let _ = std::fs::rename(&temporary, &destination);
+        }
+    }
+
+    async fn verified_or_cached(&self, candidate: &std::path::Path, major: u32) -> bool {
+        let fingerprint = runtime_fingerprint(candidate);
+        if let (Some(fp), Some(entry)) = (&fingerprint, self.cache_entry(major)) {
+            if entry.path == candidate.to_string_lossy() && entry.fingerprint == *fp { return true; }
+        }
+        if self.verify_runtime(candidate, major).await {
+            if fingerprint.is_some() { self.record_verification(major, candidate); }
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn release_version_string(&self, path: &std::path::Path) -> Option<String> {
+        let root = path.parent().and_then(std::path::Path::parent)?;
+        let release = std::fs::read_to_string(root.join("release")).ok()?;
+        let line = release.lines().find(|line| line.starts_with("JAVA_VERSION="))?;
+        let value = line.trim_start_matches("JAVA_VERSION=").trim().trim_matches('"').to_string();
+        (!value.is_empty()).then_some(value)
+    }
+
+    pub async fn resolve_installed(&self, major: u32) -> Option<PathBuf> {
+        let bin = self.java_bin(major);
+        if bin.exists() && self.verified_or_cached(&bin, major).await {
+            self.emit_log(&format!("Java {major} já verificado: {}", bin.display()));
+            return Some(bin);
+        }
+        if let Some(entry) = self.cache_entry(major) {
+            if entry.path != bin.to_string_lossy() {
+                let candidate = PathBuf::from(&entry.path);
+                if candidate.is_file() {
+                    let matches = runtime_fingerprint(&candidate).is_some_and(|fp| fp == entry.fingerprint);
+                    if matches {
+                        self.emit_log(&format!("Usando Java {major} já resolvido: {}", candidate.display()));
+                        return Some(candidate);
+                    }
+                }
+            }
+        }
+        let system = self.clone();
+        let found = tokio::task::spawn_blocking(move || system.find_system_java(major)).await.ok()?;
+        match found {
+            Ok(path) => {
+                self.record_verification(major, &path);
+                self.emit_log(&format!("Using system Java: {}", path.display()));
+                Some(path)
+            }
+            Err(_) => None,
+        }
+    }
+
     pub async fn resolve_java(&self, major: u32, custom: Option<&str>) -> AppResult<PathBuf> {
         if let Some(custom) = custom.filter(|path| !path.trim().is_empty()) {
             let path = PathBuf::from(custom.trim());
             let probe = if cfg!(windows) && path.file_name().is_some_and(|name| name.to_string_lossy().eq_ignore_ascii_case("javaw.exe")) {
                 path.with_file_name("java.exe")
             } else { path.clone() };
-            if self.verify_runtime(&probe, major).await {
+            if self.verified_or_cached(&probe, major).await {
                 self.emit_log(&format!("Usando Java {major} personalizado: {}", path.display()));
                 return Ok(path);
             }
@@ -149,52 +258,35 @@ impl JavaRuntimeManager {
         static LOCKS: std::sync::LazyLock<std::sync::Mutex<std::collections::HashMap<u32, std::sync::Arc<tokio::sync::Mutex<()>>>>> = std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
         let lock = LOCKS.lock().map_err(|_| AppError::Internal("Runtime Java ocupado".into()))?.entry(major_version).or_default().clone();
         let _guard = lock.lock().await;
+        if let Some(path) = self.resolve_installed(major_version).await {
+            return Ok(path);
+        }
+
+        self.emit_log(&format!(
+            "System Java {} not found, will download runtime for platform {}",
+            major_version,
+            current_mojang_platform_key()
+        ));
+        let primary = self.download_runtime(major_version).await;
+        if let Err(error) = primary {
+            self.emit_log(&format!("Runtime Mojang indisponível: {error}. Tentando Temurin verificado."));
+            self.download_temurin(major_version).await.map_err(|fallback| AppError::Internal(format!("Não foi possível preparar Java {major_version}. Mojang: {error}. Temurin: {fallback}. Confira a conexão, o espaço em disco e os componentes do Windows; em Configurações → Java você também pode escolher um Java instalado.")))?;
+        }
+
         let bin = self.java_bin(major_version);
         if bin.exists() && self.verify_runtime(&bin, major_version).await {
-            self.emit_log(&format!(
-                "Java {} found at {}",
-                major_version,
-                bin.display()
-            ));
+            self.record_verification(major_version, &bin);
             return Ok(bin);
         }
-
-        let system = self.clone();
-        let found = tokio::task::spawn_blocking(move || system.find_system_java(major_version))
-            .await.map_err(|error| AppError::Internal(error.to_string()))?;
-        match found {
-            Ok(path) => {
-                self.emit_log(&format!("Using system Java: {}", path.display()));
-                Ok(path)
-            }
-            Err(_) => {
-                self.emit_log(&format!(
-                    "System Java {} not found, will download runtime for platform {}",
-                    major_version,
-                    current_mojang_platform_key()
-                ));
-                let primary = self.download_runtime(major_version).await;
-                if let Err(error) = primary {
-                    self.emit_log(&format!("Runtime Mojang indisponível: {error}. Tentando Temurin verificado."));
-                    self.download_temurin(major_version).await.map_err(|fallback| AppError::Internal(format!("Não foi possível preparar Java {major_version}. Mojang: {error}. Temurin: {fallback}. Confira a conexão, o espaço em disco e os componentes do Windows; em Configurações → Java você também pode escolher um Java instalado.")))?;
-                }
-
-                let bin = self.java_bin(major_version);
-                if bin.exists() && self.verify_runtime(&bin, major_version).await {
-                    Ok(bin)
-                } else {
-                    let hint = if cfg!(windows) {
-                        format!("Install Java {} manually from https://adoptium.net/", major_version)
-                    } else {
-                        format!("Install Java {} manually with: sudo pacman -S jre-openjdk", major_version)
-                    };
-                    Err(AppError::Internal(format!(
-                        "Failed to install Java {} runtime. {}",
-                        major_version, hint
-                    )))
-                }
-            }
-        }
+        let hint = if cfg!(windows) {
+            format!("Install Java {} manually from https://adoptium.net/", major_version)
+        } else {
+            format!("Install Java {} manually with: sudo pacman -S jre-openjdk", major_version)
+        };
+        Err(AppError::Internal(format!(
+            "Failed to install Java {} runtime. {}",
+            major_version, hint
+        )))
     }
 
     pub fn find_system_java_pub(&self, major: u32) -> AppResult<PathBuf> {
@@ -205,6 +297,12 @@ impl JavaRuntimeManager {
         let bin = self.java_bin(major);
         if bin.exists() {
             return Some(bin);
+        }
+        if let Some(entry) = self.cache_entry(major) {
+            let candidate = PathBuf::from(&entry.path);
+            if candidate != bin && candidate.is_file() && runtime_fingerprint(&candidate).as_deref() == Some(entry.fingerprint.as_str()) {
+                return Some(candidate);
+            }
         }
         self.find_system_java(major).ok()
     }
@@ -550,18 +648,25 @@ fn safe_runtime_path(path: &str) -> bool {
     !path.is_empty() && !path.contains(':') && !path.contains('\\') && std::path::Path::new(path).components().all(|part| matches!(part, std::path::Component::Normal(_)))
 }
 
+fn runtime_fingerprint(path: &std::path::Path) -> Option<String> {
+    let root = path.parent().and_then(std::path::Path::parent)?;
+    let vm = ["bin/server/jvm.dll", "bin/client/jvm.dll", "lib/server/libjvm.so", "lib/amd64/server/libjvm.so", "lib/server/libjvm.dylib"].iter().map(|name| root.join(name)).find(|file| file.is_file())?;
+    let mut files = vec![path.to_owned(), vm];
+    for name in ["bin/java.dll", "bin/zip.dll", "lib/rt.jar", "lib/modules", "release"] { let file = root.join(name); if file.is_file() { files.push(file); } }
+    let mut fingerprint = String::new();
+    for file in files {
+        let metadata = std::fs::metadata(&file).ok()?;
+        let modified = metadata.modified().ok()?.duration_since(std::time::UNIX_EPOCH).ok().map_or(0, |duration| duration.as_secs());
+        fingerprint.push_str(&format!("{}:{}:{};", file.file_name().unwrap_or_default().to_string_lossy(), metadata.len(), modified));
+    }
+    Some(fingerprint)
+}
+
 fn verified_java(path: &std::path::Path, expected_major: u32) -> bool {
-    type Fingerprint = Vec<(u64, std::time::SystemTime)>;
-    static VERIFIED: std::sync::LazyLock<std::sync::Mutex<std::collections::HashMap<(PathBuf, u32), Fingerprint>>> = std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
-    let root = path.parent().and_then(std::path::Path::parent);
-    let fingerprint = root.and_then(|root| {
-        let vm = ["bin/server/jvm.dll", "bin/client/jvm.dll", "lib/server/libjvm.so", "lib/amd64/server/libjvm.so", "lib/server/libjvm.dylib"].iter().map(|name| root.join(name)).find(|file| file.is_file())?;
-        let mut files = vec![path.to_owned(), vm];
-        for name in ["bin/java.dll", "bin/zip.dll", "lib/rt.jar", "lib/modules"] { let file = root.join(name); if file.is_file() { files.push(file); } }
-        files.into_iter().map(|file| std::fs::metadata(file).ok().and_then(|metadata| Some((metadata.len(), metadata.modified().ok()?)))).collect::<Option<Fingerprint>>()
-    });
+    static VERIFIED: std::sync::LazyLock<std::sync::Mutex<std::collections::HashMap<(PathBuf, u32), Option<String>>>> = std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+    let fingerprint = runtime_fingerprint(path);
     let key = (path.to_owned(), expected_major);
-    if let Some(current) = &fingerprint { if VERIFIED.lock().is_ok_and(|cache| cache.get(&key) == Some(current)) { return true; } }
+    if let Some(current) = &fingerprint { if VERIFIED.lock().is_ok_and(|cache| cache.get(&key).and_then(|known| known.as_deref()) == Some(current.as_str())) { return true; } }
     let Ok(mut child) = crate::core::process::std_command(path).arg("-version").stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).spawn() else { return false; };
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
     loop {
@@ -576,7 +681,7 @@ fn verified_java(path: &std::path::Path, expected_major: u32) -> bool {
     let text = format!("{} {}", String::from_utf8_lossy(&output.stderr), String::from_utf8_lossy(&output.stdout));
     let version = text.split('"').nth(1).unwrap_or("");
     let valid = !version.is_empty() && parse_java_major(version) == expected_major;
-    if valid { if let Some(fingerprint) = fingerprint { if let Ok(mut cache) = VERIFIED.lock() { if cache.len() > 128 { cache.clear(); } cache.insert(key, fingerprint); } } }
+    if valid { if let Some(fingerprint) = fingerprint { if let Ok(mut cache) = VERIFIED.lock() { if cache.len() > 128 { cache.clear(); } cache.insert(key, Some(fingerprint)); } } }
     valid
 }
 
@@ -692,5 +797,65 @@ mod runtime_tests {
         }
         assert!(temurin.verify_binary(&temurin.java_bin(8), 8));
         println!("Temurin Java 8 verified in {:.2}s", started.elapsed().as_secs_f64());
+    }
+    #[test]
+    fn runtime_fingerprint_tracks_binary_and_requires_a_jvm() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("jre");
+        let bin = root.join("bin").join("java.exe");
+        std::fs::create_dir_all(bin.parent().unwrap()).unwrap();
+        std::fs::create_dir_all(root.join("bin/server")).unwrap();
+        std::fs::write(&bin, b"java bytes").unwrap();
+        std::fs::write(root.join("bin/server/jvm.dll"), b"jvm bytes").unwrap();
+        std::fs::write(root.join("release"), "JAVA_VERSION=\"21.0.7\"\n").unwrap();
+        let first = runtime_fingerprint(&bin).expect("fingerprint for a layout with jvm");
+        assert_eq!(first, runtime_fingerprint(&bin).unwrap());
+        std::fs::write(&bin, b"java bytes changed").unwrap();
+        assert_ne!(first, runtime_fingerprint(&bin).unwrap());
+        let orphan_root = temporary.path().join("orphan");
+        let orphan = orphan_root.join("bin").join("java.exe");
+        std::fs::create_dir_all(orphan.parent().unwrap()).unwrap();
+        std::fs::write(&orphan, b"java bytes").unwrap();
+        assert!(runtime_fingerprint(&orphan).is_none(), "no jvm library means no fingerprint");
+    }
+    #[tokio::test]
+    async fn cached_verification_answers_instantly_without_probing_the_binary() {
+        let temporary = tempfile::tempdir().unwrap();
+        let manager = JavaRuntimeManager::new(reqwest::Client::new(), temporary.path().to_path_buf());
+        let major = 99;
+        let bin = manager.java_bin(major);
+        std::fs::create_dir_all(bin.parent().unwrap()).unwrap();
+        std::fs::create_dir_all(temporary.path().join("java/99/bin/server")).unwrap();
+        std::fs::write(&bin, b"definitely not a jvm").unwrap();
+        std::fs::write(temporary.path().join("java/99/bin/server/jvm.dll"), b"jvm").unwrap();
+        assert!(manager.resolve_installed(major).await.is_none(), "a broken runtime must not pass verification");
+        assert!(manager.cache_entry(major).is_none());
+        manager.record_verification(major, &bin);
+        let resolved = manager.resolve_installed(major).await.expect("cache hit must resolve without probing");
+        assert_eq!(resolved, bin);
+        manager.forget_verification(major);
+        assert!(manager.cache_entry(major).is_none());
+    }
+    #[tokio::test]
+    async fn cached_system_java_is_reused_without_rescanning_the_machine() {
+        let temporary = tempfile::tempdir().unwrap();
+        let manager = JavaRuntimeManager::new(reqwest::Client::new(), temporary.path().to_path_buf());
+        let major = 99;
+        let home = temporary.path().join("system-jre");
+        let external_bin = home.join("bin").join("java.exe");
+        std::fs::create_dir_all(external_bin.parent().unwrap()).unwrap();
+        std::fs::create_dir_all(home.join("bin/server")).unwrap();
+        std::fs::write(&external_bin, b"system java").unwrap();
+        std::fs::write(home.join("bin/server/jvm.dll"), b"jvm").unwrap();
+        assert_eq!(manager.release_version_string(&external_bin).as_deref(), None);
+        std::fs::write(home.join("release"), "JAVA_VERSION=\"99.0.1\"\n").unwrap();
+        assert_eq!(manager.release_version_string(&external_bin).as_deref(), Some("99.0.1"));
+        assert!(manager.java_bin(major).parent().is_some());
+        let _ = std::fs::create_dir_all(manager.java_bin(major).parent().unwrap());
+        assert!(manager.resolve_installed(major).await.is_none(), "nothing installed or cached yet");
+        manager.record_verification(major, &external_bin);
+        let resolved = manager.resolve_installed(major).await.expect("cached system java must resolve");
+        assert_eq!(resolved, external_bin);
+        assert_eq!(manager.locate_existing(major), Some(external_bin));
     }
 }

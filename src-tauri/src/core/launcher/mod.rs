@@ -690,7 +690,7 @@ impl GameLauncher {
             Ok::<(), AppError>(())
         };
         let appearance_started = std::time::Instant::now();
-        tokio::try_join!(Box::pin(appearance_preparation), crate::commands::launch::scan_before_launch(game_dir, &self.app))?;
+        tokio::try_join!(Box::pin(appearance_preparation), crate::commands::launch::scan_before_launch(profile, &self.app))?;
         self.emit_log(&format!("Aparência e Shield preparados em {:.2}s.",appearance_started.elapsed().as_secs_f64()));
         let verified_profile = profile.clone();
         tokio::task::spawn_blocking(move || crate::core::launcher::launch_state::store(&verified_profile))

@@ -38,15 +38,19 @@ pub async fn java_scan_core(state: &AppState) -> AppResult<JavaScanResult> {
         for &major in MANAGED_VERSIONS {
             let bin = base_dir.data_dir().join("java").join(major.to_string()).join("bin")
                 .join(if cfg!(windows) { "java.exe" } else { "java" });
-            let is_managed = bin.exists() && mgr.verify_binary(&bin, major);
+            let verified = bin.exists() && (mgr.cached_fingerprint_matches(&bin, major) || {
+                let verified = mgr.verify_binary(&bin, major);
+                if verified { mgr.record_verification(major, &bin); }
+                verified
+            });
 
-            let (found_path, version_string, is_system) = if is_managed {
-                let vs = get_version_string(&bin);
+            let (found_path, version_string, is_system) = if verified {
+                let vs = mgr.release_version_string(&bin).or_else(|| get_version_string(&bin));
                 (Some(bin.to_string_lossy().to_string()), vs, false)
             } else {
                 match mgr.find_system_java_pub(major) {
                     Ok(p) => {
-                        let vs = get_version_string(&p);
+                        let vs = mgr.release_version_string(&p).or_else(|| get_version_string(&p));
                         let path_str = p.to_string_lossy().to_string();
                         (Some(path_str), vs, true)
                     }
@@ -89,7 +93,7 @@ pub async fn java_install_core(state: &AppState, app: Option<tauri::AppHandle>, 
     if let Some(app) = app { mgr = mgr.with_app(app); }
 
     let path = mgr.ensure_java(major).await?;
-    let version_string = get_version_string(&path);
+    let version_string = mgr.release_version_string(&path).or_else(|| get_version_string(&path));
 
     Ok(JavaInstallStatus {
         major,
@@ -114,6 +118,7 @@ pub async fn java_uninstall(major: u32) -> AppResult<()> {
     if java_dir.exists() {
         tokio::fs::remove_dir_all(&java_dir).await?;
     }
+    JavaRuntimeManager::new(reqwest::Client::new(), base_dir.data_dir().to_path_buf()).forget_verification(major);
     Ok(())
 }
 

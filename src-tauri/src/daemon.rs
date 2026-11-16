@@ -608,7 +608,7 @@ async fn dispatch_command(
         },
         "instance_shield_scan" => {
             let profile_id = args.get("profileId").or_else(|| args.get("profile_id")).and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let res = crate::commands::shield::instance_shield_scan(profile_id).await.map_err(|e| e.to_string())?;
+            let res = crate::commands::shield::instance_shield_scan_core(None, profile_id).await.map_err(|e| e.to_string())?;
             Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
         },
 

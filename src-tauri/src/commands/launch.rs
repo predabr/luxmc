@@ -40,18 +40,23 @@ pub fn compute_offline_uuid(username: &str) -> String {
     uuid::Uuid::from_bytes(bytes).simple().to_string()
 }
 
-pub(crate) async fn scan_before_launch(game_dir: &std::path::Path, app: &Option<tauri::AppHandle>) -> AppResult<()> {
-    let mods_dir = game_dir.join("mods");
-    let result = tokio::task::spawn_blocking(move || crate::commands::shield::scan_mods_directory(&mods_dir))
+pub(crate) async fn scan_before_launch(profile: &crate::db::models::ProfileRow, app: &Option<tauri::AppHandle>) -> AppResult<()> {
+    let mods_dir = std::path::PathBuf::from(&profile.game_dir).join("mods");
+    let mut result = tokio::task::spawn_blocking(move || crate::commands::shield::scan_mods_directory(&mods_dir))
         .await.map_err(|error| AppError::Internal(error.to_string()))?;
-    if let Some(app) = app {
-        app.emit("launcher-log", format!("Luxmc Shield: {} JARs conferidos em {:.2}s.", result.total_scanned, result.scan_time_ms as f64 / 1000.0)).ok();
+    if crate::commands::shield::has_critical_threat(&result) && crate::commands::shield::purge_for_launch(profile, &result).await? {
+        crate::commands::shield::mark_result_purged(&mut result, profile);
     }
-    if !result.is_clean {
-        if let Some(app) = app {
+    if let Some(app) = app {
+        if result.is_clean {
+            app.emit("launcher-log", format!("Luxmc Shield: {} JARs conferidos em {:.2}s.", result.total_scanned, result.scan_time_ms as f64 / 1000.0)).ok();
+        } else {
             app.emit("launcher-shield-warning", &result).ok();
             app.emit("launcher-log", format!("Luxmc Shield: {} arquivo(s) precisam de atenção.", result.threats.len())).ok();
         }
+    }
+    if result.purged {
+        return Err(AppError::InvalidState("Luxmc Shield detectou malware real: a instância infectada foi apagada por completo antes do lançamento. Baixe um modpack limpo de uma fonte confiável.".into()));
     }
     crate::commands::shield::enforce_scan(&result)
 }
@@ -406,7 +411,7 @@ async fn launch_game_inner(
         .or_else(|| account.cape_url.filter(|c| !c.trim().is_empty()));
 
     if let Some(hook) = profile.pre_launch_hook.as_deref() {
-        scan_before_launch(&game_dir, &app).await?;
+        scan_before_launch(&profile, &app).await?;
         emit_log(&format!("Executando hook pré-lançamento: {}", hook.trim()));
         let hook_env = crate::core::hooks::HookEnv {
             profile_id: &profile.id,

@@ -3149,12 +3149,12 @@
     "97bfa663aaafe580": "Error loading texture: ",
     "86631a41a8aa68fb": "Failed to generate host info:",
     "747cdb9983e94824": "Invitation link successfully copied!",
-    "ui.7ce1252e5213d251": "Infection detected and removed",
-    "ui.af287dc454f68b57": "Luxmc Shield found real malware in {{arg0}} and deleted the entire instance immediately to protect your PC.",
-    "ui.f0500719756fc632": "Deleted from this instance: mods, libraries, configs and worlds. Download a clean modpack from a trusted source.",
-    "ui.88e27f9304a23fbf": "Download another modpack",
-    "ui.5ad3dbd1242a4cea": "Got it",
-    "ui.dca9c88d7ff49ac9": "the instance"
+    "7ce1252e5213d251": "Infection detected and removed",
+    "af287dc454f68b57": "Luxmc Shield found real malware in {{arg0}} and deleted the entire instance immediately to protect your PC.",
+    "f0500719756fc632": "Deleted from this instance: mods, libraries, configs and worlds. Download a clean modpack from a trusted source.",
+    "88e27f9304a23fbf": "Download another modpack",
+    "5ad3dbd1242a4cea": "Got it",
+    "dca9c88d7ff49ac9": "the instance"
   },
   "skinsStudio": {
     "confirmTitle": "Apply your new skin?",

@@ -3149,12 +3149,12 @@
     "97bfa663aaafe580": "Erro ao carregar textura: ",
     "86631a41a8aa68fb": "Falha ao gerar host info:",
     "747cdb9983e94824": "Link de convite copiado com sucesso!",
-    "ui.7ce1252e5213d251": "Infecção detectada e removida",
-    "ui.af287dc454f68b57": "O Luxmc Shield encontrou malware real em {{arg0}} e apagou a instância inteira na hora para proteger o seu PC.",
-    "ui.f0500719756fc632": "Apagado desta instância: mods, bibliotecas, configs e mundos. Baixe um modpack limpo de uma fonte confiável.",
-    "ui.88e27f9304a23fbf": "Baixar outro modpack",
-    "ui.5ad3dbd1242a4cea": "Entendi",
-    "ui.dca9c88d7ff49ac9": "a instância"
+    "7ce1252e5213d251": "Infecção detectada e removida",
+    "af287dc454f68b57": "O Luxmc Shield encontrou malware real em {{arg0}} e apagou a instância inteira na hora para proteger o seu PC.",
+    "f0500719756fc632": "Apagado desta instância: mods, bibliotecas, configs e mundos. Baixe um modpack limpo de uma fonte confiável.",
+    "88e27f9304a23fbf": "Baixar outro modpack",
+    "5ad3dbd1242a4cea": "Entendi",
+    "dca9c88d7ff49ac9": "a instância"
   },
   "skinsStudio": {
     "confirmTitle": "Aplicar sua nova skin?",
