@@ -317,3 +317,20 @@ Verificação: amostragem a cada 400 ms por 40 s com servidor online + telemetri
 - CI no Linux: `quilt_loader_prepare` comparava cold/warm na ordem, mas o classpath era coletado de `buffer_unordered` (ordem de conclusão do download, não do perfil). `prepare_quilt` e `prepare_fabric` agora preservam a ordem do perfil (enumerate + sort por índice) — ordem de classpath determinística entre execuções; forge/neoforge já montavam em ordem síncrona.
 - **Release 4.1.0 publicado com sucesso no GitHub** (instaladores Windows/Linux/macOS verificados).
 - Pendente: publicar o site (`pnpm deploy:website` precisa de login OAuth no wrangler) e reativar a tag `v4.1.0` no commit corrigido.
+
+## 15/11 — Shield letal + Java instantâneo
+
+### Java: verificação absurdamente rápida (nunca mais re-baixa)
+- Cache persistido de fingerprint em `<data_dir>/java/verification-cache.json`: grava tamanho+mtime do `java.exe`/bin, `jvm.dll`/`libjvm.so`/`libjvm.dylib`, `java.dll`/`zip.dll`/`libzip.so`, `rt.jar`/`modules` e do arquivo `release`. Se nada mudou, pula o spawn de `java -version` (verificação passa a custar ~ms).
+- Java do sistema resolvido e cacheado uma vez; `java_runtime_status` agora é **somente leitura** (antes uma consulta de status disparava download de 100 MB de runtime).
+- `java_uninstall` esquece a entrada do cache; caminho custom de Java também é cacheado.
+- Testes: `cargo test --lib java` 19/19 (+3 novos: fingerprint estável muda com mtime, cache ignorado quando binário muda, versão lida do arquivo `release`).
+
+### Luxmc Shield: purga letal de instância infectada
+- Antimalware real detectado (severity **critical** — hash/C2/behavior): a instância inteira é apagada **na hora**, antes do lançamento.
+- Segurança: nunca purga com o jogo rodando (`get_active_game_pid()`); diretório gerenciado (`instances/<id>/.minecraft`) → `remove_dir_all` do diretório todo (mods, mundos, configs, bibliotecas); `game_dir` externo escolhido pelo usuário → apaga só `mods/` (não toca em dados pessoais). Perfil removido do banco (FK em cascata).
+- Avisos por nome suspeito ("suspicious_structure") **nunca** purgam — só ameaça real.
+- Frontend: evento `launcher-shield-warning` agora carrega `purged`/`instanceName`; `+layout.svelte` mostra **modal em tela cheia** (z-160, ícone ShieldAlert) com o nome da instância, lista de arquivos infectados e CTA "Baixar outro modpack" que leva ao catálogo `/mods`; páginas de instância e oficina refrescam perfis e saem da instância apagada. Toast antigo substituído pelo modal.
+- Correção de chaves i18n: as 6 chaves novas do modal foram gravadas com prefixo `ui.` dentro da seção `ui` (lookup quebrado → teste de cobertura falhava); renomeadas para o hash puro em en/pt-BR/es.
+- Testes: `cargo test --lib shield` 12/12 (novos: resultado limpo serializa `purged:false`, `has_critical_threat`), suíte completa `cargo test --lib` **391/391**, `svelte-check` **0/0**, `vitest` **246/246**.
+
