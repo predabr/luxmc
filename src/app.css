@@ -920,6 +920,16 @@ html:not(.no-ui-motion):not(.no-anim) main [role="switch"] > span { transition: 
 .instance-settings-group { padding:1rem 0; }
 @media (min-width:1100px) { .instance-settings-layout { grid-template-columns:236px minmax(0,1fr); gap:1.75rem; } }
 @media (max-width:700px) { .instance-settings-group { padding:.75rem 0; } .instance-settings-navigation { gap:.625rem; } }
+.home-nav { display:inline-flex; align-items:center; gap:2px; padding:3px; border-radius:11px; border:1px solid rgb(var(--fg) / .09); background:rgb(var(--bg-elevated) / .72); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); box-shadow:0 6px 16px -12px rgb(var(--shadow-color) / .8); }
+.home-nav-btn { display:grid; place-items:center; width:30px; height:28px; border-radius:8px; color:rgb(var(--fg-muted)); background:transparent; border:none; transition:color 150ms ease, background-color 150ms ease; }
+.home-nav-btn:hover { color:rgb(var(--fg)); background:rgb(var(--fg) / .08); }
+.home-nav-btn:active { background:rgb(var(--fg) / .14); }
+.home-nav-btn:focus-visible { outline:2px solid rgb(var(--brand-400)); outline-offset:-1px; }
+.home-nav-sep { width:1px; height:16px; background:rgb(var(--fg) / .1); }
+.home-crumb { display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:650; color:rgb(var(--fg)); }
+.home-crumb-icon { display:grid; place-items:center; width:24px; height:24px; border-radius:8px; color:rgb(var(--brand-300)); background:rgb(var(--brand-500) / .14); border:1px solid rgb(var(--brand-400) / .22); }
+.home-crumb-label { letter-spacing:-.01em; }
+@media (prefers-reduced-motion:reduce) { .home-nav-btn { transition:none; } }
 .instance-mods-panel { display:flex; flex-direction:column; border:1px solid rgb(var(--border)); border-radius:1.25rem; background:rgb(var(--bg-elevated)); overflow:hidden; box-shadow:0 18px 40px -32px rgb(var(--shadow-color)/.5); }
 .mods-panel-head { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.75rem; padding:1rem 1.125rem; border-bottom:1px solid rgb(var(--border)); background:linear-gradient(120deg,rgb(var(--brand-500)/.09),transparent 62%); }
 .mods-panel-identity { display:flex; min-width:0; align-items:center; gap:.75rem; }

@@ -658,16 +658,11 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 {#if !account.value}
 
 	<div
-		class="relative min-h-[calc(100dvh-2rem)] w-full flex items-center justify-center gap-14 p-6 select-none overflow-hidden"
+		class="relative min-h-[calc(100dvh-2rem)] w-full flex items-center justify-center p-6 select-none overflow-hidden"
 	>
 		<div class="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgb(var(--brand-500)/0.18),transparent)] pointer-events-none"></div>
 		<div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-[radial-gradient(ellipse_at_center,rgb(var(--brand-500)/0.12),transparent_70%)] rounded-full pointer-events-none"></div>
 
-        <section class="login-story relative z-10 hidden min-w-0 w-full max-w-sm flex-col gap-7 lg:flex" aria-label="Luxmc">
-            <img src="/logo.png" alt="Luxmc" class="h-28 w-28 object-contain" />
-            <div><p class="mb-4 font-sans text-xs font-semibold uppercase tracking-[.18em] text-brand-400">Luxmc / Launcher</p><h2 class="font-sans text-5xl font-semibold leading-[1.08] tracking-tight text-fg">{uiText('loginDesign.headline')}</h2><p class="mt-6 font-sans text-sm leading-relaxed text-fg-muted">{uiText('loginDesign.story')}</p></div>
-            <div class="flex items-center gap-3 border-t border-border pt-6 text-xs text-fg-muted"><Layers class="h-4 w-4 text-brand-400" />Vanilla · Fabric · Quilt · Forge · NeoForge</div>
-        </section>
 				<div
 			class="auth-surface w-full max-w-[480px] border border-fg/12 rounded-xl p-7 sm:p-8 relative z-10 space-y-4"
 			in:fly={{ easing: backOut, y: 16, duration: 240 }}
@@ -838,28 +833,18 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 			<header class="home-toolbar flex flex-wrap items-center justify-between gap-4 py-1">
 				<div class="flex items-center gap-3">
-					<div class="flex items-center gap-1 bg-bg/35 backdrop-blur-xl border border-fg/[0.08] rounded-xl p-1 shadow-sm">
-						<button
-							type="button"
-							class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
-							title={uiText("common.back")}
-							onclick={() => history.back()}
-						>
-							<ArrowLeft class="w-3.5 h-3.5" />
+					<div class="home-nav" role="group" aria-label={uiText("common.back")}>
+						<button type="button" class="home-nav-btn" title={uiText("common.back")} aria-label={uiText("common.back")} onclick={() => history.back()}>
+							<ArrowLeft class="h-4 w-4" />
 						</button>
-						<button
-							type="button"
-							class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
-							title={uiText("ui.859e48c3c9333657")}
-							onclick={() => history.forward()}
-						>
-							<ChevronRight class="w-3.5 h-3.5" />
+						<span class="home-nav-sep" aria-hidden="true"></span>
+						<button type="button" class="home-nav-btn" title={uiText("ui.859e48c3c9333657")} aria-label={uiText("ui.859e48c3c9333657")} onclick={() => history.forward()}>
+							<ChevronRight class="h-4 w-4" />
 						</button>
 					</div>
-
-					<div class="flex items-center gap-2 text-xs font-bold text-fg/80">
-						<Home class="w-3.5 h-3.5 text-fg/60" />
-						<span class="text-fg font-extrabold">{t("nav.home")}</span>
+					<div class="home-crumb">
+						<span class="home-crumb-icon"><Home class="h-3.5 w-3.5" /></span>
+						<span class="home-crumb-label">{t("nav.home")}</span>
 					</div>
 				</div>
 

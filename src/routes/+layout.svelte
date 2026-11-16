@@ -43,6 +43,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import Cutscene from "$lib/components/visuals/Cutscene.svelte";
 	import CrashDoctorModal from "$lib/components/ui/CrashDoctorModal.svelte";
 	import CommandPalette from "$lib/components/ui/CommandPalette.svelte";
+	import { ShieldAlert } from "lucide-svelte";
 	import MiniPlayer from "$lib/components/ui/MiniPlayer.svelte";
 	import LiveWallpaper from "$lib/components/visuals/LiveWallpaper.svelte";
 	import ClientOverlayModal from "$lib/components/ui/ClientOverlayModal.svelte";
@@ -106,6 +107,37 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { modpackUpdates } from "$lib/stores/modpackUpdates.svelte";
 	onMount(() => newsState.startAutoRefresh());
 	onMount(() => { modpackUpdates.watch(); });
+	onMount(() => {
+		const optOutKey = "luxmc.perfAutoOptOut";
+		let storing = false;
+		try { if (localStorage.getItem(optOutKey) === "1") return; } catch { return; }
+		let frames = 0;
+		let windowStart = performance.now();
+		let slowWindows = 0;
+		let raf = 0;
+		const sample = (now: number) => {
+			raf = requestAnimationFrame(sample);
+			frames += 1;
+			const elapsed = now - windowStart;
+			if (elapsed < 4000) return;
+			const fps = (frames * 1000) / elapsed;
+			frames = 0;
+			windowStart = now;
+			if (appState.isLaunching || appState.isGameRunning || document.hidden) { slowWindows = 0; return; }
+			if (fps >= 45 || settings.value.performanceMode) { slowWindows = 0; return; }
+			slowWindows += 1;
+			if (slowWindows < 2 || storing) return;
+			storing = true;
+			appState.performanceMode = true;
+			settings.patch({ performanceMode: true });
+			toast(uiText("perfGuard.activated"), "info");
+			cancelAnimationFrame(raf);
+		};
+		raf = requestAnimationFrame(sample);
+		const stop = () => { if (raf) cancelAnimationFrame(raf); };
+		document.addEventListener("visibilitychange", () => { frames = 0; windowStart = performance.now(); });
+		return () => { stop(); if (settings.value.performanceMode === false) { try { localStorage.setItem(optOutKey, "1"); } catch {} } };
+	});
 	const { t } = useTranslation();
 	$effect(() => {
 		const lang = settings.value.language;
@@ -121,6 +153,11 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	});
 	let initialized = $state(false);
 	let showSplash = $state(true);
+	let shieldInfection = $state<{ threats: import("$lib/api/types").ShieldThreat[]; instanceName: string | null } | null>(null);
+	function dismissInfectionToCatalog() {
+		shieldInfection = null;
+		import("$app/navigation").then(({ goto }) => goto("/mods")).catch(() => {});
+	}
 	let toastsInstance = $state<Toasts | null>(null);
 	$effect(() => {
 		setToastInstance(toastsInstance);
@@ -566,6 +603,11 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			if (disposed) return;
 			const threats = result.threats ?? [];
 			if (threats.length === 0) return;
+			if (result.purged) {
+				shieldInfection = { threats: threats.slice(0, 6), instanceName: result.instanceName ?? null };
+				import("$lib/stores/profiles.svelte").then((module) => module.profiles.refresh()).catch(() => {});
+				return;
+			}
 			const critical = threats.filter((threat) => threat.severity === "critical").length;
 			const names = threats.slice(0, 3).map((threat) => threat.fileName).join(", ");
 			const extra = threats.length > 3 ? ` +${threats.length - 3}` : "";
@@ -911,6 +953,27 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 </div>
 <LaunchSessionStatus />
 <PlanRequiredModal />
+{#if shieldInfection}
+	<div class="fixed inset-0 z-[160] flex items-center justify-center bg-black/85 p-6 backdrop-blur-md" role="alertdialog" aria-modal="true" aria-label={uiText("ui.7ce1252e5213d251")}>
+		<div class="w-full max-w-lg rounded-3xl border border-red-500/40 bg-bg-elevated p-8 text-center shadow-2xl">
+			<div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-red-500/40 bg-red-500/20">
+				<ShieldAlert class="h-8 w-8 text-red-400" />
+			</div>
+			<h2 class="mt-4 text-xl font-black text-red-100">{uiText("ui.7ce1252e5213d251")}</h2>
+			<p class="mt-2 text-sm leading-relaxed text-red-200/90">{uiText("ui.af287dc454f68b57", {arg0: shieldInfection.instanceName ?? uiText("ui.dca9c88d7ff49ac9")})}</p>
+			<ul class="mt-4 max-h-40 space-y-1.5 overflow-y-auto text-left">
+				{#each shieldInfection.threats as threat}
+					<li class="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-[11px] text-red-200/90"><span class="font-bold break-all">{threat.fileName}</span> — {threat.threatType}</li>
+				{/each}
+			</ul>
+			<p class="mt-3 text-[11px] leading-relaxed text-red-300/80">{uiText("ui.f0500719756fc632")}</p>
+			<div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+				<button type="button" class="rounded-xl border border-red-500/50 bg-red-500/25 px-5 py-2.5 text-sm font-bold text-red-100 transition hover:bg-red-500/35" onclick={dismissInfectionToCatalog}>{uiText("ui.88e27f9304a23fbf")}</button>
+				<button type="button" class="rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-fg-muted transition hover:text-fg" onclick={() => shieldInfection = null}>{uiText("ui.5ad3dbd1242a4cea")}</button>
+			</div>
+		</div>
+	</div>
+{/if}
 <CrashDoctorModal />
 <CommandPalette />
 <MiniPlayer />
@@ -940,3 +1003,4 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         {#if publicProfile.open}<div role="alert" class="fixed right-5 top-5 z-[100] flex items-center gap-4 rounded-xl border border-border bg-bg-elevated p-4 text-sm text-fg">{uiText('performance.profileFailed')}<button type="button" onclick={()=>publicProfile.close()}>{uiText('performance.close')}</button></div>{/if}
     {/await}
 {/if}
+

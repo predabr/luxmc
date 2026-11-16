@@ -123,6 +123,7 @@ export function resolveProfileBanner(profile?: {
 		if (
 			profile.icon.startsWith("http://") ||
 			profile.icon.startsWith("https://") ||
+			profile.icon.startsWith("data:image/") ||
 			profile.icon.startsWith("/modpack_")
 		) {
 			return profile.icon;

@@ -90,16 +90,24 @@ pub async fn java_runtime_status_core(
     http: reqwest::Client,
     major: u32,
 ) -> AppResult<JavaRuntimeInfo> {
-    use crate::core::java::JavaRuntimeManager;
-
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
         .ok_or_else(|| AppError::InvalidState("could not determine data dir".into()))?;
-    let manager = JavaRuntimeManager::new(http, base_dir.data_dir().to_path_buf());
-    let path = manager.ensure_java(major).await.ok();
+    java_runtime_status_in(http, base_dir.data_dir().to_path_buf(), major).await
+}
+
+pub async fn java_runtime_status_in(
+    http: reqwest::Client,
+    data_dir: std::path::PathBuf,
+    major: u32,
+) -> AppResult<JavaRuntimeInfo> {
+    use crate::core::java::JavaRuntimeManager;
+
+    let manager = JavaRuntimeManager::new(http, data_dir);
+    let path = manager.resolve_installed(major).await;
     let version = path
         .as_ref()
-        .and_then(|p| crate::core::process::std_command(p).arg("-version").output().ok())
-        .map(|out| String::from_utf8_lossy(&out.stderr).to_string());
+        .and_then(|binary| manager.release_version_string(binary))
+        .or_else(|| path.as_ref().map(|_| format!("Java {major}")));
 
     Ok(JavaRuntimeInfo {
         available: path.is_some(),
@@ -258,6 +266,8 @@ pub struct InstanceShareManifest {
     pub mods: Vec<String>,
     #[serde(default)]
     pub mod_sources: Vec<ShareMod>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -299,7 +309,7 @@ pub async fn instance_export_share_code(
     .map_err(|error| AppError::Internal(error.to_string()))?;
 
     let manifest = InstanceShareManifest {
-        name: row.name,
+        name: row.name.clone(),
         mc_version: row.mc_version,
         loader: row.loader,
         loader_version: row.loader_version,
@@ -310,6 +320,7 @@ pub async fn instance_export_share_code(
             .into_iter()
             .map(|mod_row| ShareMod { project_id: mod_row.project_id, version_id: mod_row.version_id, source: mod_row.source })
             .collect(),
+        icon: Some(row.icon.clone()).filter(|icon| !icon.is_empty() && icon != "grass_block"),
     };
 
     let manifest_json = serde_json::to_string(&manifest)
@@ -442,7 +453,7 @@ pub async fn instance_import_share_code_core(
 
     let input = crate::commands::profiles::ProfileCreate {
         name: format!("{} (Importado)", manifest.name),
-        icon: None,
+        icon: manifest.icon.clone(),
         mc_version: manifest.mc_version,
         loader: manifest.loader,
         loader_version: manifest.loader_version,
@@ -754,6 +765,39 @@ use std::io::Write;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn java_runtime_status_never_downloads_a_runtime() {
+        let temporary = tempfile::tempdir().unwrap();
+        let data_dir = temporary.path().join("data");
+        let status = java_runtime_status_in(reqwest::Client::new(), data_dir.clone(), 99).await.unwrap();
+        assert!(!status.available);
+        assert!(status.path.is_none());
+        assert!(status.version.is_none(), "no runtime means no version to report");
+        assert!(!data_dir.join("java/99").exists(), "a status query must not install a runtime");
+        assert!(!data_dir.join("java/verification-cache.json").exists());
+    }
+
+    #[tokio::test]
+    async fn java_runtime_status_reports_the_cached_runtime_from_the_release_file() {
+        let temporary = tempfile::tempdir().unwrap();
+        let data_dir = temporary.path().join("data");
+        let home = data_dir.join("java/99");
+        let bin = home.join("bin/java.exe");
+        std::fs::create_dir_all(bin.parent().unwrap()).unwrap();
+        std::fs::create_dir_all(home.join("bin/server")).unwrap();
+        std::fs::write(&bin, b"stub").unwrap();
+        std::fs::write(home.join("bin/server/jvm.dll"), b"jvm").unwrap();
+        std::fs::write(home.join("release"), "JAVA_VERSION=\"99.0.7\"\n").unwrap();
+        let status = java_runtime_status_in(reqwest::Client::new(), data_dir.clone(), 99).await.unwrap();
+        assert!(!status.available, "an unverified stub is not a usable runtime");
+        assert!(status.version.is_none());
+        let manager = crate::core::java::JavaRuntimeManager::new(reqwest::Client::new(), data_dir.clone());
+        manager.record_verification(99, &bin);
+        let status = java_runtime_status_in(reqwest::Client::new(), data_dir, 99).await.unwrap();
+        assert!(status.available);
+        assert_eq!(status.version.as_deref(), Some("99.0.7"));
+    }
 
     #[tokio::test]
     async fn jvm_args_rejects_unsupported_flags() {

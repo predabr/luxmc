@@ -302,7 +302,7 @@ pub async fn importer_detect_launchers() -> AppResult<Vec<ExternalInstance>> {
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn importer_execute_import(
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
     sourcePath: String,
     targetName: String,
     mcVersion: Option<String>,
@@ -318,7 +318,12 @@ pub async fn importer_execute_import(
     let final_mc_version = mcVersion.filter(|value| !value.trim().is_empty()).ok_or_else(|| crate::error::AppError::InvalidInput("Selecione a versão do Minecraft da instância".into()))?;
     if final_mc_version.len() > 128 || final_mc_version.contains("..") || !final_mc_version.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-' | b'_')) { return Err(crate::error::AppError::InvalidInput("Versão do Minecraft inválida".into())); }
     let final_loader = loader.unwrap_or_else(|| "vanilla".into());
-    let final_icon = sanitize_icon(icon);
+    let mut final_icon = sanitize_icon(icon);
+    if final_icon.is_none() {
+        if let Some((source, project)) = manifest_project(&game_directory(&src)) {
+            final_icon = catalog_icon(&state, source, &project).await.and_then(|url| sanitize_icon(Some(url)));
+        }
+    }
     let final_ram = ramMb.filter(|ram| *ram > 0 && *ram < 65536);
 
     let profile_id = uuid::Uuid::new_v4().to_string();
@@ -381,6 +386,33 @@ pub async fn importer_execute_import(
         name: safe_name,
         message: format!("Instância importada com sucesso com {} mods!", imported_mods),
     })
+}
+
+fn manifest_project(dir: &Path) -> Option<(&'static str, String)> {
+    for file in ["minecraftinstance.json", "manifest.json"] {
+        if let Ok(bytes) = std::fs::read(dir.join(file)) {
+            if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) {
+                for pointer in ["/installedModpack/projectID", "/installedModpack/projectId", "/installedModpack/id", "/projectID", "/projectId"] {
+                    if let Some(id) = value.pointer(pointer).and_then(|value| value.as_u64()) { return Some(("curseforge", id.to_string())); }
+                }
+            }
+        }
+    }
+    if let Ok(bytes) = std::fs::read(dir.join("modrinth.index.json")) {
+        if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) {
+            if let Some(id) = value["projectId"].as_str().map(str::trim).filter(|id| !id.is_empty() && id.len() < 64) { return Some(("modrinth", id.to_owned())); }
+        }
+    }
+    None
+}
+
+async fn catalog_icon(state: &AppState, source: &str, project: &str) -> Option<String> {
+    let details = if source == "curseforge" {
+        crate::core::mods::curseforge::get_mod_details(&state.http, project).await.ok()
+    } else {
+        crate::core::mods::ModrinthClient::new(state.http.clone()).get_project_details(project).await.ok()
+    };
+    details.and_then(|details| details.icon_url)
 }
 
 fn count_mods_in_dir(dir: &Path) -> usize {

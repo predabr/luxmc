@@ -45,6 +45,10 @@ describe("resolveProfileBanner", () => {
 		expect(resolveProfileBanner({ name: "Renamed Vanilla Perfected", icon: "/modpack_vanilla_perfected_icon.webp" })).toBe("/modpack_vanilla_perfected.png");
 	});
 
+	it("uses a locally imported instance icon as the cover", () => {
+		expect(resolveProfileBanner({ name: "Pacote importado", icon: "data:image/png;base64,iVBORw0KGgo=" })).toBe("data:image/png;base64,iVBORw0KGgo=");
+	});
+
 	it("falls back to remote icon URL if no banner matches", () => {
 		expect(resolveProfileBanner({ name: "Custom Pack", icon: "https://example.com/pack.png" })).toBe("https://example.com/pack.png");
 	});

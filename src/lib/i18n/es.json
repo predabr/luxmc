@@ -3148,7 +3148,13 @@
     "1e23968a10a33a9c": "Caché limpia con éxito!{{arg0}} liberada)",
     "97bfa663aaafe580": "Textura de carga de errores: ",
     "86631a41a8aa68fb": "Failed para generar información de host:",
-    "747cdb9983e94824": "Enlace de invitación copiado con éxito!"
+    "747cdb9983e94824": "Enlace de invitación copiado con éxito!",
+    "ui.7ce1252e5213d251": "Infección detectada y eliminada",
+    "ui.af287dc454f68b57": "Luxmc Shield encontró malware real en {{arg0}} y borró toda la instancia de inmediato para proteger tu PC.",
+    "ui.f0500719756fc632": "Eliminado de esta instancia: mods, bibliotecas, configs y mundos. Descarga un modpack limpio de una fuente confiable.",
+    "ui.88e27f9304a23fbf": "Descargar otro modpack",
+    "ui.5ad3dbd1242a4cea": "Entendido",
+    "ui.dca9c88d7ff49ac9": "la instancia"
   },
   "skinsStudio": {
     "confirmTitle": "¿Aplicar tu nueva skin?",
@@ -4219,5 +4225,13 @@
     "disabledCount": "desactivados",
     "packsCount": "paquetes",
     "filteredCount": "mostrados"
+  },
+  "importer": {
+    "alreadyImported": "ya importada",
+    "importAgain": "Importar de nuevo",
+    "importedOnce": "{{name}} se importó. Sigue en esta lista: importar de nuevo crea una segunda copia."
+  },
+  "perfGuard": {
+    "activated": "Detectamos renderizado lento, así que desactivamos la animación de fondo y el desenfoque para mantener el launcher fluido. Puedes cambiarlo en Ajustes."
   }
 }

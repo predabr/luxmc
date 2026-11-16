@@ -289,11 +289,25 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	.catalog-cover-mark { position: relative; z-index: 1; background: rgb(var(--bg-elevated) / .42); box-shadow: 0 12px 32px rgb(var(--shadow-color) / .14); }
     .catalog-version { padding: 5px 8px; border: 1px solid rgb(var(--surface-shine) / .15); border-radius: 10px; background: rgb(var(--shadow-color) / .75); color: rgb(var(--surface-shine)); font-size: 9px; font-weight: 600; backdrop-filter: blur(8px); }
     .catalog-card-body { background: linear-gradient(165deg, rgb(var(--brand-500) / .03), transparent 55%); }
-    .catalog-card :global(.catalog-install) { border: 1px solid rgb(var(--brand-400) / .42); border-radius: 12px; padding-inline: 12px; color: rgb(var(--brand-action)); background: rgb(var(--brand-500) / .14); font-weight: 750; box-shadow: 0 4px 14px rgb(var(--brand-500) / .08); transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, translate 150ms ease; }
-    .catalog-card :global(.catalog-install:hover:not(:disabled)) { border-color: rgb(var(--brand-400) / .68); background: rgb(var(--brand-500) / .22); box-shadow: 0 7px 18px rgb(var(--brand-500) / .16); translate: 0 -1px; }
+    .catalog-card :global(.catalog-install) {
+        height: 38px; padding-inline: 15px; border-radius: 12px;
+        border: 1px solid rgb(var(--brand-300) / .55);
+        color: #fff; font-weight: 750; letter-spacing: .01em;
+        background-image: linear-gradient(180deg, rgb(var(--brand-400) / .98), rgb(var(--brand-600) / .98));
+        box-shadow: inset 0 1px 0 rgb(255 255 255 / .3), 0 10px 22px -10px rgb(var(--brand-500) / .85);
+        transition: box-shadow 180ms ease, filter 180ms ease, translate 180ms ease, background-image 180ms ease;
+    }
+    .catalog-card :global(.catalog-install:hover:not(:disabled)) {
+        filter: brightness(1.06) saturate(1.05);
+        box-shadow: inset 0 1px 0 rgb(255 255 255 / .38), 0 16px 30px -12px rgb(var(--brand-500) / .95);
+        translate: 0 -1px;
+    }
+    .catalog-card :global(.catalog-install:active:not(:disabled)) { translate: 0 0; filter: brightness(.98); box-shadow: inset 0 2px 6px rgb(2 6 23 / .35); }
+    .catalog-card :global(.catalog-install:disabled) { color: rgb(var(--fg-muted)); background-image: none; background-color: rgb(var(--fg) / .06); border-color: rgb(var(--fg) / .12); box-shadow: none; font-weight: 650; }
+    .catalog-card :global(.catalog-install:focus-visible) { outline: 2px solid rgb(var(--brand-300)); outline-offset: 2px; }
     :global(html.has-custom-wallpaper) .catalog-card { background-color: rgb(var(--bg-elevated) / var(--interface-opacity, .34)) !important; backdrop-filter: blur(12px); }
     :global(html.has-custom-wallpaper) .catalog-card-body { background-color: transparent !important; }
-    :global(html.has-custom-wallpaper) .catalog-card :global(.catalog-install) { background-color: rgb(var(--brand-500) / .2) !important; }
+    :global(html.has-custom-wallpaper) .catalog-card :global(.catalog-install:disabled) { background-color: rgb(var(--fg) / .08) !important; background-image: none !important; }
     .catalog-card:hover { translate: 0 -4px; box-shadow: 0 18px 44px -16px rgb(var(--brand-500) / .3), var(--shadow-elevated); }
     .catalog-card:focus-visible { outline: 2px solid rgb(var(--brand-action)); outline-offset: 3px; }
 	.favorite-btn {

@@ -46,6 +46,16 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	let { open, onClose }: Props = $props();
 
+	const importedSourcesKey = "luxmc.importedSources";
+	function readImportedSources(): Set<string> {
+		try { const raw = localStorage.getItem(importedSourcesKey); const list = raw ? JSON.parse(raw) : []; return new Set(Array.isArray(list) ? list.filter((value): value is string => typeof value === "string") : []); } catch { return new Set(); }
+	}
+	function rememberImportedSource(path: string) {
+		const next = new Set(importedPaths); next.add(path); importedPaths = next;
+		try { localStorage.setItem(importedSourcesKey, JSON.stringify([...next])); } catch {}
+	}
+	let importedPaths = $state<Set<string>>(new Set());
+	let lastImported = $state<string | null>(null);
 	let detected = $state<ExternalInstance[]>([]);
 	let loading = $state(false);
 	let importingPath = $state<string | null>(null);
@@ -82,6 +92,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	$effect(() => {
 		if (open) {
+			importedPaths = readImportedSources();
+			lastImported = null;
 			scanLaunchers();
 		}
 	});
@@ -103,8 +115,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 			if (res.success) {
 				toast(res.message, "success");
+				rememberImportedSource(inst.path);
+				lastImported = res.name || inst.name;
 				await profiles.refresh();
-				onClose();
 			}
 		} catch (e) {
 			toast(uiText("ui.08ecb8adbe4e3173", {arg0: (e)}), "error");
@@ -145,6 +158,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			</Button>
 		</div>
 
+		{#if lastImported}
+			<div role="status" class="flex items-center gap-2.5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-200">
+				<Check class="h-4 w-4 shrink-0 text-emerald-400" />
+				<span>{uiText("importer.importedOnce", { name: lastImported })}</span>
+			</div>
+		{/if}
 		{#if loading}
 			<div class="py-12 flex flex-col items-center justify-center gap-2 text-fg/50">
 				<RefreshCw class="w-6 h-6 animate-spin text-brand-400" />
@@ -172,6 +191,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 									<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-400/15 text-brand-400 border border-brand-400/30 shrink-0">
 										{inst.launcher}
 									</span>
+									{#if importedPaths.has(inst.path)}
+										<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shrink-0 flex items-center gap-1"><Check class="w-3 h-3" />{uiText("importer.alreadyImported")}</span>
+									{/if}
 								</div>
 								<div class="flex items-center gap-3 text-[11px] text-fg/50 mt-1 font-mono">
 									<span>{uiText("ui.ca34ab5c748c6607")} {inst.mcVersion}</span>
@@ -200,7 +222,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 								<span>{uiText("ui.eeb8c8bbcaab66e1")}</span>
 							{:else}
 								<Download class="w-3.5 h-3.5" />
-								<span>{uiText("settings.import")}</span>
+								<span>{importedPaths.has(inst.path) ? uiText("importer.importAgain") : uiText("settings.import")}</span>
 							{/if}
 						</Button>
 					</div>
