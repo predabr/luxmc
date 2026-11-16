@@ -142,6 +142,9 @@ test("request validation fails closed before exposing data", async () => {
 test("rate limiting rejects excess requests without leaking identities", async () => {
   const { sqlite, request } = fixture();
   try {
+    // O limitador usa janela fixa por minuto; aguarda o início de um minuto para a rajada inteira caber em um bucket.
+    const untilBoundary = 60000 - (Date.now() % 60000);
+    if (untilBoundary < 4000) await new Promise(resolve => setTimeout(resolve, untilBoundary + 250));
     await request("register", aliceToken, { username: "Alice" });
     let response;
     for (let i = 0; i < 121; i++) response = await request("sync", aliceToken, {});
