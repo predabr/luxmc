@@ -236,6 +236,7 @@
 	let nameSyncedId = '';
 	let nameSaving = $state(false);
 	let configDraft = $state({ port: 25565, motd: '', maxPlayers: 10 });
+	let draftSyncedFor: { id: string; settings: unknown } | null = null;
 	let configSaving = $state(false);
 	let consoleLines = $state<Array<{ key: string; text: string; tone: 'error' | 'warn' | 'info' }>>([]);
 	let command = $state('');
@@ -431,7 +432,10 @@
 
 	$effect(() => {
 		const settings = platform.settings;
-		if (!settings) return;
+		const current = config;
+		if (!settings || !current) { draftSyncedFor = null; return; }
+		if (draftSyncedFor && draftSyncedFor.id === current.id && draftSyncedFor.settings === settings) return;
+		draftSyncedFor = { id: current.id, settings };
 		worldDraft = {
 			seed: settings.seed ?? '',
 			difficulty: settings.difficulty,
@@ -439,7 +443,7 @@
 			viewDistance: settings.viewDistance,
 			simulationDistance: settings.simulationDistance
 		};
-		configDraft = { port: settings.port, motd: settings.motd, maxPlayers: config?.maxPlayers ?? 10 };
+		configDraft = { port: settings.port, motd: settings.motd, maxPlayers: current.maxPlayers ?? 10 };
 	});
 
 	$effect(() => {

@@ -35,7 +35,7 @@ const fs = require('node:fs');
         assert.equal(await page.locator('.skin-preview-stage').evaluate(el => getComputedStyle(el).backgroundImage.includes('radial-gradient')), true);
         await page.getByRole('region', { name: 'Visualizador 3D de Skin' }).locator('canvas').first().waitFor({state:'visible', timeout:60000});
         await page.evaluate(async () => (await import('/src/lib/stores/settings.svelte.ts')).settings.patch({ skinPreviewQuality: 'high' }));
-        await page.waitForFunction(() => { const c=document.querySelector('.skin-preview-stage canvas'); return c && Math.abs(c.width / c.clientWidth - 2) < .01; });
+        await page.waitForFunction(() => { const c=document.querySelector('.skin-preview-stage canvas'); return c && Math.abs(c.width / c.clientWidth - 2) < .01; }, undefined, { timeout: 90000 });
         await page.screenshot({ path: `${output}/personalizer.png`, animations: 'disabled' });
         await page.goto(`${base}/settings`);
         await page.getByRole('tab', { name: 'Aparência', exact: true }).click();

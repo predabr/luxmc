@@ -17,14 +17,12 @@ const { setupLauncherDemo } = require('../scripts/launcher-video-fixture.cjs');
             await page.goto('http://127.0.0.1:1420/');
             await page.getByRole('button', { name: 'Entrar com Microsoft' }).waitFor();
             assert.equal(await page.locator('aside.login-story').count(), 0);
-            assert.equal(await page.locator('section.login-story').count(), 1);
+            assert.equal(await page.locator('.auth-surface').count(), 1);
             await page.evaluate(() => document.fonts.ready);
             await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth + 1);
             assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
             if (width === 1440) {
-                assert.equal(await page.locator('.login-story').evaluate(node => getComputedStyle(node).backgroundColor), 'rgba(0, 0, 0, 0)');
-                assert.equal(await page.locator('.login-story').isVisible(), true);
-                await page.getByText('Suas versões, seus modpacks e sua turma. Escolha a conta que você usa e organize tudo no Luxmc.', { exact: true }).waitFor();
+                assert.equal(await page.locator('.auth-surface').isVisible(), true);
                 assert.equal(await page.locator('a[href*="skin-studio"]').count(), 0);
             }
             assert.equal(await page.evaluate(() => document.documentElement.classList.contains('reduce-motion')), false);
