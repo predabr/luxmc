@@ -334,3 +334,11 @@ Verificação: amostragem a cada 400 ms por 40 s com servidor online + telemetri
 - Correção de chaves i18n: as 6 chaves novas do modal foram gravadas com prefixo `ui.` dentro da seção `ui` (lookup quebrado → teste de cobertura falhava); renomeadas para o hash puro em en/pt-BR/es.
 - Testes: `cargo test --lib shield` 12/12 (novos: resultado limpo serializa `purged:false`, `has_critical_threat`), suíte completa `cargo test --lib` **391/391**, `svelte-check` **0/0**, `vitest` **246/246**.
 
+### Pendência de CI resolvida (16/11)
+- Commits `1e0d7e0`/`35aa600` (Shield purge + Java cache) deixaram o CI vermelho no step "Content and scrolling regression tests" (ubuntu e windows falharam em testes diferentes). Diagnóstico com log via `git credential fill` (PAT do credential manager) + reprodução local com o chromium do playwright (igual ao CI).
+- **Quebra real 1 — `reinstall-recovery`**: `b7f434f` removeu o painel `section.login-story` (login de card único) e o teste ainda o exigia; agora valida o card `.auth-surface`.
+- **Quebra real 2 (bug de produto) — `local-server`**: o poll de 1.5s (`refreshServers`) recriava `overview` → `platform.config` (objeto novo) a cada varredura; o `$effect` do `ServerNodeCanvas` re-disparava e sobrescrevia os rascunhos do usuário (MOTD, porta, gamerules) — editando durante um refresh, a digitação era revertida e o save gravava valor antigo. No CI lento, o poll caía entre fill e save → timeout. Fix: rascunhos re-semeados só quando `config.id` ou o objeto `settings` muda de verdade (`draftSyncedFor`).
+- **Flake — `release-3.9.2`**: espera do canvas 2× tinha 30s; endurecida para 90s (mesma condição) para CI lento.
+- Suíte completa local: **47/47 verde** com Edge; `svelte-check` 0/0. Commit `410ef35` → **CI 43865025138 success** (ubuntu + windows).
+
+
