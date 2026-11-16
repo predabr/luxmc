@@ -346,7 +346,7 @@ Verificação: amostragem a cada 400 ms por 40 s com servidor online + telemetri
 - O CI do commit de docs (`33eddb8`) falhou de novo no windows em `release-3.9.2.browser.cjs:38` — agora com o timeout de 90s estourado, provando que não era só lentidão: o canvas nunca chegou a 2×.
 - Causa raiz no `SkinViewer3D.svelte`: perda de contexto WebGL (`webglcontextlost`) durante a corrida de inicialização do processo de GPU no runner marcava `unavailable = $state(true)` **para sempre** — o efeito de criação tem guarda `|| unavailable` e nunca recria; o preview 3D morria definitivamente no produto também (usuário ficaria sem preview após um context loss).
 - Fix: recuperação limitada — `scheduleViewerRecovery()` tenta `disposeViewer()` + `createViewer()` até 4× (espaçamento 1,5s×tentativa), acionado do catch da criação e do catch do render; `recoveryAttempts = 0` num render bem-sucedido; timer limpo no cleanup do `onMount`; o retry só exige `mounted` (painel escondido não desiste mais — criar viewer invisível é inofensivo, o render é controlado por `running`).
-- Validação: `pnpm check` 0/0; `release-3.9.2` com o chromium empacotado do playwright (igual ao CI) PASS. Suíte completa em execução com chromium empacotado.
+- Validação: `pnpm check` 0/0; `release-3.9.2` com o chromium empacotado do playwright (igual ao CI) PASS; suíte completa **47/47** com chromium empacotado. Commit `be32851` → **CI 43891593961 success** (ubuntu + windows).
 
 
 
