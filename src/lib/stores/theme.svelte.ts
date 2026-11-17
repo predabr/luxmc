@@ -88,44 +88,44 @@ export const BACKGROUNDS: Record<string, BackgroundOption> = {
 	obsidian: {
 		id: "obsidian",
 		name: "Fortaleza de Obsidiana",
-		preview: "#0c0c0e",
-		style: "background: radial-gradient(circle at 50% -10%, rgba(59, 130, 246, 0.14) 0%, transparent 65%), radial-gradient(circle at 85% 110%, rgba(59, 130, 246, 0.08) 0%, transparent 60%), #090a0f;"
+		preview: `radial-gradient(90% 60% at 50% -12%, rgb(124 58 237 / .34), transparent 62%), radial-gradient(70% 50% at 10% 108%, rgb(34 211 238 / .16), transparent 66%), radial-gradient(80% 60% at 94% 102%, rgb(192 38 211 / .18), transparent 70%), linear-gradient(180deg, #0b0814, #07050e 58%, #030207)`,
+		style: "background: radial-gradient(90% 60% at 50% -12%, rgba(124, 58, 237, 0.34) 0%, transparent 62%), radial-gradient(70% 50% at 10% 108%, rgba(34, 211, 238, 0.16) 0%, transparent 66%), radial-gradient(80% 60% at 94% 102%, rgba(192, 38, 211, 0.18) 0%, transparent 70%), linear-gradient(180deg, #0b0814 0%, #07050e 58%, #030207 100%);"
 	},
 	cosmos: {
 		id: "cosmos",
 		name: "Vazio Celestial do The End",
-		preview: "#08090f",
-		style: "background: radial-gradient(circle at 20% -10%, rgba(59, 130, 246, 0.22) 0%, transparent 55%), radial-gradient(circle at 80% 110%, rgba(168, 85, 247, 0.18) 0%, transparent 55%), #05060b;"
+		preview: `radial-gradient(60% 46% at 24% 4%, rgb(139 92 246 / .4), transparent 64%), radial-gradient(52% 42% at 84% 24%, rgb(79 70 229 / .32), transparent 66%), radial-gradient(48% 36% at 62% -8%, rgb(34 211 238 / .18), transparent 62%), radial-gradient(90% 70% at 50% 118%, rgb(49 46 129 / .38), transparent 72%), #05040d`,
+		style: "background: radial-gradient(60% 46% at 24% 4%, rgba(139, 92, 246, 0.4) 0%, transparent 64%), radial-gradient(52% 42% at 84% 24%, rgba(79, 70, 229, 0.32) 0%, transparent 66%), radial-gradient(48% 36% at 62% -8%, rgba(34, 211, 238, 0.18) 0%, transparent 62%), radial-gradient(90% 70% at 50% 118%, rgba(49, 46, 129, 0.38) 0%, transparent 72%), #05040d;"
 	},
 	night: {
 		id: "night",
 		name: "Noite Estrelada na Taiga",
-		preview: "#0a1128",
-		style: "background-image: linear-gradient(rgba(10, 12, 18, 0.82), rgba(10, 12, 18, 0.94)), url('/bg_night.jpg'); background-size: cover; background-position: center;"
+		preview: "url('/bg_night.jpg') center / cover no-repeat, #0a1128",
+		style: "background-image: linear-gradient(rgba(8, 10, 16, 0.72), rgba(8, 10, 16, 0.9)), url('/bg_night.jpg'); background-size: cover; background-position: center;"
 	},
 	day: {
 		id: "day",
 		name: "Alvorada nos Picos Congelados",
-		preview: "#1e3a5f",
-		style: "background-image: linear-gradient(rgba(10, 12, 18, 0.82), rgba(10, 12, 18, 0.94)), url('/bg_day.jpg'); background-size: cover; background-position: center;"
+		preview: "url('/bg_day.jpg') center / cover no-repeat, #1e3a5f",
+		style: "background-image: linear-gradient(rgba(8, 10, 16, 0.7), rgba(8, 10, 16, 0.9)), url('/bg_day.jpg'); background-size: cover; background-position: center;"
 	},
 	aurora: {
 		id: "aurora",
 		name: uiText("settings.appearanceOptions.bgAurora"),
-		preview: "#04151f",
-		style: "background: radial-gradient(ellipse at 50% -20%, rgba(56, 189, 248, 0.25) 0%, transparent 70%), radial-gradient(ellipse at 80% 80%, rgba(16, 185, 129, 0.2) 0%, transparent 65%), #040810;"
+		preview: `radial-gradient(85% 52% at 18% -6%, rgb(52 211 153 / .34), transparent 64%), radial-gradient(72% 46% at 72% 10%, rgb(34 211 238 / .26), transparent 66%), radial-gradient(62% 46% at 96% 64%, rgb(168 85 247 / .16), transparent 72%), radial-gradient(80% 50% at 40% 112%, rgb(13 148 136 / .2), transparent 70%), linear-gradient(180deg, #072838, #04121c 56%, #020810)`,
+		style: "background: radial-gradient(85% 52% at 18% -6%, rgba(52, 211, 153, 0.34) 0%, transparent 64%), radial-gradient(72% 46% at 72% 10%, rgba(34, 211, 238, 0.26) 0%, transparent 66%), radial-gradient(62% 46% at 96% 64%, rgba(168, 85, 247, 0.16) 0%, transparent 72%), radial-gradient(80% 50% at 40% 112%, rgba(13, 148, 136, 0.2) 0%, transparent 70%), linear-gradient(180deg, #072838 0%, #04121c 56%, #020810 100%);"
 	},
 	sakura: {
 		id: "sakura",
 		name: "Bosque das Cerejeiras",
-		preview: "#1a0b14",
-		style: "background: radial-gradient(circle at 30% -10%, rgba(244, 63, 94, 0.22) 0%, transparent 60%), radial-gradient(circle at 80% 110%, rgba(251, 113, 133, 0.15) 0%, transparent 60%), #0c070a;"
+		preview: `radial-gradient(72% 50% at 74% 2%, rgb(251 113 133 / .3), transparent 64%), radial-gradient(82% 56% at 8% 38%, rgb(190 18 60 / .24), transparent 70%), radial-gradient(70% 60% at 92% 104%, rgb(120 53 99 / .28), transparent 72%), linear-gradient(180deg, #2c1024, #170813 56%, #080410)`,
+		style: "background: radial-gradient(72% 50% at 74% 2%, rgba(251, 113, 133, 0.3) 0%, transparent 64%), radial-gradient(82% 56% at 8% 38%, rgba(190, 18, 60, 0.24) 0%, transparent 70%), radial-gradient(70% 60% at 92% 104%, rgba(120, 53, 99, 0.28) 0%, transparent 72%), linear-gradient(180deg, #2c1024 0%, #170813 56%, #080410 100%);"
 	},
 	lush: {
 		id: "lush",
 		name: "Cavernas Exuberantes",
-		preview: "#06140e",
-		style: "background: radial-gradient(circle at 40% -10%, rgba(16, 185, 129, 0.22) 0%, transparent 60%), radial-gradient(circle at 75% 100%, rgba(52, 211, 153, 0.15) 0%, transparent 55%), #050d09;"
+		preview: `radial-gradient(88% 54% at 50% -10%, rgb(45 212 191 / .3), transparent 64%), radial-gradient(62% 46% at 10% 82%, rgb(16 185 129 / .24), transparent 70%), radial-gradient(62% 46% at 92% 72%, rgb(52 211 153 / .18), transparent 72%), linear-gradient(180deg, #062117, #04120d 58%, #020806)`,
+		style: "background: radial-gradient(88% 54% at 50% -10%, rgba(45, 212, 191, 0.3) 0%, transparent 64%), radial-gradient(62% 46% at 10% 82%, rgba(16, 185, 129, 0.24) 0%, transparent 70%), radial-gradient(62% 46% at 92% 72%, rgba(52, 211, 153, 0.18) 0%, transparent 72%), linear-gradient(180deg, #062117 0%, #04120d 58%, #020806 100%);"
 	}
 };
 

@@ -1599,3 +1599,183 @@ html.is-resizing *::after {
 @media (prefers-reduced-motion: reduce) {
   .lux-titlebar-button { transition: none; }
 }
+
+/* ---- Janela personalizada: barra de titulo e moldura ---- */
+:root { --lux-titlebar-height: 38px; }
+
+body {
+  padding-top: var(--lux-titlebar-height);
+}
+
+.lux-window-frame {
+  height: calc(100dvh - var(--lux-titlebar-height));
+  transform: translate3d(var(--lux-repaint-lift, 0), var(--lux-repaint-push, 0), 0);
+}
+
+.lux-titlebar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  height: var(--lux-titlebar-height);
+  padding: 0 10px 0 14px;
+  background: linear-gradient(180deg, rgb(var(--bg) / 0.26), rgb(var(--bg) / 0.04));
+  border: 0;
+  box-shadow: inset 0 1px 0 rgb(var(--fg) / 0.04);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background 200ms ease, opacity 160ms ease;
+}
+
+.lux-titlebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lux-titlebar-logo {
+  width: 19px;
+  height: 19px;
+  border-radius: 6px;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 6px rgb(var(--brand-500) / 0.35));
+}
+
+.lux-titlebar-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgb(var(--fg) / 0.94);
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgb(var(--shadow-color) / 0.45);
+}
+
+.lux-titlebar-version {
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--fg) / 0.09);
+  background: rgb(var(--fg) / 0.05);
+  backdrop-filter: blur(8px);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: rgb(var(--fg) / 0.55);
+}
+
+.lux-titlebar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding-right: 6px;
+}
+
+.lux-titlebar-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  color: rgb(0 0 0 / 0.55);
+  transition: filter 140ms ease, transform 140ms ease, opacity 160ms ease;
+}
+
+.lux-titlebar-button::before {
+  content: "";
+  position: absolute;
+  inset: 3.5px;
+  border-radius: inherit;
+  background: rgb(var(--fg) / 0.18);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.22);
+  transition: background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.lux-titlebar-button.is-minimize::before { background: #febc2e; }
+.lux-titlebar-button.is-maximize::before { background: #28c840; }
+.lux-titlebar-button.is-close::before { background: #ff5f57; }
+
+.lux-titlebar-button svg {
+  position: relative;
+  z-index: 1;
+  width: 8px;
+  height: 8px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.lux-titlebar-actions:hover .lux-titlebar-button svg,
+.lux-titlebar-button:focus-visible svg {
+  opacity: 1;
+}
+
+.lux-titlebar-button:hover { filter: brightness(1.1); }
+.lux-titlebar-button:active { transform: scale(0.9); filter: brightness(0.92); }
+
+.lux-titlebar-button:focus-visible {
+  outline: 2px solid rgb(var(--brand-400));
+  outline-offset: 3px;
+}
+
+.lux-titlebar.is-inactive .lux-titlebar-button::before {
+  background: rgb(var(--fg) / 0.22);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12);
+}
+
+.lux-titlebar.is-inactive .lux-titlebar-name {
+  color: rgb(var(--fg) / 0.55);
+}
+
+html.no-blur .lux-titlebar {
+  backdrop-filter: blur(20px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+}
+
+html.perf-mode .lux-titlebar {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: linear-gradient(180deg, rgb(var(--bg) / 0.55), rgb(var(--bg) / 0.3));
+}
+
+html.is-resizing .lux-titlebar,
+html.is-resizing .lux-titlebar * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transition: none !important;
+}
+
+html.is-resizing .lux-window-frame { will-change: transform; }
+
+html.is-resizing *,
+html.is-resizing *::before,
+html.is-resizing *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transition-duration: 0ms !important;
+}
+
+@media (max-width: 640px) {
+  .lux-titlebar { padding-left: 12px; }
+  .lux-titlebar-version { display: none; }
+  .lux-titlebar-actions { gap: 7px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lux-titlebar-button { transition: none; }
+}

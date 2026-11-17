@@ -280,7 +280,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					class="p-3 rounded-2xl border flex flex-col items-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity] active:scale-[0.98] cursor-pointer {currentBackground === bg.id ? 'border-brand-500 bg-bg-subtle shadow-lg ring-2 ring-brand-500/30' : 'border-fg/5 bg-bg-subtle hover:border-fg/20'}"
 					onclick={() => selectBackground(bg.id)}
 				>
-					<div class="w-full aspect-video rounded-xl border border-fg/10 shadow-inner flex items-center justify-center relative overflow-hidden" style="background-color: {bg.preview};">
+					<div class="w-full aspect-video rounded-xl border border-fg/10 shadow-inner flex items-center justify-center relative overflow-hidden bg-cover bg-center" style="background: {bg.preview};">
 						{#if currentBackground === bg.id}
 							<div class="w-6 h-6 rounded-full bg-brand-500 text-brand-foreground flex items-center justify-center shadow-md">
 								<Check class="w-3.5 h-3.5 stroke-[3]" />
