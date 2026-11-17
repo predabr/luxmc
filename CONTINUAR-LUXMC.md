@@ -573,3 +573,11 @@ Cancelamento final confirmado em 25/10/2026: Release 40229309187 e CI 4022930162
 - Capas de instancias importadas: backend resolve icone pelo manifesto CurseForge/Modrinth, codigo de compartilhamento carrega o icone e icones data: valem como capa.
 - Guarda de fluidez: mede fps na abertura e liga o modo desempenho sozinho quando fica abaixo de 45 fps.
 - Verificado: svelte-check 0/0, vitest 42 arquivos / 246 testes, cargo test --lib 391 testes. O teste de navegador login-review falha antes e depois destas mudancas (a cena de abertura cobre a tela e o roteiro nao a dispensa).
+
+## Logo arredondada, barra de titulo propria e o bug do modo janela (commit 2b03c9d)
+- A marca nova passou a ser gerada com cantos arredondados (raio ~23%) e substituiu logo, favicon, marca de 512, emblemas, icones do Tauri (ico/icns/android/ios) e os assets do site.
+- `decorations: false` + `TitleBar.svelte`: barra com marca, versao e controles fluidoes de minimizar/maximizar/fechar, arrastavel e com Permissoes de janela no capability.
+- Causa real do "Tentar novamente" em modo janela: `GlassSelect` escutava `resize`/`scroll` e chamava `popup.contains(event.target)`, com `target` sendo `window` num resize. Qualquer redimensionamento lancava TypeError e o ErrorBoundary trocava a tela inteira. Corrigido com guarda `instanceof Node` e teste de regressao em `GlassSelect.test.ts`.
+- Redimensionar agora desliga desfoques por alguns instantes e força repintura da moldura.
+- Colecao de skins virou grade compacta (cartoes menores, acoes no hover).
+- Verificado no app real: redimensionar, maximizar/restaurar e minimizar sem erro; svelte-check 0/0, vitest 43 arquivos / 248 testes, cargo check --bins ok.
