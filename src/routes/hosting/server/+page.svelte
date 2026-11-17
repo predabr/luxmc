@@ -4,6 +4,14 @@
 
 <svelte:head><title>Gerenciador de servidor · Luxmc</title></svelte:head>
 
-<div class="mx-auto h-[calc(100%-3rem)] w-full max-w-[1400px] pb-2">
+<div class="dedicated-stage mx-auto flex w-full max-w-[1400px] min-h-0 flex-1 flex-col pb-2">
 	<ServerWorkspace />
 </div>
+
+<style>
+	.dedicated-stage :global(.workspace) {
+		flex: 1 1 auto;
+		height: auto;
+		min-height: 0;
+	}
+</style>

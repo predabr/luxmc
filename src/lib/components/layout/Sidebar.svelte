@@ -18,7 +18,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		Settings as SettingsIcon,
 		Github,
 		Globe,
-		Puzzle,
 		Server as ServerIcon
 	} from "lucide-svelte";
 	import { openUrl } from "@tauri-apps/plugin-opener";
@@ -47,7 +46,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		{ href: "/mods", labelKey: "nav.mods", title: uiText("home.browseMods"), icon: Compass },
 		{ href: "/skins", labelKey: "nav.skins", title: uiText("ui.786fa4f02a1a0dfc"), icon: Shirt },
 		{ href: "/friends", labelKey: "nav.friends", title: uiText("ui.30b21c1ed5a0967b"), icon: Users },
-		{ href: "/plugins", labelKey: "plugins.tab", title: uiText("plugins.tab"), icon: Puzzle },
 		{ href: "/instances", labelKey: "nav.instances", title: uiText("library.title"), icon: Layers },
 	]);
 
