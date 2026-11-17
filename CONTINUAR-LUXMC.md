@@ -591,3 +591,15 @@ Cancelamento final confirmado em 25/10/2026: Release 40229309187 e CI 4022930162
 ## Corte na parte de baixo (commit 5ad8016)
 - A sidebar ainda pedia `h-dvh` dentro de uma moldura 38px menor, entao os ultimos 38px (linha OWNER) ficavam fora da janela; agora ela usa `h-full`.
 - Coluna direita, pagina de hospedagem e dialogos de servidor tambem passaram a medir pela moldura. Verificado: docH == innerH em /, /mods, /skins, /instances, /friends, /settings, /hosting/server e na tela de login.
+
+## Rodada: sistema de plugins (commit 6ab0467)
+
+- `src-tauri/src/commands/plugins/` - instalador (zip validado), manifesto `plugin.json`, estado em `plugins/state.json`, 21 testes.
+- Shield obrigatorio: instalar, reativar, editar e executar passam por `scan_files` (IOCs Fractureiser/SkyRage, `child_process`/`fs`, `eval` ofuscado, blob base64). Achado critico = recusado/desativado.
+- Comandos: `plugins_list`, `plugins_install`, `plugins_install_local`, `plugins_create`, `plugins_update_source`, `plugins_source`, `plugins_set_enabled`, `plugins_rescan`, `plugins_script`, `plugins_uninstall`, `plugins_open_folder`, `plugins_registry` (fallback de catalogo embutido).
+- Editor embutido: `/plugins/editor` (`PluginEditor.svelte`), JS/HTML/CSS, previa ao vivo em iframe sandbox, Ctrl+S.
+- Plugin roda em `iframe sandbox=allow-scripts` com ponte `Luxmc.ui` / `Luxmc.storage` (`src/lib/utils/pluginSandbox.ts`).
+- Aba **Plugins** em Ajustes, pagina `/plugins` e item na sidebar.
+- Catalogo oficial embutido: `src-tauri/assets/plugins/` (Pomodoro Luxmc, Notas rapidas).
+- Catalogo da comunidade: hospedar um `registry.json` e trocar `DEFAULT_REGISTRY_URL` em `commands/plugins/mod.rs`.
+- Tipos de conteudo do catalogo ficam so na sidebar (`catalogType.svelte.ts`). A remocao do `CatalogNavigation` em `/mods` ficou **nao commitada** (arquivo com WIP da outra IA).
