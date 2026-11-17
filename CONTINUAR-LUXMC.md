@@ -587,3 +587,7 @@ Cancelamento final confirmado em 25/10/2026: Release 40229309187 e CI 4022930162
 - Controles em semaforo: amarelo minimizar, verde maximizar/restaurar, vermelho fechar, com glifos so no hover.
 - Os cinco wallpapers em gradiente ganharam uma quarta fonte de luz, base mais profunda e cores mais ricas; o seletor de wallpapers agora mostra miniatura real (inclusive das fotos) em vez de um quadrado de cor.
 - Tentativa de gerar wallpapers em JPG com arte vetorial foi descartada: o resultado ficou pior que os gradientes e os arquivos foram removidos.
+
+## Corte na parte de baixo (commit 5ad8016)
+- A sidebar ainda pedia `h-dvh` dentro de uma moldura 38px menor, entao os ultimos 38px (linha OWNER) ficavam fora da janela; agora ela usa `h-full`.
+- Coluna direita, pagina de hospedagem e dialogos de servidor tambem passaram a medir pela moldura. Verificado: docH == innerH em /, /mods, /skins, /instances, /friends, /settings, /hosting/server e na tela de login.
