@@ -839,7 +839,7 @@ import { javaScan, javaInstall } from '$lib/api/java';
 	.wizard-dialog {
 		margin: auto;
 		width: min(860px, calc(100vw - 32px));
-		height: min(760px, calc(100dvh - 32px));
+		height: min(760px, calc(100dvh - 80px));
 		padding: 0;
 		border: none;
 		background: transparent;

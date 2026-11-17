@@ -91,7 +91,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	);
 </script>
 
-<aside style:width={collapsed ? "64px" : `${settings.value.rightSidebarWidth || 320}px`} class="launcher-right-sidebar shrink-0 sticky top-3 self-start flex flex-col gap-4 select-none h-[calc(100dvh-1.5rem)] min-h-0 my-3 mr-3 rounded-3xl overflow-y-auto custom-scrollbar border border-fg/10 bg-bg/85 shadow-elevated backdrop-blur-2xl transition-[width,padding] duration-200 {collapsed ? 'w-16 p-2' : 'p-4'}">
+<aside style:width={collapsed ? "64px" : `${settings.value.rightSidebarWidth || 320}px`} class="launcher-right-sidebar shrink-0 sticky top-3 self-start flex flex-col gap-4 select-none h-[calc(100dvh-var(--lux-titlebar-height)-1.5rem)] min-h-0 my-3 mr-3 rounded-3xl overflow-y-auto custom-scrollbar border border-fg/10 bg-bg/85 shadow-elevated backdrop-blur-2xl transition-[width,padding] duration-200 {collapsed ? 'w-16 p-2' : 'p-4'}">
 	<button type="button" class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center justify-center gap-2" })} onclick={() => collapsed = !collapsed} aria-label={collapsed ? uiText("ui.7a6bd25d922200a5") : uiText("ui.64ea1d5c74a216b5")} aria-expanded={!collapsed}><Users class="h-4 w-4" />{#if !collapsed}<span class="text-xs">{uiText("nav.friends")}</span>{/if}</button>
 	{#if !collapsed}
 

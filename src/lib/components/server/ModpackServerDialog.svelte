@@ -236,7 +236,7 @@
 </dialog>
 
 <style>
-	.pack-dialog { margin: auto; width: min(820px, calc(100vw - 32px)); height: min(780px, calc(100dvh - 32px)); padding: 0; border: none; background: transparent; color: rgb(var(--fg)); }
+	.pack-dialog { margin: auto; width: min(820px, calc(100vw - 32px)); height: min(780px, calc(100dvh - 80px)); padding: 0; border: none; background: transparent; color: rgb(var(--fg)); }
 	.pack-dialog:not([open]) { display: none; }
 	.pack-dialog::backdrop { background: rgb(var(--bg-overlay) / 0.86); }
 	.frame { display: flex; flex-direction: column; gap: 12px; height: 100%; padding: 20px 22px; border: 1px solid rgb(var(--border-strong)); border-radius: 22px; background: rgb(var(--bg-elevated)); box-shadow: 0 24px 64px rgb(0 0 0 / 0.55); overflow: hidden; }

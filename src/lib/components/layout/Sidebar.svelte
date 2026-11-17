@@ -61,7 +61,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	const accountStatus = $derived(getAccountStatus(account.value));
 </script>
 
-<aside use:navigationMotion={page.url.pathname} class="launcher-sidebar flex h-dvh min-h-0 {expanded ? 'w-60' : 'w-[66px]'} shrink-0 flex-col items-center py-3 bg-bg-elevated/80 backdrop-blur-2xl border-r border-fg/[0.08] transition-[width] duration-200 z-40 relative select-none">
+<aside use:navigationMotion={page.url.pathname} class="launcher-sidebar flex h-full min-h-0 {expanded ? 'w-60' : 'w-[66px]'} shrink-0 flex-col items-center py-3 bg-bg-elevated/80 backdrop-blur-2xl border-r border-fg/[0.08] transition-[width] duration-200 z-40 relative select-none">
 	
     <button class={launcherButton({ variant: "secondary", size: "sm", class: `mb-3 flex items-center gap-3 ${expanded ? 'w-[calc(100%_-_1.5rem)] justify-between' : ''}` })} aria-label={uiText(expanded ? "design.collapseMenu" : "design.expandMenu")} aria-expanded={expanded} onclick={toggleSidebar}>
         {#if expanded}<PanelLeftClose class="h-4 w-4" /><span class="font-semibold tracking-wide text-fg">LUXMC</span>{:else}<PanelLeftOpen class="h-4 w-4" />{/if}
