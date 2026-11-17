@@ -37,6 +37,7 @@ pub mod modpack_export;
 pub mod world_backup;
 pub mod death_tracker;
 pub mod importer;
+pub mod plugins;
 
 pub mod social;
 pub mod social_presence;

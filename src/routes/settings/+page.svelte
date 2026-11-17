@@ -22,6 +22,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		Trash2,
 		AlertCircle,
 		Download,
+		Puzzle,
 		Sparkles,
 		HardDrive,
 		Layers,
@@ -54,6 +55,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import SettingsExtras from "$lib/components/settings/SettingsExtras.svelte";
     import { profilesUpdate } from "$lib/api/instances";
 	import ThemeSection from "$lib/components/settings/ThemeSection.svelte";
+	import PluginManager from "$lib/components/plugins/PluginManager.svelte";
 
 	const { t } = useTranslation();
 
@@ -68,6 +70,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		| "runtime"
         | "interface"
         | "catalog"
+        | "plugins"
         | "wallpaper";
 
 	let activeTab = $state<SettingsTab>("general");
@@ -275,7 +278,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                 { id: "appearance", label: t("settings.tabs.appearance"), icon: Palette },
                 { id: "interface", label: t("extendedSettings.interface"), icon: Sparkles },
                 { id: "wallpaper", label: t("extendedSettings.wallpaper"), icon: Layers },
-                { id: "catalog", label: t("extendedSettings.catalog"), icon: Download }
+                { id: "catalog", label: t("extendedSettings.catalog"), icon: Download },
+                { id: "plugins", label: t("plugins.tab"), icon: Puzzle }
             ]
         },
         {
@@ -879,6 +883,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         <p class="text-sm text-fg-muted">{t('extendedSettings.wallpaperHelp')}</p>
         <ThemeSection section="wallpaper" onSave={() => schedulePersist()} />
         <RenderingSection />
+    {:else if activeTab === "plugins"}
+        <PluginManager showHeader={false} />
     {:else if activeTab === "catalog"}
         <CatalogSection />
 	{:else if activeTab === "java"}

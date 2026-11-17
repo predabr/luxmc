@@ -18,6 +18,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		Settings as SettingsIcon,
 		Github,
 		Globe,
+		Puzzle,
 		Server as ServerIcon
 	} from "lucide-svelte";
 	import { openUrl } from "@tauri-apps/plugin-opener";
@@ -30,6 +31,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { getIconSrc } from "$lib/utils/icons";
     import { prefetchInstanceContent } from '$lib/utils/contentPrefetch';
     import { preloadRoute } from '$lib/utils/preloadRoute';
+    import { catalogTypes } from '$lib/utils/catalogTypes';
+    import { catalogTypeState, setCatalogType, catalogTypeQuery } from '$lib/stores/catalogType.svelte';
 
 	let { notificationCount = 0 }: { notificationCount?: number } = $props();
 	const { t } = useTranslation();
@@ -44,6 +47,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		{ href: "/mods", labelKey: "nav.mods", title: uiText("home.browseMods"), icon: Compass },
 		{ href: "/skins", labelKey: "nav.skins", title: uiText("ui.786fa4f02a1a0dfc"), icon: Shirt },
 		{ href: "/friends", labelKey: "nav.friends", title: uiText("ui.30b21c1ed5a0967b"), icon: Users },
+		{ href: "/plugins", labelKey: "plugins.tab", title: uiText("plugins.tab"), icon: Puzzle },
 		{ href: "/instances", labelKey: "nav.instances", title: uiText("library.title"), icon: Layers },
 	]);
 
@@ -107,6 +111,21 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					{t(item.labelKey) || item.title}
 				</div>
 			</div>
+			{#if item.href === "/mods" && expanded && page.url.pathname.startsWith("/mods")}
+				<div class="catalog-subnav">
+					{#each catalogTypes as type (type.id)}
+						<button
+							type="button"
+							class="catalog-subnav-item"
+							aria-current={catalogTypeState.value === type.id ? "page" : undefined}
+							onclick={() => { setCatalogType(type.id); void goto(`/mods?type=${catalogTypeQuery(type.id)}`); }}
+						>
+							<type.icon class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+							<span>{uiText(type.labelKey)}</span>
+						</button>
+					{/each}
+				</div>
+			{/if}
 		{/each}
 		
 		<div class="w-7 h-[1px] bg-fg/10 my-1"></div>
@@ -256,3 +275,51 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		</button>
 	</div>
 </aside>
+
+<style>
+.catalog-subnav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: calc(100% - 1.5rem);
+  margin: 2px 0 6px;
+  padding-left: 26px;
+}
+
+.catalog-subnav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: rgb(var(--fg) / 0.55);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease;
+}
+
+.catalog-subnav-item:hover {
+  color: rgb(var(--fg));
+  background: rgb(var(--fg) / 0.06);
+}
+
+.catalog-subnav-item[aria-current="page"] {
+  color: rgb(var(--brand-action));
+  background: rgb(var(--brand-500) / 0.14);
+  border-color: rgb(var(--brand-500) / 0.28);
+}
+
+.catalog-subnav-item:focus-visible {
+  outline: 2px solid rgb(var(--brand-400));
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .catalog-subnav-item { transition: none; }
+}
+</style>

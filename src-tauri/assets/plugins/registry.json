@@ -1,0 +1,32 @@
+{
+  "plugins": [
+    {
+      "id": "pomodoro-luxmc",
+      "name": "Pomodoro Luxmc",
+      "version": "1.0.0",
+      "author": "Luxmc",
+      "description": "Cronometro pomodoro com contador de sessoes salvo no launcher.",
+      "downloadUrl": "luxmc://bundled/pomodoro-luxmc",
+      "sha256": null,
+      "iconUrl": null,
+      "tags": [
+        "produtividade",
+        "oficial"
+      ]
+    },
+    {
+      "id": "notas-rapidas",
+      "name": "Notas rapidas",
+      "version": "1.0.0",
+      "author": "Luxmc",
+      "description": "Bloco de anotacoes que fica salvo dentro do Luxmc.",
+      "downloadUrl": "luxmc://bundled/notas-rapidas",
+      "sha256": null,
+      "iconUrl": null,
+      "tags": [
+        "utilidades",
+        "oficial"
+      ]
+    }
+  ]
+}
