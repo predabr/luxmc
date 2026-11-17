@@ -1051,6 +1051,10 @@
     "moveToGroup": "Move to group"
   },
   "ui": {
+    "2f3682327047d300": "Welcome to Luxmc",
+    "54f9715d07d21af5": "Sign in to your account",
+    "7b258b8a8dbb4fc2": "Finish the sign-in in the window that opened.",
+    "d11a68d4702c8eab": "© 2026 Luxmc. Not affiliated with Mojang or Microsoft.",
     "148b815ec3c7b49a": "Invalid texture",
     "fcb9e551a3386696": "Failed to load versions: HTTP {{arg0}}",
     "dae8daa6158ee9fa": "Untrusted social connection",
@@ -3201,9 +3205,7 @@
     "friendsDescription": "Find your friends, manage invitations and open a room to play together.",
     "emptyFriends": "Your group starts with an invitation",
     "emptyFriendsHint": "Use Add friend to find a player by name or code. Incoming requests appear in Requests.",
-    "loginDescription": "Choose your account and get ready for your next adventure.",
-    "browserLogin": "Finish signing in in your browser",
-    "browserLoginHint": "Return to this window after authorizing your Microsoft account. Your password is only entered with Microsoft."
+    "loginDescription": "Choose your account and get ready for your next adventure."
   },
   "friendsDesign": {
     "subtitle": "Your friends, your worlds. All in one place.",
@@ -3749,6 +3751,7 @@
     "layoutHint": "Choose how your avatar and name are arranged."
   },
   "catalogFilters": {
+    "type": "Content type",
     "source": "Providers",
     "loader": "Mod loaders",
     "categories": {
@@ -4233,5 +4236,11 @@
   },
   "perfGuard": {
     "activated": "Slow rendering detected, so background animation and blur were turned off to keep the launcher smooth. You can change this in Settings."
+  },
+  "window": {
+    "minimize": "Minimize",
+    "maximize": "Maximize",
+    "restore": "Restore",
+    "close": "Close"
   }
 }

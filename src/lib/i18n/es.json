@@ -1051,6 +1051,10 @@
     "moveToGroup": "Mover al grupo"
   },
   "ui": {
+    "2f3682327047d300": "Bienvenido a Luxmc",
+    "54f9715d07d21af5": "Entra en tu cuenta",
+    "7b258b8a8dbb4fc2": "Completa el inicio de sesión en la ventana que se abrió.",
+    "d11a68d4702c8eab": "© 2026 Luxmc. No afiliado a Mojang ni Microsoft.",
     "148b815ec3c7b49a": "Textura no válida",
     "fcb9e551a3386696": "No se pudieron cargar las versiones: HTTP {{arg0}}",
     "dae8daa6158ee9fa": "Conexión social no segura",
@@ -3201,9 +3205,7 @@
     "friendsDescription": "Encuentra a tus amigos, gestiona las invitaciones y abre una sala para jugar juntos.",
     "emptyFriends": "Tu grupo empieza con una invitación",
     "emptyFriendsHint": "Usa Añadir amigo para buscar un jugador por nombre o código. Las solicitudes recibidas aparecen en Solicitudes.",
-    "loginDescription": "Elige tu cuenta y prepara tu próxima aventura.",
-    "browserLogin": "Completa el inicio de sesión en el navegador",
-    "browserLoginHint": "Vuelve a esta ventana después de autorizar tu cuenta Microsoft. Tu contraseña se introduce únicamente en Microsoft."
+    "loginDescription": "Elige tu cuenta y prepara tu próxima aventura."
   },
   "friendsDesign": {
     "subtitle": "Tus amigos, tus mundos. Todo en un solo lugar.",
@@ -3749,6 +3751,7 @@
     "layoutHint": "Elige cómo organizar el avatar y el nombre."
   },
   "catalogFilters": {
+    "type": "Tipo de contenido",
     "source": "Proveedores",
     "loader": "Cargadores",
     "categories": {
@@ -4233,5 +4236,11 @@
   },
   "perfGuard": {
     "activated": "Detectamos renderizado lento, así que desactivamos la animación de fondo y el desenfoque para mantener el launcher fluido. Puedes cambiarlo en Ajustes."
+  },
+  "window": {
+    "minimize": "Minimizar",
+    "maximize": "Maximizar",
+    "restore": "Restaurar",
+    "close": "Cerrar"
   }
 }

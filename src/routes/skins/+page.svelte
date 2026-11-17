@@ -771,14 +771,14 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 						<button
 							type="button"
 							onclick={handleAddSkinFile}
-							class="studio-add-skin rounded-2xl border border-dashed border-brand-400/30 p-5 flex flex-col items-center justify-center text-center gap-4 cursor-pointer min-h-[224px] group"
+							class="studio-add-skin rounded-xl border border-dashed border-brand-400/30 px-3 py-4 flex flex-col items-center justify-center text-center gap-2.5 cursor-pointer group"
 						>
-							<div class="w-10 h-10 rounded-full bg-fg/[0.04] border border-fg/10 group-hover:border-brand-500 flex items-center justify-center text-fg/60 group-hover:text-brand-400 transition-colors">
-								<Plus class="w-5 h-5 stroke-[2.5]" />
+							<div class="w-8 h-8 rounded-full bg-fg/[0.04] border border-fg/10 group-hover:border-brand-500 flex items-center justify-center text-fg/60 group-hover:text-brand-400 transition-colors">
+								<Plus class="w-4 h-4 stroke-[2.5]" />
 							</div>
-							<div>
-								<span class="text-sm font-bold text-fg block">{uiText("ui.4c9f7bf72839140b")}</span>
-								<span class="text-[11px] text-fg/40 block mt-0.5">{uiText("ui.bff1b507008c4ae1")}</span>
+							<div class="space-y-0.5">
+								<span class="text-[11.5px] font-semibold text-fg block leading-tight">{uiText("ui.4c9f7bf72839140b")}</span>
+								<span class="text-[9.5px] text-fg/40 block">{uiText("ui.bff1b507008c4ae1")}</span>
 							</div>
 						</button>
 
@@ -790,24 +790,24 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 								onclick={() => selectSavedSkin(s)}
 								onkeydown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); selectSavedSkin(s); } }}
 								aria-pressed={isSelected}
-								class="studio-skin-card rounded-2xl border p-3 flex flex-col items-center justify-between relative cursor-pointer group min-h-[224px] {isSelected ? 'border-brand-500 ring-1 ring-brand-500' : 'border-border hover:border-brand-400/40'}"
+								class="studio-skin-card rounded-xl border p-2 flex flex-col gap-1.5 relative cursor-pointer group {isSelected ? 'border-brand-500 ring-1 ring-brand-500' : 'border-border hover:border-brand-400/40'}"
 							>
 								{#if isSelected}
-									<div class="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-brand-500 flex items-center justify-center text-brand-foreground shadow-md z-10">
-										<Check class="w-3 h-3 stroke-[3]" />
+									<div class="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-brand-500 flex items-center justify-center text-brand-foreground shadow-md z-10">
+										<Check class="w-2.5 h-2.5 stroke-[3]" />
 									</div>
 								{/if}
 
-								<div class="studio-skin-preview w-full flex-1 flex items-center justify-center my-1 overflow-hidden">
+								<div class="studio-skin-preview w-full flex items-center justify-center overflow-hidden rounded-lg">
 									<Skin2DPreview
 										src={s.url}
 										alt={s.name}
 										model={s.model}
-										className="h-36"
+										className="h-24"
 									/>
 								</div>
 
-								<div class="w-full flex flex-wrap items-center justify-between pt-2 border-t border-border gap-2">
+								<div class="w-full flex items-center justify-between gap-1.5 px-0.5 pb-0.5">
 									{#if editingSkinId === s.id}
 										<!-- svelte-ignore a11y_autofocus -->
 										<input
@@ -819,21 +819,21 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 												if (e.key === 'Escape') editingSkinId = null;
 											}}
 											onclick={(e) => e.stopPropagation()}
-											class="w-full bg-black/40 border border-brand-500 rounded px-1.5 py-0.5 text-xs text-fg outline-none"
+											class="w-full bg-black/40 border border-brand-500 rounded-md px-1.5 py-0.5 text-[11px] text-fg outline-none"
 											autofocus
 											onblur={() => saveRenameSkin(s.id)}
 										/>
 									{:else}
-										<span title={s.name} class="basis-full line-clamp-2 min-h-8 text-xs leading-4 font-semibold text-fg">{s.name}</span>
-										<span class="text-[10px] text-fg-muted">{s.model === 'alex' ? 'Alex' : 'Steve'}</span>
-										<div class="flex items-center gap-1 shrink-0">
+										<span title={s.name} class="min-w-0 flex-1 truncate text-[11px] font-semibold text-fg">{s.name}</span>
+										<span class="shrink-0 text-[9px] uppercase tracking-wide text-fg/40">{s.model === 'alex' ? 'Alex' : 'Steve'}</span>
+										<div class="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
 											<button
 												type="button"
 												onclick={(e) => {
 													e.stopPropagation();
 													startRenameSkin(s);
 												}}
-												class={launcherButton({ variant: "ghost", size: "icon", class: "" })}
+												class="inline-flex h-5 w-5 items-center justify-center rounded-md text-fg/55 transition-colors hover:bg-fg/10 hover:text-fg"
 												title={uiText("ui.a8a60a5f8ce44324")}
 											>
 												<Pencil class="w-3 h-3" />
@@ -844,7 +844,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 													e.stopPropagation();
 													removeSavedSkin(s.id);
 												}}
-												class={launcherButton({ variant: "danger", size: "icon", class: "" })}
+												class="inline-flex h-5 w-5 items-center justify-center rounded-md text-fg/55 transition-colors hover:bg-danger/20 hover:text-danger"
 												title={uiText("ui.02a395e8e81169aa")}
 											>
 												<Trash2 class="w-3 h-3" />
@@ -977,7 +977,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	.studio-segment { width:100%; background:rgb(var(--bg-subtle)/.55); border:1px solid rgb(var(--border)/.65); }
 	.studio-segment :global(button) { flex:1; }
 	.studio-collection-heading { border-bottom:1px solid rgb(var(--border)); background:linear-gradient(120deg,rgb(var(--brand-500)/.055),transparent); }
-	.studio-skin-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:12px; }
+	.studio-skin-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(148px,1fr)); gap:10px; }
 	.studio-skin-card { background:linear-gradient(155deg,rgb(var(--brand-500)/.05),transparent 70%),rgb(var(--bg-subtle)/.45); transition:border-color 180ms,box-shadow 180ms,translate 180ms; }
 	.studio-skin-card[aria-pressed="true"] { background:linear-gradient(155deg,rgb(var(--brand-500)/.13),rgb(var(--bg-subtle)/.6)); }
 	.studio-skin-card:hover { translate:0 -2px; box-shadow:0 8px 22px rgb(var(--shadow-color)/.1); }

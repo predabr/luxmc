@@ -98,6 +98,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { clientMods } from "$lib/stores/clientMods.svelte";
 	import { applyAdaptivePalette } from "$lib/utils/adaptivePalette";
 	import { preloadRoute } from "$lib/utils/preloadRoute";
+	import TitleBar from "$lib/components/layout/TitleBar.svelte";
 	import { platform } from "$lib/mcserver/state.svelte";
 	import { appInit, discordSetActivity, discordClearActivity, listenGameExit, listenGameStateChange, listenLaunchStage, listenShieldWarning, listenLauncherLog, listenGameLog, launchLogOpen, launchLogAppendBatch, launchLogClose, crashDoctorDiagnose, clientOverlayClose, authSetAccountCape } from "$lib/api";
 	import { optimizerTrimMemory } from "$lib/api/instances";
@@ -105,6 +106,68 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { themeStore } from "$lib/stores/theme.svelte";
 	import { newsState } from "$lib/stores/news.svelte";
 	import { modpackUpdates } from "$lib/stores/modpackUpdates.svelte";
+	onMount(() => {
+		const root = document.documentElement;
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		let frame = 0;
+		let lastWidth = window.innerWidth;
+		let lastHeight = window.innerHeight;
+		const release = () => {
+			root.classList.remove("is-resizing");
+			root.style.removeProperty("--lux-repaint-push");
+			root.style.removeProperty("--lux-repaint-lift");
+		};
+		const settle = () => {
+			frame = requestAnimationFrame(() => {
+				frame = requestAnimationFrame(() => {
+					root.style.setProperty("--lux-repaint-push", "0.01px");
+					root.style.setProperty("--lux-repaint-lift", "0.01px");
+					timer = setTimeout(release, 48);
+				});
+			});
+		};
+		const onResize = () => {
+			const width = window.innerWidth;
+			const height = window.innerHeight;
+			if (width === lastWidth && height === lastHeight) return;
+			lastWidth = width;
+			lastHeight = height;
+			root.classList.add("is-resizing");
+			if (frame) cancelAnimationFrame(frame);
+			if (timer) clearTimeout(timer);
+			settle();
+			timer = setTimeout(() => {
+				if (document.visibilityState !== "visible") return;
+				window.dispatchEvent(new Event("resize"));
+			}, 180);
+		};
+		window.addEventListener("resize", onResize, { passive: true });
+		window.addEventListener("luxmc:force-repaint", onResize);
+		void import("@tauri-apps/api/window").then(async ({ getCurrentWindow }) => {
+			const current = getCurrentWindow();
+			let mode = "windowed";
+			try { mode = (await current.isMaximized()) ? "maximized" : "windowed"; } catch { return; }
+			let stop: (() => void) | undefined;
+			let disposed = false;
+			const unlisten = await current.onResized(async () => {
+				let next = mode;
+				try { next = (await current.isMaximized()) ? "maximized" : "windowed"; } catch { return; }
+				if (next === mode) return;
+				mode = next;
+				onResize();
+			});
+			if (disposed) unlisten(); else stop = unlisten;
+			return () => { disposed = true; stop?.(); };
+		}).catch(() => {});
+		return () => {
+			window.removeEventListener("resize", onResize);
+			window.removeEventListener("luxmc:force-repaint", onResize);
+			if (frame) cancelAnimationFrame(frame);
+			if (timer) clearTimeout(timer);
+			release();
+		};
+	});
+
 	onMount(() => newsState.startAutoRefresh());
 	onMount(() => { modpackUpdates.watch(); });
 	onMount(() => {
@@ -916,6 +979,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		{/if}
 	{/if}
 </div>
+<TitleBar />
 <Toasts bind:this={toastsInstance} />
 <StatusBanner />
 
@@ -923,19 +987,19 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 {#if showSplash || appState.showCutscene}
 	<Cutscene onComplete={() => { showSplash = false; appState.showCutscene = false; }} />
 {:else if !initialized}
-	<div class="flex h-full w-full items-center justify-center bg-bg-overlay/70" in:fade={{ easing: quintOut, duration: 220 }}>
+	<div class="lux-window-frame flex w-full items-center justify-center bg-bg-overlay/70" in:fade={{ easing: quintOut, duration: 220 }}>
 		<div class="flex flex-col items-center gap-4">
 			<div class="h-10 w-10 border-4 border-t-brand-400 border-fg/10 rounded-full animate-spin"></div>
 			<p class="text-sm font-medium text-fg shadow-black drop-shadow-md">{t("app.loading")}</p>
 		</div>
 	</div>
 {:else if !account.value}
-	<div use:pageMotion={page.url.pathname} class="relative isolate flex h-full w-full items-center justify-center bg-bg/90" in:fade={{ easing: quintOut, duration: 220 }}>
+	<div use:pageMotion={page.url.pathname} class="lux-window-frame relative isolate flex w-full items-center justify-center bg-bg/90" in:fade={{ easing: quintOut, duration: 220 }}>
         <ShaderScenery background scene="forest" enabled={settings.value.animations !== false && !appState.performanceMode && !appState.isLaunching && !appState.isGameRunning} />
 		{@render children?.()}
 	</div>
 {:else}
-	<div class="flex h-dvh min-h-0 w-full overflow-hidden" in:fade={{ easing: quintOut, duration: 150 }}>
+	<div class="lux-window-frame flex min-h-0 w-full overflow-hidden" in:fade={{ easing: quintOut, duration: 150 }}>
 		<Sidebar notificationCount={0} />
 		<div class="flex h-full min-h-0 min-w-0 flex-1 flex-col relative z-10">
 			<main use:scrollActivity data-scroll-root data-refined-ui={page.url.pathname !== '/skins'} class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto {page.url.pathname === "/" ? "p-0" : "px-6 py-6"} custom-scrollbar custom-scrollbar-root relative">

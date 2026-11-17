@@ -9,6 +9,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
   function handleError(e: ErrorEvent) {
     if (!e.error) return;
     if (e.target && e.target !== window && (e.target as HTMLElement).tagName) return;
+    const message = String(e.error?.message ?? e.message ?? "");
+    if (/ResizeObserver loop/i.test(message)) return;
     error = e.error;
     console.error("ErrorBoundary caught:", e.error);
   }
