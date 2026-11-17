@@ -41,7 +41,7 @@
     onMount(() => {
         supportsPopover = typeof HTMLElement.prototype.showPopover === 'function';
         portalTarget = root.closest<HTMLElement>('[role="dialog"]') || document.body;
-        const inside = (node: Element | undefined, target: EventTarget | null) => Boolean(node) && target instanceof Node && node.contains(target);
+        const inside = (node: Element | undefined, target: EventTarget | null) => node != null && target instanceof Node && node.contains(target);
         const outside = (event: PointerEvent) => { if (!inside(root, event.target) && !inside(popup, event.target)) open = false; };
         const reposition = (event: Event) => { if (!inside(popup, event.target)) open = false; };
         document.addEventListener("pointerdown", outside);
