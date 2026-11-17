@@ -581,3 +581,9 @@ Cancelamento final confirmado em 25/10/2026: Release 40229309187 e CI 4022930162
 - Redimensionar agora desliga desfoques por alguns instantes e força repintura da moldura.
 - Colecao de skins virou grade compacta (cartoes menores, acoes no hover).
 - Verificado no app real: redimensionar, maximizar/restaurar e minimizar sem erro; svelte-check 0/0, vitest 43 arquivos / 248 testes, cargo check --bins ok.
+
+## Barra de vidro e wallpapers (commit 29a1a60)
+- A barra nao ficava transparente porque `html.no-blur` remove `backdrop-filter` de todo `header`; o titulo agora mantem blur de 20px e tinta fraca, entao o wallpaper aparece mesmo com o desfoque desligado nas configuracoes.
+- Controles em semaforo: amarelo minimizar, verde maximizar/restaurar, vermelho fechar, com glifos so no hover.
+- Os cinco wallpapers em gradiente ganharam uma quarta fonte de luz, base mais profunda e cores mais ricas; o seletor de wallpapers agora mostra miniatura real (inclusive das fotos) em vez de um quadrado de cor.
+- Tentativa de gerar wallpapers em JPG com arte vetorial foi descartada: o resultado ficou pior que os gradientes e os arquivos foram removidos.
