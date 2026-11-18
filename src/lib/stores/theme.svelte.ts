@@ -97,18 +97,6 @@ export const BACKGROUNDS: Record<string, BackgroundOption> = {
 		preview: `radial-gradient(60% 46% at 24% 4%, rgb(139 92 246 / .4), transparent 64%), radial-gradient(52% 42% at 84% 24%, rgb(79 70 229 / .32), transparent 66%), radial-gradient(48% 36% at 62% -8%, rgb(34 211 238 / .18), transparent 62%), radial-gradient(90% 70% at 50% 118%, rgb(49 46 129 / .38), transparent 72%), #05040d`,
 		style: "background: radial-gradient(60% 46% at 24% 4%, rgba(139, 92, 246, 0.4) 0%, transparent 64%), radial-gradient(52% 42% at 84% 24%, rgba(79, 70, 229, 0.32) 0%, transparent 66%), radial-gradient(48% 36% at 62% -8%, rgba(34, 211, 238, 0.18) 0%, transparent 62%), radial-gradient(90% 70% at 50% 118%, rgba(49, 46, 129, 0.38) 0%, transparent 72%), #05040d;"
 	},
-	night: {
-		id: "night",
-		name: "Noite Estrelada na Taiga",
-		preview: "url('/bg_night.jpg') center / cover no-repeat, #0a1128",
-		style: "background-image: linear-gradient(rgba(8, 10, 16, 0.72), rgba(8, 10, 16, 0.9)), url('/bg_night.jpg'); background-size: cover; background-position: center;"
-	},
-	day: {
-		id: "day",
-		name: "Alvorada nos Picos Congelados",
-		preview: "url('/bg_day.jpg') center / cover no-repeat, #1e3a5f",
-		style: "background-image: linear-gradient(rgba(8, 10, 16, 0.7), rgba(8, 10, 16, 0.9)), url('/bg_day.jpg'); background-size: cover; background-position: center;"
-	},
 	aurora: {
 		id: "aurora",
 		name: uiText("settings.appearanceOptions.bgAurora"),

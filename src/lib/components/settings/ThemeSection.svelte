@@ -32,8 +32,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		const map: Record<string, string> = {
 			obsidian: t("settings.appearanceOptions.bgObsidian"),
 			cosmos: t("settings.appearanceOptions.bgCosmos"),
-			night: t("settings.appearanceOptions.bgNight"),
-			day: t("settings.appearanceOptions.bgDay"),
 			aurora: t("settings.appearanceOptions.bgAurora"),
 			sakura: t("settings.appearanceOptions.bgSakura"),
 			lush: t("settings.appearanceOptions.bgLush"),

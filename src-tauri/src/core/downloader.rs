@@ -267,7 +267,7 @@ impl DownloadManager {
         let index_content = tokio::fs::read_to_string(&index_path).await?;
         let index: serde_json::Value = serde_json::from_str(&index_content)?;
 
-        let mut to_download: Vec<(String, u64, String)> = Vec::new();
+        let mut candidates: Vec<(u64, String)> = Vec::new();
         if let Some(objects) = index.get("objects") {
             if let Some(map) = objects.as_object() {
                 for (_name, obj) in map {
@@ -276,17 +276,43 @@ impl DownloadManager {
                         if hash.len() != 40 || !hash.bytes().all(|byte| byte.is_ascii_hexdigit()) {
                             return Err(AppError::InvalidInput("Invalid asset SHA1".into()));
                         }
-                        let prefix = &hash[..2];
-                        let object_dir = objects_dir.join(prefix);
-                        let object_path = object_dir.join(hash);
-                        if !valid_cached_file(&object_path, size, hash).await? {
-                            tokio::fs::create_dir_all(&object_dir).await?;
-                            let url =
-                                format!("https://resources.download.minecraft.net/{prefix}/{hash}");
-                            to_download.push((url, size, hash.to_string()));
-                        }
+                        candidates.push((size, hash.to_string()));
                     }
                 }
+            }
+        }
+
+        use futures_util::StreamExt;
+        const ASSET_CHECK_CONCURRENCY: usize = 48;
+        let checks = futures_util::stream::iter(candidates)
+            .map(|(size, hash)| {
+                let objects_dir = objects_dir.clone();
+                async move {
+                    let prefix = &hash[..2];
+                    let object_dir = objects_dir.join(prefix);
+                    let object_path = object_dir.join(&hash);
+                    let valid = valid_cached_file(&object_path, size, &hash).await;
+                    if valid.as_ref().map_or(true, |valid| !valid) {
+                        let _ = tokio::fs::create_dir_all(&object_dir).await;
+                    }
+                    (size, hash, valid)
+                }
+            })
+            .buffer_unordered(ASSET_CHECK_CONCURRENCY)
+            .collect::<Vec<_>>()
+            .await;
+
+        let mut to_download: Vec<(String, u64, String)> = Vec::new();
+        for (size, hash, valid) in checks {
+            match valid {
+                Ok(true) => {}
+                Ok(false) => {
+                    let prefix = &hash[..2];
+                    let url =
+                        format!("https://resources.download.minecraft.net/{prefix}/{hash}");
+                    to_download.push((url, size, hash));
+                }
+                Err(error) => return Err(error),
             }
         }
 
@@ -440,88 +466,99 @@ impl DownloadManager {
         let lib_dir = self.libraries_dir();
         tokio::fs::create_dir_all(&lib_dir).await?;
 
-        let mut to_download: Vec<(String, PathBuf, String, String, u64)> = Vec::new();
-
         let os_name = crate::core::launcher::platform_mojang_name(crate::core::launcher::current_platform());
-        for lib in libraries {
-            if !crate::core::launcher::is_library_allowed(lib) {
-                continue;
-            }
-            let path = lib_path_from_name(&lib_dir, &lib.name);
+        use futures_util::StreamExt;
+        const LIBRARY_CHECK_CONCURRENCY: usize = 24;
+        let allowed: Vec<Library> = libraries.iter().filter(|lib| crate::core::launcher::is_library_allowed(lib)).cloned().collect();
+        let per_library = futures_util::stream::iter(allowed.into_iter().map(|lib| {
+            let lib_dir = lib_dir.clone();
+            async move {
+                let mut queue: Vec<(String, PathBuf, String, String, u64)> = Vec::new();
+                let path = lib_path_from_name(&lib_dir, &lib.name);
 
-            if let Some(ref downloads) = lib.downloads {
-                if let Some(ref artifact) = downloads.artifact {
-                    if !valid_cached_file(&path, artifact.size, &artifact.sha1).await? {
-                        if let Some(parent) = path.parent() {
-                            tokio::fs::create_dir_all(parent).await?;
+                if let Some(ref downloads) = lib.downloads {
+                    if let Some(ref artifact) = downloads.artifact {
+                        if !valid_cached_file(&path, artifact.size, &artifact.sha1).await? {
+                            if let Some(parent) = path.parent() {
+                                tokio::fs::create_dir_all(parent).await?;
+                            }
+                            queue.push((
+                                artifact.url.clone(),
+                                path.clone(),
+                                artifact.sha1.clone(),
+                                lib.name.clone(),
+                                artifact.size,
+                            ));
                         }
-                        to_download.push((
-                            artifact.url.clone(),
-                            path.clone(),
-                            artifact.sha1.clone(),
-                            lib.name.clone(),
-                            artifact.size,
-                        ));
                     }
-                }
 
-                if let Some(ref classifiers) = downloads.classifiers {
-                    for (classifier_key, entry) in classifiers {
-                        let matches_os = match os_name {
-                            "windows" => classifier_key.starts_with("natives-windows"),
-                            "linux" => classifier_key.starts_with("natives-linux"),
-                            "osx" => classifier_key.starts_with("natives-osx") || classifier_key.starts_with("natives-macos"),
-                            _ => false,
-                        };
-                        if matches_os && crate::core::launcher::is_native_classifier_allowed(classifier_key) {
-                            let native_lib_name = format!("{}:{}", lib.name, classifier_key);
+                    if let Some(ref classifiers) = downloads.classifiers {
+                        for (classifier_key, entry) in classifiers {
+                            let matches_os = match os_name {
+                                "windows" => classifier_key.starts_with("natives-windows"),
+                                "linux" => classifier_key.starts_with("natives-linux"),
+                                "osx" => classifier_key.starts_with("natives-osx") || classifier_key.starts_with("natives-macos"),
+                                _ => false,
+                            };
+                            if matches_os && crate::core::launcher::is_native_classifier_allowed(classifier_key) {
+                                let native_lib_name = format!("{}:{}", lib.name, classifier_key);
+                                let native_path = lib_path_from_name(&lib_dir, &native_lib_name);
+                                if !valid_cached_file(&native_path, entry.size, &entry.sha1).await? {
+                                    if let Some(parent) = native_path.parent() {
+                                        tokio::fs::create_dir_all(parent).await?;
+                                    }
+                                    queue.push((
+                                        entry.url.clone(),
+                                        native_path,
+                                        entry.sha1.clone(),
+                                        native_lib_name,
+                                        entry.size,
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    let mut handled_natives = false;
+                    if let Some(ref natives_map) = lib.natives {
+                        if let Some(native_key) = natives_map.get(os_name) {
+                            let arch = if cfg!(target_arch = "x86") { "32" } else { "64" };
+                            let native_key = native_key.replace("${arch}", arch);
+                            let native_lib_name = format!("{}:{}", lib.name, native_key);
                             let native_path = lib_path_from_name(&lib_dir, &native_lib_name);
-                            if !valid_cached_file(&native_path, entry.size, &entry.sha1).await? {
-                                if let Some(parent) = native_path.parent() {
-                                    tokio::fs::create_dir_all(parent).await?;
+                            if !native_path.exists() {
+                                let url = lib_url_from_name(&native_lib_name, lib.url.as_deref());
+                                if !url.is_empty() {
+                                    if let Some(parent) = native_path.parent() {
+                                        tokio::fs::create_dir_all(parent).await?;
+                                    }
+                                    queue.push((url, native_path, String::new(), native_lib_name, 0));
                                 }
-                                to_download.push((
-                                    entry.url.clone(),
-                                    native_path,
-                                    entry.sha1.clone(),
-                                    native_lib_name,
-                                    entry.size,
-                                ));
                             }
+                            handled_natives = true;
                         }
                     }
-                }
-            } else {
-                let mut handled_natives = false;
-                if let Some(ref natives_map) = lib.natives {
-                    if let Some(native_key) = natives_map.get(os_name) {
-                        let arch = if cfg!(target_arch = "x86") { "32" } else { "64" };
-                        let native_key = native_key.replace("${arch}", arch);
-                        let native_lib_name = format!("{}:{}", lib.name, native_key);
-                        let native_path = lib_path_from_name(&lib_dir, &native_lib_name);
-                        if !native_path.exists() {
-                            let url = lib_url_from_name(&native_lib_name, lib.url.as_deref());
-                            if !url.is_empty() {
-                                if let Some(parent) = native_path.parent() {
-                                    tokio::fs::create_dir_all(parent).await?;
-                                }
-                                to_download.push((url, native_path, String::new(), native_lib_name, 0));
-                            }
-                        }
-                        handled_natives = true;
-                    }
-                }
 
-                if !handled_natives && !path.exists() {
-                    let url = lib_url_from_name(&lib.name, lib.url.as_deref());
-                    if !url.is_empty() {
-                        if let Some(parent) = path.parent() {
-                            tokio::fs::create_dir_all(parent).await?;
+                    if !handled_natives && !path.exists() {
+                        let url = lib_url_from_name(&lib.name, lib.url.as_deref());
+                        if !url.is_empty() {
+                            if let Some(parent) = path.parent() {
+                                tokio::fs::create_dir_all(parent).await?;
+                            }
+                            queue.push((url, path, String::new(), lib.name.clone(), 0));
                         }
-                        to_download.push((url, path, String::new(), lib.name.clone(), 0));
                     }
                 }
+                Ok::<_, AppError>(queue)
             }
+        }))
+        .buffer_unordered(LIBRARY_CHECK_CONCURRENCY)
+        .collect::<Vec<_>>()
+        .await;
+
+        let mut to_download: Vec<(String, PathBuf, String, String, u64)> = Vec::new();
+        for result in per_library {
+            to_download.extend(result?);
         }
 
         let total = to_download.len() as u64;
@@ -1076,19 +1113,19 @@ async fn download_file_once(
 
 async fn valid_cached_file(path: &std::path::Path, size: u64, sha1: &str) -> AppResult<bool> {
     use tokio::io::AsyncReadExt;
-    let mut file = match tokio::fs::File::open(path).await {
-        Ok(file) => file,
+    let metadata = match tokio::fs::metadata(path).await {
+        Ok(metadata) => metadata,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
         Err(error) => return Err(error.into()),
     };
-    let length = file.metadata().await?.len();
+    let length = metadata.len();
     if length == 0 || (size > 0 && length != size) { return Ok(false); }
     if sha1.is_empty() { return Ok(true); }
-    let metadata = file.metadata().await?;
     let modified = metadata.modified().ok().and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok()).map(|time| time.as_nanos()).unwrap_or(0);
     let stamp = format!("{length}:{modified}:{}", sha1.to_ascii_lowercase());
     let receipt = path.with_file_name(format!("{}.luxmc-verified", path.file_name().unwrap_or_default().to_string_lossy()));
     if modified > 0 && tokio::fs::read_to_string(&receipt).await.ok().as_deref() == Some(&stamp) { return Ok(true); }
+    let mut file = tokio::fs::File::open(path).await?;
     let mut digest = Sha1::new();
     let mut buffer = [0u8; 65536];
     loop {

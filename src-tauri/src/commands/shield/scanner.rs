@@ -8,12 +8,68 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 const CACHE_MAX: usize = 8192;
+const PERSISTED_CACHE_MAX: usize = 4096;
 const MAX_JAR_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 const MAX_CLASS_BYTES: u64 = 4 * 1024 * 1024;
 const MAX_SCAN_BYTES: u64 = 128 * 1024 * 1024;
 const MAX_ENTRIES: usize = 100_000;
 const BUFFER_BYTES: u64 = 16 * 1024 * 1024;
 static CLEAN_CACHE: Mutex<Option<HashMap<PathBuf, String>>> = Mutex::new(None);
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
+struct PersistedClean(HashMap<String, String>);
+
+fn persisted_cache_path(mods_dir: &Path) -> Option<PathBuf> {
+    mods_dir.parent().map(|root| root.join(".luxmc").join("shield-scan-cache.json"))
+}
+
+fn persisted_load(path: Option<&Path>) -> HashMap<String, String> {
+    path.and_then(|path| std::fs::read(path).ok())
+        .and_then(|bytes| serde_json::from_slice::<PersistedClean>(&bytes).ok())
+        .map(|persisted| persisted.0)
+        .unwrap_or_default()
+}
+
+fn persisted_remember(
+    persisted: &Mutex<HashMap<String, String>>,
+    dirty: &std::sync::atomic::AtomicBool,
+    path: &Path,
+    hash: &str,
+) {
+    let key = path.to_string_lossy().to_string();
+    let mut guard = persisted.lock().unwrap_or_else(|error| error.into_inner());
+    if guard.get(&key).map(String::as_str) != Some(hash) {
+        dirty.store(true, std::sync::atomic::Ordering::Relaxed);
+        guard.insert(key, hash.to_owned());
+    }
+}
+
+fn persisted_forget(
+    persisted: &Mutex<HashMap<String, String>>,
+    dirty: &std::sync::atomic::AtomicBool,
+    path: &Path,
+) {
+    let key = path.to_string_lossy().to_string();
+    let mut guard = persisted.lock().unwrap_or_else(|error| error.into_inner());
+    if guard.remove(&key).is_some() {
+        dirty.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+fn persisted_store(persisted: &Mutex<HashMap<String, String>>, path: Option<PathBuf>) {
+    let Some(path) = path else { return };
+    let guard = persisted.lock().unwrap_or_else(|error| error.into_inner());
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let temporary = path.with_extension("json.part");
+    if let Ok(bytes) = serde_json::to_vec(&PersistedClean(guard.clone())) {
+        if std::fs::write(&temporary, &bytes).is_ok() {
+            let _ = std::fs::rename(&temporary, &path);
+        }
+    }
+}
 trait ArchiveReader: Read + Seek {}
 impl<T: Read + Seek> ArchiveReader for T {}
 
@@ -110,7 +166,11 @@ fn inspect_archive<R: Read + Seek>(archive: &mut zip::ZipArchive<R>, evidence: &
     Ok(())
 }
 
-fn scan_file(path: &Path) -> Result<Vec<(&'static str, &'static str, &'static str)>, String> {
+fn scan_file(
+    path: &Path,
+    persisted: &Mutex<HashMap<String, String>>,
+    persisted_dirty: &std::sync::atomic::AtomicBool,
+) -> Result<Vec<(&'static str, &'static str, &'static str)>, String> {
     let mut file = std::fs::File::open(path).map_err(|error| error.to_string())?;
     let before = file.metadata().map_err(|error| error.to_string())?;
     if before.len() > MAX_JAR_BYTES { return Err("O arquivo excede o limite de 8 GiB da verificação.".into()); }
@@ -137,10 +197,12 @@ fn scan_file(path: &Path) -> Result<Vec<(&'static str, &'static str, &'static st
     let hash = format!("{:x}", sha256.finalize());
     let sha1 = format!("{:x}", sha1.finalize());
     if known_hash(&hash, &sha1) {
+        persisted_forget(persisted, persisted_dirty, path);
         return Ok(vec![("critical", "Malware conhecido", "O hash corresponde a um arquivo malicioso documentado pela investigação do Fractureiser.")]);
     }
     let cached = previous_hash.as_ref().is_some_and(|value|value == &hash);
-    if cached { return Ok(Vec::new()); }
+    let persisted_hit = !cached && persisted.lock().unwrap_or_else(|error| error.into_inner()).get(&path.to_string_lossy().to_string()).is_some_and(|known| known == &hash);
+    if cached || persisted_hit { return Ok(Vec::new()); }
     file.rewind().map_err(|error| error.to_string())?;
     let reader: Box<dyn ArchiveReader> = match buffered {
         Some(bytes) => Box::new(Cursor::new(bytes)),
@@ -159,7 +221,12 @@ fn scan_file(path: &Path) -> Result<Vec<(&'static str, &'static str, &'static st
     if evidence.skyrage { findings.push(("critical", "Indicadores de SkyRage", "O bytecode contém indicadores documentados do malware SkyRage: C&C skyrage.de, roubo de credenciais ou persistência vmd-gnu.")); }
     if evidence.suspicious_name { findings.push(("warning", "Estrutura suspeita", "O JAR contém L10.class, updater.jar, lib.jar ou libWebGL64.jar, nomes usados pelo SkyRage. O nome isolado não comprova malware; confira a origem do mod.")); }
     if evidence.webhook { findings.push(("warning", "Webhook Discord embutido", "O bytecode contém um webhook do Discord. Pode ser legítimo; confira a finalidade e a origem do mod.")); }
-    if findings.is_empty() { cache_update(path, Some(hash)); }
+    if findings.is_empty() {
+        cache_update(path, Some(hash.clone()));
+        persisted_remember(persisted, persisted_dirty, path, &hash);
+    } else {
+        persisted_forget(persisted, persisted_dirty, path);
+    }
     Ok(findings)
 }
 
@@ -192,6 +259,9 @@ pub fn scan_mods_directory(mods_dir: &Path) -> ShieldScanResult {
         Err(error) => threats.push(threat(mods_dir, "critical", "Verificação incompleta", error.to_string())),
     }
     paths.sort();
+    let persisted_path = persisted_cache_path(mods_dir);
+    let persisted: Mutex<HashMap<String, String>> = Mutex::new(persisted_load(persisted_path.as_deref()));
+    let persisted_dirty = std::sync::atomic::AtomicBool::new(false);
     if !paths.is_empty() {
         let workers = std::thread::available_parallelism().map_or(1, |count| count.get()).min(4).min(paths.len());
         let next = std::sync::atomic::AtomicUsize::new(0);
@@ -199,12 +269,13 @@ pub fn scan_mods_directory(mods_dir: &Path) -> ShieldScanResult {
             let handles = (0..workers).map(|_| scope.spawn(|| {
                 let mut findings = Vec::new();
                 while let Some(path) = paths.get(next.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) {
-                    findings.extend(match scan_file(path) {
+                    findings.extend(match scan_file(path, &persisted, &persisted_dirty) {
                     Ok(findings) => {
                         if !findings.is_empty() { cache_update(path, None); }
                         findings.into_iter().map(|(severity, kind, description)| threat(path, severity, kind, description.into())).collect::<Vec<_>>()
                     }
                     Err(error) => {
+                        persisted_forget(&persisted, &persisted_dirty, path);
                         cache_update(path, None);
                         vec![threat(path, "critical", "Verificação incompleta", error)]
                     }
@@ -219,6 +290,13 @@ pub fn scan_mods_directory(mods_dir: &Path) -> ShieldScanResult {
                 }
             }
         });
+    }
+    {
+        let mut guard = persisted.lock().unwrap_or_else(|error| error.into_inner());
+        if guard.len() > PERSISTED_CACHE_MAX { guard.clear(); }
+    }
+    if persisted_dirty.load(std::sync::atomic::Ordering::Relaxed) {
+        persisted_store(&persisted, persisted_path);
     }
     threats.sort_by(|first, second| first.file_path.cmp(&second.file_path).then_with(|| first.threat_type.cmp(&second.threat_type)));
     ShieldScanResult { total_scanned: paths.len(), is_clean: threats.is_empty(), threats, scan_time_ms: start.elapsed().as_millis() as u64, purged: false, instance_name: None }

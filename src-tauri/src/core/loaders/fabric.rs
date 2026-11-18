@@ -3,6 +3,7 @@ use crate::error::AppResult;
 
 const FABRIC_META: &str = "https://meta.fabricmc.net/v2";
 static GAME_VERSIONS: std::sync::LazyLock<std::sync::Mutex<std::collections::HashMap<String, (std::time::Instant, Vec<String>)>>> = std::sync::LazyLock::new(Default::default);
+static LOADER_VERSIONS: std::sync::LazyLock<std::sync::Mutex<std::collections::HashMap<(String, String), (std::time::Instant, Vec<LoaderVersion>)>>> = std::sync::LazyLock::new(Default::default);
 
 pub(super) async fn supported_game_versions(http: &reqwest::Client, meta: &str) -> AppResult<Vec<String>> {
     if let Some((at, versions)) = GAME_VERSIONS.lock().ok().and_then(|cache| cache.get(meta).cloned()) {
@@ -49,6 +50,10 @@ pub async fn fetch_versions(
 }
 
 pub(super) async fn fetch_versions_from(http: &reqwest::Client, mc_version: &str, meta: &str) -> AppResult<Vec<LoaderVersion>> {
+    let cache_key = (meta.to_owned(), mc_version.to_owned());
+    if let Some((at, versions)) = LOADER_VERSIONS.lock().ok().and_then(|cache| cache.get(&cache_key).cloned()) {
+        if at.elapsed() < std::time::Duration::from_secs(1800) { return Ok(versions); }
+    }
     if meta != FABRIC_META && !supported_game_versions(http, meta).await?.iter().any(|version| version == mc_version) { return Ok(Vec::new()); }
     let url = format!("{meta}/versions/loader/{mc_version}");
     let resp: Vec<serde_json::Value> = http
@@ -78,7 +83,14 @@ pub(super) async fn fetch_versions_from(http: &reqwest::Client, mc_version: &str
             }
         })
         .filter(|v| !v.id.is_empty())
-        .collect();
+        .collect::<Vec<_>>();
+
+    if !versions.is_empty() {
+        if let Ok(mut cache) = LOADER_VERSIONS.lock() {
+            if cache.len() > 256 { cache.clear(); }
+            cache.insert(cache_key, (std::time::Instant::now(), versions.clone()));
+        }
+    }
 
     Ok(versions)
 }

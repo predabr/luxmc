@@ -366,6 +366,21 @@ Verificação: amostragem a cada 400 ms por 40 s com servidor online + telemetri
 - Imports de `toast` não usados limpos em 6 arquivos (script conservador que só remove quando não há mais chamada `toast(` no arquivo).
 - Verificação: `pnpm check` **0/0**; `pnpm test:run` **248/248** (duas passadas seguidas verdes; uma falha isolada não reproduzível em execuções capturadas).
 
+## 18/11 — Wallpapers a menos + lançamento otimizado (medido com dados reais)
 
+### Wallpapers removidos
+- `night` ("Noite Estrelada na Taiga") e `day` ("Alvorada nos Picos Congelados") removidos do catálogo `BACKGROUNDS` (`theme.svelte.ts`), do mapa `getBgName` (`ThemeSection.svelte`) e das chaves `bgNight`/`bgDay` em en/pt-BR/es; `static/bg_night.jpg` apagado.
+- `static/bg_day.jpg` preservado: é fallback genérico dos banners de modpack (`curatedBanners.ts`, `LightboxModal`, `InstanceCard`, fixtures).
+- Persistência já resiliente: `init()` só aplica `savedBg` se existir em `BACKGROUNDS` (senão obsidian) e `currentBackgroundStyle` tem `|| BACKGROUNDS.obsidian.style`.
+
+### Otimização do launch (dados do `performance_history` do banco real)
+- Linha de base medida (kind=preparation): modpack FO 26.2 = **86,35 s** (minecraftFiles 52,2 s + javaLoaderAndProcess 32,5 s); vanilla 26.3 = **15,9 s**. Pelos launch logs, ~27,2 s do total é o próprio Minecraft abrindo (49 mods) — fora do launcher; o trabalho do launcher no dia ruim foi ~59 s.
+- Causa 1 (maior): `download_assets` enumerava os ~4000 objetos do índice **serialmente** (um `valid_cached_file` por objeto: abrir + ler receipt/hashear) → **GAP de 48 s** comprovado no log para baixar só 51 assets. Fix: enumeração paralela (`buffer_unordered(48)`), preservando a semântica de erro.
+- Causa 2: `download_libraries` verificava as bibliotecas uma a uma (~2,5 s mesmo com 0 downloads). Fix: paralelo (`buffer_unordered(24)`), mesmo comportamento de erro e mesmas URLs.
+- Causa 3: `valid_cached_file` abria o arquivo ANTES de consultar o receipt `.luxmc-verified` (2 opens por acerto). Fix: `metadata()` + receipt antes do `File::open` (1 open no caminho quente).
+- Causa 4: `prepare_fabric` batia em `meta.fabricmc.net` **a cada launch** quando `loader_version` está vazio (0,61 s/log). Fix: cache em memória com TTL de 30 min por (meta, versão do MC) em `fetch_versions_from`; só guarda resultado não-vazio e a checagem de suporte das metas alternativas (legacyfabric/babric) foi preservada.
+- Causa 5: Luxmc Shield hasheava os 49 JARs (~230 MB) a cada launch — o `CLEAN_CACHE` era só em memória e morria no restart (3,34 s/log). Fix: cache persistente em `<game_dir>/.luxmc/shield-scan-cache.json` (path → SHA-256 do conteúdo); a verificação continua sendo por **hash de conteúdo** (não por mtime/size — o teste `content_hash_invalidates_cache_even_with_same_size_and_timestamp` segue valendo), pulando apenas a descompressão/inspeção do ZIP no caminho quente.
+- Verificação: `cargo check` 0; `cargo test --lib` **417/417**; `pnpm check` **0/0**; `pnpm test:run` **248/248**.
+- Pendente de medição: relançar o mesmo modpack e comparar `minecraftFiles`/`javaLoaderAndProcess` no `performance_history` (esperado 86 s → ~34 s, dos quais ~27 s são boot do jogo). Os 2 testes de navegador de login da rodada anterior seguem pendentes (precisam de vite próprio na 1420).
 
 
