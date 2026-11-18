@@ -195,9 +195,9 @@ pub fn generate_aikar_flags(ram_mb: u64) -> Vec<String> {
     flags
 }
 
-pub fn generate_optimized_flags(ram_mb: u64, java_major: u32) -> Vec<String> {
+pub fn generate_optimized_flags(ram_mb: u64, java_major: u32, heavy_modpack: bool) -> Vec<String> {
     if cfg!(target_os = "windows") {
-        return generate_client_flags(ram_mb);
+        return generate_client_flags_for(ram_mb, heavy_modpack);
     }
     if java_major >= 21 {
         let mut flags = Vec::new();
@@ -223,13 +223,26 @@ pub fn generate_optimized_flags(ram_mb: u64, java_major: u32) -> Vec<String> {
 }
 
 pub fn generate_client_flags(ram_mb: u64) -> Vec<String> {
+    generate_client_flags_for(ram_mb, false)
+}
+
+pub fn generate_client_flags_for(ram_mb: u64, heavy_modpack: bool) -> Vec<String> {
     let ram_mb = ram_mb.max(256);
+    let initial_ram = if heavy_modpack {
+        (ram_mb / 2).clamp(256, 4096)
+    } else {
+        (ram_mb / 4).clamp(256, 1024)
+    };
     vec![
-        format!("-Xms{}M", (ram_mb / 4).clamp(256, 1024)),
+        format!("-Xms{}M", initial_ram),
         format!("-Xmx{}M", ram_mb),
         "-XX:+UseG1GC".into(),
         "-XX:+ParallelRefProcEnabled".into(),
-        "-XX:MaxGCPauseMillis=100".into(),
+        if heavy_modpack {
+            "-XX:MaxGCPauseMillis=200".into()
+        } else {
+            "-XX:MaxGCPauseMillis=100".into()
+        },
         "-XX:+UseStringDeduplication".into(),
     ]
 }
@@ -243,6 +256,20 @@ mod windows_client_tests {
             let flags = generate_client_flags(ram);
             assert!(flags.contains(&format!("-Xmx{}M", ram)));
             assert!(flags.contains(&format!("-Xms{}M", (ram / 4).clamp(256, 1024))));
+            assert!(!flags.iter().any(|flag| flag.contains("AlwaysPreTouch") || flag.contains("UseZGC")));
+            assert_eq!(flags.iter().filter(|flag| flag.contains("UseG1GC")).count(), 1);
+        }
+    }
+
+    #[test]
+    fn windows_heavy_modpack_flags_presize_the_heap_without_exceeding_the_limit() {
+        for ram in [256, 512, 1024, 4096, 8192, 16384] {
+            let flags = generate_client_flags_for(ram, true);
+            let expected_initial = (ram / 2).clamp(256, 4096);
+            assert!(flags.contains(&format!("-Xmx{}M", ram)));
+            assert!(flags.contains(&format!("-Xms{}M", expected_initial)));
+            assert!(expected_initial <= ram);
+            assert!(flags.contains(&"-XX:MaxGCPauseMillis=200".to_string()));
             assert!(!flags.iter().any(|flag| flag.contains("AlwaysPreTouch") || flag.contains("UseZGC")));
             assert_eq!(flags.iter().filter(|flag| flag.contains("UseG1GC")).count(), 1);
         }

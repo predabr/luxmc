@@ -383,4 +383,12 @@ Verificação: amostragem a cada 400 ms por 40 s com servidor online + telemetri
 - Verificação: `cargo check` 0; `cargo test --lib` **417/417**; `pnpm check` **0/0**; `pnpm test:run` **248/248**.
 - **Medido em 18/11 após os fixes:** Fabulously Optimized 26.3 = **28,51 s** (era 86,35 s no 26.2; minecraftFiles 52,24 s → **0,08 s**, Shield 48 JARs em 0,45 s, janela do jogo 25,64 s). FTB StoneBlock 3 (224 mods, Forge) = **36,58 s** (minecraftFiles 0,98 s, Shield 224 JARs 4,54 s, janela do jogo 28,87 s). Trabalho do launcher: ~2,8 s (FO) e ~7,7 s (StoneBlock) — o resto é boot do jogo. Os 2 testes de navegador de login da rodada anterior seguem pendentes (precisam de vite próprio na 1420).
 
+### Janela do Minecraft mais cedo (rodada 2, mesmo dia)
+- O cache persistente do Shield **quase não gravava**: `scan_file` retornava cedo no acerto do `CLEAN_CACHE` em memória sem chamar `persisted_remember`. Resultado real: `.luxmc/shield-scan-cache.json` do StoneBlock tinha **1 entrada para 224 JARs**, então a inspeção ZIP de ~4,5 s se repetia a cada launch. Fix: todo hash confirmado (cache em memória ou persistido) agora é persistido; duas varreduras concorrentes não se sobrescrevem mais com um mapa parcial.
+- Inspeção paralela do Shield de 4 → 8 workers (primeira varredura de um pack novo também cai).
+- Confirmação da janela: polling de 500 ms → **150 ms** (eram 2 leituras consecutivas, até ~1 s só de latência).
+- Flags de modpack pesado no Windows: `-Xms` = metade da RAM (teto 4096 MB) em vez de 1/4 (teto 1024 MB) e `-XX:MaxGCPauseMillis=200` (era 100) — menos coletas durante o registro de 224 mods. Limiar de "pesado" caiu de 50 → 32 mods (pega o FO, 48).
+- Caches das instâncias atuais (FO 48 + StoneBlock 224, hashes conferidos iguais aos gravados pelo app) já semeados no formato do `shield-scan-cache.json`; o próximo launch pula a inspeção ZIP.
+- Verificação: `cargo check` 0; `cargo test --lib` **418/418** (novo teste das flags pesadas).
+
 

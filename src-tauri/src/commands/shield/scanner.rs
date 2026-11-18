@@ -202,7 +202,10 @@ fn scan_file(
     }
     let cached = previous_hash.as_ref().is_some_and(|value|value == &hash);
     let persisted_hit = !cached && persisted.lock().unwrap_or_else(|error| error.into_inner()).get(&path.to_string_lossy().to_string()).is_some_and(|known| known == &hash);
-    if cached || persisted_hit { return Ok(Vec::new()); }
+    if cached || persisted_hit {
+        persisted_remember(persisted, persisted_dirty, path, &hash);
+        return Ok(Vec::new());
+    }
     file.rewind().map_err(|error| error.to_string())?;
     let reader: Box<dyn ArchiveReader> = match buffered {
         Some(bytes) => Box::new(Cursor::new(bytes)),
@@ -263,7 +266,7 @@ pub fn scan_mods_directory(mods_dir: &Path) -> ShieldScanResult {
     let persisted: Mutex<HashMap<String, String>> = Mutex::new(persisted_load(persisted_path.as_deref()));
     let persisted_dirty = std::sync::atomic::AtomicBool::new(false);
     if !paths.is_empty() {
-        let workers = std::thread::available_parallelism().map_or(1, |count| count.get()).min(4).min(paths.len());
+        let workers = std::thread::available_parallelism().map_or(1, |count| count.get()).min(8).min(paths.len());
         let next = std::sync::atomic::AtomicUsize::new(0);
         std::thread::scope(|scope| {
             let handles = (0..workers).map(|_| scope.spawn(|| {

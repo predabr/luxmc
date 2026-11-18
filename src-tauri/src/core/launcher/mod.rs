@@ -1464,7 +1464,7 @@ impl GameLauncher {
         self.emit_stage(LaunchStage::WaitingForWindow);
         if let Err(reason) = startup::confirm_startup(startup_watch,
             || self.session.as_ref().map_or(true, |session| session.owns_process(pid)) && crate::core::process::has_visible_window(pid),
-            std::time::Duration::from_millis(500)).await {
+            std::time::Duration::from_millis(150)).await {
             self.emit_stage(LaunchStage::Failed);
             return Err(AppError::InvalidState(reason));
         }
@@ -1856,7 +1856,7 @@ impl GameLauncher {
             || profile.name.to_lowercase().contains("dawncraft")
             || profile.name.to_lowercase().contains("prominence")
             || profile.name.to_lowercase().contains("rlcraft")
-            || effective_mod_count >= 50;
+            || effective_mod_count >= 32;
 
         let _is_pvp = profile.clean_mc_version().starts_with("1.8") || profile.clean_mc_version().starts_with("1.7");
         let ram_mb = if let Some(manual) = profile.ram_mb {
@@ -1880,7 +1880,7 @@ impl GameLauncher {
         let mut generated_flags = if custom_collector {
             vec![format!("-Xms{}M", ram_mb.min(1024)), format!("-Xmx{}M", ram_mb)]
         } else if profile.auto_optimize {
-            crate::core::optimizer::generate_optimized_flags(ram_mb.max(0) as u64, detail.java_major_version())
+            crate::core::optimizer::generate_optimized_flags(ram_mb.max(0) as u64, detail.java_major_version(), is_heavy_modded)
         } else {
             crate::core::optimizer::generate_standard_flags(ram_mb.max(0) as u64)
         };
