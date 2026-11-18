@@ -1,0 +1,15 @@
+{
+  "name": "Luxmc",
+  "version": "3.1.0",
+  "path": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\release-windows\\local-review\\Luxmc-3.1.0-workshop.exe",
+  "bytes": 20685044,
+  "sha256": "651fb81e8202008fc1248c919cec141c03e53003d3adefbe8f03e74b927519c1",
+  "builtAt": "2026-10-07T09:20:52.6390205-03:00",
+  "build": "pnpm build:windows",
+  "installed": false,
+  "publishedToSite": false,
+  "publishedToGitHub": false,
+  "frontendTestsPassed": 131,
+  "rustTestsPassed": 141,
+  "rustTestsIgnored": 2
+}

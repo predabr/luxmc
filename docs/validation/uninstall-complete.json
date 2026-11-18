@@ -1,0 +1,23 @@
+{
+  "AppRemoved": true,
+  "UninstallerRemoved": true,
+  "RegistryRemoved": true,
+  "ProtectedFiles": [
+    {
+      "Path": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\Luxmc.exe",
+      "Preserved": true
+    },
+    {
+      "Path": "C:\\Users\\preda\\AppData\\Roaming\\github\\Luxmc\\data\\luxmc.db",
+      "Preserved": true
+    },
+    {
+      "Path": "C:\\Users\\preda\\AppData\\Roaming\\io.github.luxmc.Luxmc\\auth.json",
+      "Preserved": true
+    },
+    {
+      "Path": "C:\\Users\\preda\\AppData\\Roaming\\io.github.luxmc.Luxmc\\settings.json",
+      "Preserved": true
+    }
+  ]
+}

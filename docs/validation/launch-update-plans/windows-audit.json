@@ -1,0 +1,43 @@
+{
+  "version": "3.9.1",
+  "timestamp": "2026-10-12T22:03:36.3490019Z",
+  "commit": null,
+  "run": null,
+  "components": [
+    {
+      "component": "installer",
+      "filename": "Lux MC Launcher - Inicio Seguro.exe",
+      "bytes": 21265615,
+      "sha256": "9e4e0a332494b81480f67db3c1eb2f831767fab8a79498614e641a042fd77cb1",
+      "authenticode": "NotSigned",
+      "publisher": null
+    },
+    {
+      "component": "program",
+      "filename": "luxmc.exe",
+      "bytes": 43239424,
+      "sha256": "1205adbe8506dbefefbbf12bcb7813c1cee0d4a011b8258a26af234be502ce05",
+      "authenticode": "NotSigned",
+      "publisher": null
+    },
+    {
+      "component": "uninstaller",
+      "filename": "uninstall.exe",
+      "bytes": 143682,
+      "sha256": "5009ab40b1143965a2e8bd6ddd1cb59aab899c77bd36ed82e42ec571e70d327d",
+      "authenticode": "NotSigned",
+      "publisher": null
+    }
+  ],
+  "defender": {
+    "signatureVersion": "1.459.688.0",
+    "scanExitCode": 0,
+    "output": [
+      "Scan starting...\r\nScan finished.\r\nScanning C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\release-windows\\Lux MC Launcher - Inicio Seguro.exe found no threats.\r\n",
+      "Scan starting...\r\nScan finished.\r\nScanning C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\docs\\validation\\launch-update-plans\\payload\\luxmc.exe found no threats.\r\n",
+      "Scan starting...\r\nScan finished.\r\nScanning C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\docs\\validation\\launch-update-plans\\payload\\uninstall.exe found no threats.\r\n"
+    ]
+  },
+  "windowsTrustConfirmed": false,
+  "independentVendorApprovalConfirmed": false
+}

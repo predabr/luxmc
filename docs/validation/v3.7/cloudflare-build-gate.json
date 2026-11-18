@@ -1,0 +1,6 @@
+{
+  "root": "website",
+  "output": ".",
+  "command": "cd .. && npx --yes pnpm@10.30.3 install --frozen-lockfile && npx --yes pnpm@10.30.3 build:website && node scripts/download-official-windows.mjs current --public",
+  "automaticProductionDeployments": true
+}

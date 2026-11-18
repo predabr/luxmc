@@ -81,7 +81,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		saving = true;
 		try {
 			await instanceOptionsSet(profileId, options);
-			toast(uiText("ui.ff2f3c2e0f1e7588"), "success");
 			onClose();
 		} catch (e) {
 			toast(uiText("ui.3e3076893c80075e") + String(e), "error");
@@ -94,7 +93,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		saving = true;
 		try {
 			await instanceConfigWrite(profileId, rawFilePath, rawContent);
-			toast(uiText("ui.e81df41f94aae1ec", {arg0: (rawFilePath)}), "success");
 			await loadOptions();
 		} catch (e) {
 			toast(uiText("ui.18e5596b3983ad06") + String(e), "error");
@@ -291,7 +289,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 						<Button variant="secondary" size="sm" onclick={async () => {
 							const c = await instanceConfigRead(profileId, rawFilePath);
 							rawContent = c.content;
-							toast("Arquivo carregado!", "info");
 						}}>
 							{uiText("ui.9b6bb68d29b191b4")}
 						</Button>

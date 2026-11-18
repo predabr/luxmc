@@ -1,0 +1,18 @@
+{
+  "Version": "3.9.1",
+  "Build": "Capas e Personalizador",
+  "Method": "Verified application files updated in existing installation",
+  "InstallerStatus": "Blocked by Windows application control; security settings unchanged",
+  "InstalledExe": "C:\\Users\\preda\\AppData\\Local\\Luxmc\\luxmc.exe",
+  "InstalledSha256": "51648089ded9050e35c5845a9bf4682f144b5447d6e46bf9158ab23772ea627e",
+  "PreviousSha256": "5de4947b19bd63aa006c2512775b120de447238eee52e6a49c3e15d2d371d51a",
+  "BuiltProgramVerified": true,
+  "RecoveryHelperVerified": true,
+  "ProtectedFilesVerified": 3,
+  "DataPreserved": true,
+  "BackupDirectory": "C:\\Users\\preda\\AppData\\Local\\Luxmc-build\\backups\\artwork-personalizer-files-20261012-103129",
+  "Installer": "C:\\Users\\preda\\Downloads\\Lux MC Launcher - Capas e Personalizador.exe",
+  "InstallerSha256": "711808a28a38dd56d514a2d016998eb027d68579d60d8fce64c9d0b66641ae42",
+  "LauncherStarted": false,
+  "RuntimeTested": false
+}

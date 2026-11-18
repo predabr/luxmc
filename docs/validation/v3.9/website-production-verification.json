@@ -1,0 +1,36 @@
+{
+  "checkedAt": "2026-10-12T01:35:38.757Z",
+  "checks": [
+    {
+      "name": "session.js",
+      "status": 200,
+      "sha256": "5c86564c2a3abce65b6b60431e3b5c30ba160deeeedcfccc39aefd6dee2918e7"
+    },
+    {
+      "name": "session.css",
+      "status": 200,
+      "sha256": "53a6cac2a049c0e23452cd2ef9d46c656be4a1752ddb3ec09be5926e064e4eae"
+    },
+    {
+      "name": "commerce.js",
+      "status": 200,
+      "sha256": "85a59689e655c58e2075a886299a5c3e8a19275a85156a17efa65790eba1adae"
+    },
+    {
+      "name": "commerce.css",
+      "status": 200,
+      "sha256": "83cc0b432ba387026fca7da58a3af2eb33808bf65de80c71e684a6aec28928dc"
+    },
+    {
+      "name": "planos",
+      "status": 200,
+      "obsoleteSectionsRemoved": true,
+      "identityHeader": true
+    },
+    {
+      "name": "api/session",
+      "status": 200,
+      "anonymous": true
+    }
+  ]
+}

@@ -3,7 +3,7 @@
     import { Copy, Send, LoaderCircle, Users, Save } from 'lucide-svelte';
     import { translateUi as t } from '$lib/i18n/useTranslation.svelte';
     import { serverConsoleText, type ServerConsoleLine } from '$lib/api/localServers';
-    import { toast } from '$lib/stores/toasts.svelte';
+    
     import { button } from './serverButton';
 
     let { id, lines, available, send }: { id: string; lines: ServerConsoleLine[]; available: boolean; send: (text: string) => Promise<boolean> } = $props();
@@ -27,7 +27,7 @@
     }
     async function copyConsole() {
         if (copying) return; copying = true; error = '';
-        try { const result = await serverConsoleText(id); await navigator.clipboard.writeText(result.text || lines.map(line => line.text).join('\n')); toast(t(result.truncated ? 'consoleTools.copiedTail' : 'localServer.copied'), 'success'); }
+        try { const result = await serverConsoleText(id); await navigator.clipboard.writeText(result.text || lines.map(line => line.text).join('\n'));  }
         catch (cause) { error = String(cause); }
         finally { copying = false; }
     }

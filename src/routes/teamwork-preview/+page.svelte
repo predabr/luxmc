@@ -101,7 +101,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		if (!hostInfo) return;
 		navigator.clipboard.writeText(hostInfo.shareLink).then(() => {
 			copiedLink = true;
-			toast(uiText("ui.747cdb9983e94824"), "success");
 			setTimeout(() => copiedLink = false, 2500);
 		});
 	}
@@ -110,7 +109,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		if (!hostInfo) return;
 		navigator.clipboard.writeText(hostInfo.directAddress).then(() => {
 			copiedDirect = true;
-			toast(uiText("ui.ea8db2febaea62ea"), "success");
 			setTimeout(() => copiedDirect = false, 2500);
 		});
 	}

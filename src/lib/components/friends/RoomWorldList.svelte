@@ -24,7 +24,7 @@
     }
     let { room }: { room: TunnelStatus } = $props();
     async function copy(address: string) {
-        try { await navigator.clipboard.writeText(address); toast(uiText("multiplayer.addressCopied"), "success"); }
+        try { await navigator.clipboard.writeText(address);  }
         catch (error) { toast(String(error), "error"); }
     }
 </script>

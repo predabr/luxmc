@@ -1,0 +1,18 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { githubRequest, githubToken } from '../../../scripts/github-authenticated.mjs';
+const receipt = JSON.parse(readFileSync('docs/validation/modpack-followup/remote-verifier.json', 'utf8'));
+const list = await githubRequest(`repos/predabr/luxmc/actions/runs?branch=${encodeURIComponent(receipt.branch)}&per_page=10`);
+const run = list.workflow_runs.find(run => run.head_sha === receipt.workflowCommit);
+if (!run || run.conclusion !== 'success') throw new Error(`Verifier build not successful yet: ${run?.status || 'pending'} / ${run?.conclusion || ''}`);
+const artifacts = await githubRequest(`repos/predabr/luxmc/actions/runs/${run.id}/artifacts`);
+const artifact = artifacts.artifacts.find(item => item.name === 'luxmc-local-verifier' && !item.expired);
+if (!artifact || new URL(artifact.archive_download_url).hostname !== 'api.github.com') throw new Error('Artifact unavailable');
+const response = await fetch(artifact.archive_download_url, { headers: { Authorization: 'Bearer ' + githubToken(), Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(60000) });
+if (!response.ok) throw new Error('Artifact download failed: ' + response.status);
+const bytes = Buffer.from(await response.arrayBuffer());
+const digest = createHash('sha256').update(bytes).digest('hex');
+if (!artifact.digest || artifact.digest !== 'sha256:' + digest) throw new Error('Artifact digest mismatch');
+writeFileSync('docs/validation/modpack-followup/verifier.zip', bytes);
+writeFileSync('docs/validation/modpack-followup/remote-verifier-artifact.json', JSON.stringify({ artifactId: artifact.id, runId: run.id, workflowCommit: run.head_sha, archiveSha256: digest, digestVerified: true }, null, 2));
+console.log(JSON.stringify({ downloaded: true, artifactId: artifact.id, runId: run.id, digestVerified: true }));

@@ -501,7 +501,6 @@
                     postExitHook: changes.postExitHook || null
                 });
                 if (bannerChanged) profiles.setBanner(profile.id, bannerValue);
-                toast(uiText("ui.3f84cec002ac344d"), "success");
 			} catch (e) {
 				toast(uiText("ui.6900afcd83738036") + String(e), "error");
 				return;
@@ -706,7 +705,6 @@
 			toast(`Atualizando ${update.projectName || update.projectTitle || 'mod'}...`, "info");
 			await modsUpdate(update.projectId, update.latestVersionId, instanceId);
 			playSound("chime");
-			toast(`Mod atualizado com sucesso!`, "success");
 			availableModUpdates = availableModUpdates.filter(x => x.projectId !== update.projectId);
 			await refreshAllData();
 		} catch (e) {
@@ -785,7 +783,6 @@
 		if (!hostLinkInfo) return;
 		navigator.clipboard.writeText(hostLinkInfo.shareLink);
 		isCopiedHostLink = true;
-		toast(uiText("ui.900c9ce79ac45e7d"), "success");
 		setTimeout(() => (isCopiedHostLink = false), 2500);
 	}
 
@@ -794,7 +791,6 @@
 		const addr = upnpResult?.externalIp ? `${upnpResult.externalIp}:${customHostPort}` : hostLinkInfo.directAddress;
 		navigator.clipboard.writeText(addr);
 		isCopiedDirectAddress = true;
-		toast(uiText("ui.54b20bf5531a8a89"), "success");
 		setTimeout(() => (isCopiedDirectAddress = false), 2000);
 	}
 
@@ -833,12 +829,10 @@
 			await navigator.clipboard.write([
 				new ClipboardItem({ "image/png": pngBlob })
 			]);
-			toast(uiText("screenshots.copied"), "success");
 			playSound("chime");
 		} catch {
 			try {
 				await navigator.clipboard.writeText(previewScreenshot.path);
-				toast("Caminho da captura copiado!", "info");
 			} catch (e) {
 				toast(String(e), "error");
 			}
@@ -936,7 +930,7 @@
             if (id !== instanceId) return;
             selectedModNames = [];
             await loadSection('mods', true);
-            toast(failed ? uiText("ui.b610fee7d4ca3c7e", {arg0: (failed)}) : 'Mods selecionados atualizados.', failed ? 'error' : 'success');
+            if (failed) toast(uiText("ui.b610fee7d4ca3c7e", {arg0: (failed)}), 'error');
         } finally { isChangingMods = false; }
     }
 
@@ -970,10 +964,8 @@
 		const name = mod.name.replace(/\.disabled$/, '');
 		if (frozenModNames.includes(name)) {
 			frozenModNames = frozenModNames.filter(n => n !== name);
-			toast(uiText("ui.1fb77f66fa869583", {arg0: (mod.name.replace('.disabled', ''))}), "info");
 		} else {
 			frozenModNames = [...frozenModNames, name];
-			toast(uiText("ui.3ef436739a9288c8", {arg0: (mod.name.replace('.disabled', ''))}), "success");
 		}
 		try { localStorage.setItem(`luxmc:frozen-mods:${instanceId}`, JSON.stringify(frozenModNames)); }
 		catch { toast(uiText("ui.1a50574dacc105fc"), "warning"); }
@@ -988,7 +980,6 @@
 		const url = `https://modrinth.com/mods?q=${encodeURIComponent(parseModMeta(mod.name).title)}`;
 		if (navigator.clipboard) {
 			navigator.clipboard.writeText(url).then(() => {
-				toast(uiText("ui.8e2a04648fa7795b"), "success");
 			}).catch(() => {
 				toast(`Mod: ${raw}`, "info");
 			});
@@ -1004,7 +995,6 @@
 	async function handleSyncMod(_mod: FileTreeEntry) {
 		toast("Sincronizando mod...", "info");
 		await refreshAllData();
-		toast(uiText("ui.1a7c0fe3efaf18ca"), "success");
 	}
 
 	function handleSwapVersion(mod: FileTreeEntry) {
@@ -1355,7 +1345,6 @@
 		try {
 			await instanceModToggle(id, mod.name, isCurrentlyDisabled);
 			if (id !== instanceId) return;
-			toast(isCurrentlyDisabled ? `Mod ativado!` : `Mod desativado!`, "success");
 			await loadSection("mods", true);
 		} catch (e) {
 			toast(uiText("ui.602701edd10dcc87") + String(e), "error");
@@ -1366,7 +1355,6 @@
 		try {
 			await instanceModDelete(instanceId, mod.name);
 			playSound("delete");
-			toast(uiText("ui.76da1453ec791bf3", {arg0: (mod.name)}), "success");
 			await refreshAllData();
 		} catch (e) {
 			toast(uiText("ui.882c8bee40eaf46f") + String(e), "error");
@@ -1551,7 +1539,6 @@
 		isSavingEditor = true;
 		try {
 			await instanceFileWrite(instanceId, activeEditorFile.path, activeEditorFile.content);
-			toast(uiText("ui.97f3464fc2a2ebe4", {arg0: (activeEditorFile.name)}), "success");
 		} catch (e) {
 			toast(uiText("ui.18e5596b3983ad06") + String(e), "error");
 		} finally {
@@ -1564,7 +1551,6 @@
 		try {
 			await instanceFileDelete(instanceId, file.path);
 			playSound("delete");
-			toast(uiText("ui.977616b756fa0a24", {arg0: (file.name)}), "success");
 			fileTree = await instanceFileTree(instanceId, fileSubPath || undefined).catch(() => []);
 		} catch (e) {
 			toast(uiText("ui.f1e8ee7a5d4f9972") + String(e), "error");
@@ -1577,7 +1563,6 @@
 		try {
 			await instanceWorldDelete(instanceId, folderName);
 			playSound("delete");
-			toast(uiText("ui.6340a3cf6c8c240c", {arg0: (folderName)}), "success");
 			worldsList = worldsList.filter(w => w.folderName !== folderName);
 		} catch (e) {
 			toast(uiText("ui.6cea4ae536ae622b") + String(e), "error");
@@ -1817,7 +1802,6 @@
 			if (launchProfile?.id) profiles.setLastPlayed(launchProfile.id);
 			downloadProgressPercent = 100;
 			appState.launchStatusText = uiText("ui.56374a8d934236e2", {arg0: (result.pid)});
-			toast(uiText("ui.f9462c8ca5b0a2ac", {arg0: (verId), arg1: (result.pid)}), "success");
             void handlePostLaunchActions(result.pid);
 		} catch (e) {
 			console.error("Launch error:", e);
@@ -1844,7 +1828,6 @@
 			await stopGame();
 			appState.isGameRunning = false;
 			gamingStats.onGameExit();
-			toast(uiText("ui.ac75d5c7df6f61ef"), "info");
 		} catch (e) {
 			appState.isGameRunning = false;
 			gamingStats.onGameExit();
@@ -1878,7 +1861,6 @@
 		try {
 			await instancePackDelete(instanceId, packType, fileName, packType === "datapacks" ? datapackWorld : undefined);
 			playSound("delete");
-			toast(uiText("ui.f3e43f3065bf2a2b"), "success");
 			await refreshAllData();
 		} catch (e) {
 			toast(uiText("ui.22fc4b84ee52a446") + String(e), "error");
@@ -1898,7 +1880,6 @@
 			await screenshotDelete(path);
 			playSound("delete");
 			screenshotsList = screenshotsList.filter(s => s.path !== path);
-			toast(uiText("ui.37c8bb8f8416b9a5"), "info");
 		} catch (e) {
 			toast(uiText("ui.2132eacd3690c6de") + String(e), "error");
 		}
@@ -2423,7 +2404,6 @@
 													onclick={() => {
 														if (world.seed != null) {
 															navigator.clipboard.writeText(world.seed.toString());
-															toast(`Seed copiada: ${world.seed}`, "success");
 														}
 													}}
 													title={uiText("ui.92051bdae9a22112")}
@@ -3279,7 +3259,6 @@
 				class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1.5" })}
 				onclick={() => {
 					navigator.clipboard.writeText(previewScreenshot!.path);
-					toast("Caminho copiado!", "success");
 				}}
 			>
 				<Copy class="w-3.5 h-3.5" /> {uiText("ui.1c031de96f1a554d")}
@@ -3322,7 +3301,6 @@
 					class={launcherButton({ variant: "primary", size: "sm", class: "flex items-center gap-1.5" })}
 					onclick={() => {
 						navigator.clipboard.writeText(generatedShareCode!);
-						toast(uiText("ui.02de8de8a052c934"), "success");
 						playSound("chime");
 					}}
 				>

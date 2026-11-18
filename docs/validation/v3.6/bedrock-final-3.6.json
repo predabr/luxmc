@@ -1,0 +1,40 @@
+{
+  "startedAt": "2026-10-09T20:02:29.644Z",
+  "checks": [
+    {
+      "name": "build",
+      "version": "3.6.0"
+    },
+    {
+      "name": "live-catalog",
+      "versions": 229,
+      "latestStable": "1.26.52.3",
+      "packageTypes": [
+        "GDK",
+        "UWP"
+      ]
+    },
+    {
+      "name": "installation-started",
+      "version": "1.26.52.3",
+      "packageType": "GDK"
+    },
+    {
+      "name": "native-package-installed",
+      "version": "1.26.52.3",
+      "seconds": 6.9,
+      "managed": true
+    },
+    {
+      "name": "bedrock-process",
+      "responding": true,
+      "windowPresent": true,
+      "worldsOpened": false
+    },
+    {
+      "name": "ready-for-visual-review",
+      "processLeftOpen": true,
+      "forcedTermination": false
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "results": [
+    {
+      "area": "launcher",
+      "plan": "free",
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "area": "launcher",
+      "plan": "plus",
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "area": "launcher",
+      "plan": "pro",
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "area": "launcher",
+      "plan": "free",
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "area": "launcher",
+      "plan": "plus",
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "area": "launcher",
+      "plan": "pro",
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "area": "site",
+      "plan": "free",
+      "overflow": false
+    },
+    {
+      "area": "site",
+      "plan": "plus",
+      "overflow": false
+    },
+    {
+      "area": "site",
+      "plan": "pro",
+      "overflow": false
+    }
+  ],
+  "errors": []
+}

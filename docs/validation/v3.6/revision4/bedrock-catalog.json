@@ -1,0 +1,14 @@
+{
+  "catalogAvailable": true,
+  "versions": 229,
+  "latest": {
+    "release": "1.26.52.3",
+    "preview": "1.26.60.30",
+    "beta": "1.2.3.3"
+  },
+  "installedOrRemoved": false,
+  "checkedAt": "2026-10-10T21:14:45.310Z",
+  "installations": [],
+  "instances": 0,
+  "supported": true
+}

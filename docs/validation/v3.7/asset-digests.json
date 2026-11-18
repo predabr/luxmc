@@ -1,0 +1,33 @@
+{
+  "officialSignatureVerified": true,
+  "checked": [
+    {
+      "name": "Lux.MC.Launcher.exe",
+      "sha256": "275991c96f1eae9087251bf16bef71847076fb1506eb3ca69f7c7b0fb903da6e"
+    },
+    {
+      "name": "Luxmc_3.7.0_amd64.AppImage",
+      "sha256": "4e5bd6678904b7aa4d9d917604f7caf0645997543605a66ffa84573e2e3cfce1"
+    },
+    {
+      "name": "Luxmc_3.7.0_amd64.deb",
+      "sha256": "839bc618329e090fd23de5a9db308cb0f49617738f04110cdeee00b1c787f106"
+    },
+    {
+      "name": "Luxmc_3.7.0_universal.dmg",
+      "sha256": "bde31cc7e5521937c4a194f35c5089aa9d11b364d7ce5963d4440361aa715fa0"
+    },
+    {
+      "name": "Luxmc_3.7.0_x64-setup.exe",
+      "sha256": "275991c96f1eae9087251bf16bef71847076fb1506eb3ca69f7c7b0fb903da6e"
+    },
+    {
+      "name": "luxmc-3.7.0-1-x86_64.pkg.tar.zst",
+      "sha256": "7935bba42b0305ef35bdfaa859508bb7bac94e0313dd14f8b674d11fb071cb13"
+    },
+    {
+      "name": "Luxmc-3.7.0-1.x86_64.rpm",
+      "sha256": "9cc32a49a5e03231fec7d38475bd321bbcb74ff0b2fce053ee519e0a46336e06"
+    }
+  ]
+}

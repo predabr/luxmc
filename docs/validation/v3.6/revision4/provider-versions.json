@@ -1,0 +1,17 @@
+{
+  "checkedAt": "2026-10-10T20:36:32.996Z",
+  "minecraft": {
+    "release": "26.3",
+    "snapshot": "26.4-snapshot-3"
+  },
+  "packs": [
+    {
+      "name": "Fabulously Optimized",
+      "status": "Project reference missing"
+    },
+    {
+      "name": "Cobblemon Official Modpack [Fabric]",
+      "status": "Project reference missing"
+    }
+  ]
+}

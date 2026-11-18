@@ -1,0 +1,64 @@
+{
+  "fixtureOnly": true,
+  "passed": true,
+  "scenarios": [
+    {
+      "theme": "dark",
+      "routes": [
+        "/",
+        "/instances",
+        "/instances/demo-vp",
+        "/friends",
+        "/hosting",
+        "/settings",
+        "/skins",
+        "/mods",
+        "/workshop",
+        "/news",
+        "/screenshots",
+        "/boost",
+        "/logs",
+        "/logs-history",
+        "/organizer"
+      ],
+      "compactCatalog": true,
+      "motion": {
+        "reads": 11,
+        "animations": 11,
+        "observers": 1
+      },
+      "cancellation": true,
+      "reducedMotion": true,
+      "pageErrors": []
+    },
+    {
+      "theme": "light",
+      "routes": [
+        "/",
+        "/instances",
+        "/instances/demo-vp",
+        "/friends",
+        "/hosting",
+        "/settings",
+        "/skins",
+        "/mods",
+        "/workshop",
+        "/news",
+        "/screenshots",
+        "/boost",
+        "/logs",
+        "/logs-history",
+        "/organizer"
+      ],
+      "compactCatalog": true,
+      "motion": {
+        "reads": 11,
+        "animations": 11,
+        "observers": 1
+      },
+      "cancellation": true,
+      "reducedMotion": true,
+      "pageErrors": []
+    }
+  ]
+}

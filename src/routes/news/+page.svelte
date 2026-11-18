@@ -21,7 +21,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 		CheckCircle2,
 		Sliders
 	} from "lucide-svelte";
-	import { toast } from "$lib/stores/toasts.svelte";
+	
 	import { openUrl } from "@tauri-apps/plugin-opener";
 
 	type LauncherArticle = {
@@ -290,7 +290,6 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 		} catch {
 			window.open(target, "_blank");
 		}
-		toast("Abrindo no navegador...", "info");
 	}
 </script>
 

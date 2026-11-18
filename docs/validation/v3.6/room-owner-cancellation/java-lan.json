@@ -1,0 +1,7 @@
+{
+  "passed": true,
+  "javaDefaultMulticastListener": true,
+  "gameTransferThroughDiscoveredAddress": true,
+  "javaOutput": "READY\r\nJAVA_LAN_DISCOVERY_AND_GAME_TRANSFER_OK\r\n",
+  "nativeOutput": "\nrunning 1 test\ntest network::p2p_tunnel::tests::lan_discovery_on_physical_interface_connects_to_encrypted_proxy ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 210 filtered out; finished in 5.24s\n\n"
+}

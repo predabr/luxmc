@@ -1,0 +1,22 @@
+[
+  {
+    "Path": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\src-tauri\\src\\commands\\updater.rs",
+    "Hash": "7EA7553BDFEF8C43DB246E959F90A8C6AFD664A262FC649C4A02758070DF2A29"
+  },
+  {
+    "Path": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\src-tauri\\src\\core\\launcher\\mod.rs",
+    "Hash": "1AAFCF421CA59707B56DCD4A71F4BC0071EF7631DD7DCBAAD149BD7CDB86C2E3"
+  },
+  {
+    "Path": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\src-tauri\\src\\core\\launcher\\startup.rs",
+    "Hash": "7AC157BF9A96B1520948997BD1E0977DE4FF5B2502238B9459F19040B6E92153"
+  },
+  {
+    "Path": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\src-tauri\\src\\core\\process.rs",
+    "Hash": "2D71F3A5264BC05A1D5E87FC474F7C22291E6411D62F560B7D723EEADFA7EF88"
+  },
+  {
+    "Path": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\src-tauri\\src\\commands\\launch.rs",
+    "Hash": "8F057A2765E1DC2B3C7083C5BBA84D05509CC9210B205F70CFAD2E8F967C82CD"
+  }
+]

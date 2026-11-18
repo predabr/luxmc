@@ -415,7 +415,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
             if (controller.signal.aborted) return;
             savedSkins = nextSkins;
             selectValidatedSkin(skin, model);
-            toast(`Skin "${name}" adicionada (${model === "alex" ? "Fino / Alex" : uiText("ui.0c681eeca1e08ff9")})!`, "success");
         } catch (error) {
             if (!(error instanceof DOMException && error.name === "AbortError")) toast(uiText("ui.97bfa663aaafe580") + String(error), "error");
         }
@@ -460,7 +459,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
             const image = await loadTextureImage(await authReadLocalTexture(selected), controller.signal);
             customCapeDataUrl = normalizeCape(image).toDataURL("image/png");
 			selectedCape = "custom";
-			toast(uiText("ui.97e744321263c71e"), "success");
 		} catch (e) {
 			toast(uiText("ui.b57990d4f3de61f4") + String(e), "error");
 		}

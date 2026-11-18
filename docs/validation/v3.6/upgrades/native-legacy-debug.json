@@ -1,0 +1,9 @@
+{
+  "version": "1.8.9",
+  "completed": true,
+  "buildVariant": "debug-java-fix",
+  "fixtureId": "5a05a4bd-0a9a-402f-b412-94dd36b7f1ff",
+  "preparationSeconds": 31.49,
+  "resourcesSeconds": 46.59,
+  "originalInstancesPreserved": true
+}

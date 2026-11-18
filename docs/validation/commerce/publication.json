@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-11T18:27:31.530Z",
+  "publicChecks": [
+    {
+      "path": "/planos",
+      "status": 200,
+      "noStore": "public, max-age=0, must-revalidate, no-store",
+      "robots": "index, follow"
+    },
+    {
+      "path": "/painel-luxmc",
+      "status": 200,
+      "noStore": "public, max-age=0, must-revalidate, no-store",
+      "robots": "index, follow, noindex, nofollow"
+    }
+  ],
+  "anonymousOwnerAccess": 401,
+  "ownerAccess": 200,
+  "checkoutEnabled": false,
+  "passwordConfigured": true,
+  "pending": 0,
+  "siteTests": 64,
+  "launcherTests": 157,
+  "checks": {
+    "svelte": "passed",
+    "rust": "passed",
+    "frontendBuild": "passed",
+    "websiteBuild": "passed",
+    "browserWorkflow": "passed"
+  },
+  "installer": "blocked-by-Windows-App-Control-4551",
+  "githubPublished": false,
+  "nativeLauncherStarted": false,
+  "bankTransferPerformed": false
+}

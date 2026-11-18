@@ -1,0 +1,21 @@
+{
+  "AppRoot": "C:\\Users\\preda\\AppData\\Local\\Luxmc",
+  "ProtectedFiles": [
+    {
+      "Path": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\Luxmc.exe",
+      "Hash": "65E2EFCAF4412AE4F52BF571F135F886B993E5B0E25EF00A3B63A77AD886904A"
+    },
+    {
+      "Path": "C:\\Users\\preda\\AppData\\Roaming\\github\\Luxmc\\data\\luxmc.db",
+      "Hash": "10D9AA49F9A885CB81A1CD368456E5AF8B6AA020F32E0F3C5CF9666BE41F4C85"
+    },
+    {
+      "Path": "C:\\Users\\preda\\AppData\\Roaming\\io.github.luxmc.Luxmc\\auth.json",
+      "Hash": "E08C6DC1B353D5F7C2E62CB22C13515328DB61543A92880D6B4FB80391A96351"
+    },
+    {
+      "Path": "C:\\Users\\preda\\AppData\\Roaming\\io.github.luxmc.Luxmc\\settings.json",
+      "Hash": "C2E7A2DCE9EC936DD98350F6286947A1529A3E2E9C8E8A4EDB833772A5C1EBE6"
+    }
+  ]
+}

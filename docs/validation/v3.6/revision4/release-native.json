@@ -1,0 +1,66 @@
+{
+  "passed": true,
+  "actualReleaseExecutable": true,
+  "installedPacks": [
+    {
+      "name": "All the Mods 10 - ATM10",
+      "mods": 491,
+      "findings": 0,
+      "scanTimeMs": 3098
+    },
+    {
+      "name": "Zeefski Jujutsu Kaisen Craft",
+      "mods": 120,
+      "findings": 0,
+      "scanTimeMs": 696
+    },
+    {
+      "name": "Cobblemon Official Modpack [Fabric]",
+      "mods": 73,
+      "findings": 0,
+      "scanTimeMs": 884
+    },
+    {
+      "name": "Fabulously Optimized",
+      "mods": 46,
+      "findings": 0,
+      "scanTimeMs": 123
+    }
+  ],
+  "app": {
+    "name": "Luxmc",
+    "version": "3.6.0"
+  },
+  "java": [
+    {
+      "major": 8,
+      "installed": true
+    },
+    {
+      "major": 16,
+      "installed": false
+    },
+    {
+      "major": 17,
+      "installed": true
+    },
+    {
+      "major": 21,
+      "installed": true
+    },
+    {
+      "major": 25,
+      "installed": true
+    }
+  ],
+  "existingJava25Verified": true,
+  "invalidUninstallRejected": true,
+  "shield": {
+    "mods": 491,
+    "findings": 0,
+    "firstMs": 3098,
+    "cachedMs": 874
+  },
+  "userModsExecuted": false,
+  "timestamp": "2026-10-10T21:28:18.068Z"
+}

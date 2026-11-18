@@ -1,0 +1,18 @@
+{
+  "Version": "3.9.1",
+  "Build": "Abertura Direta",
+  "InstalledExe": "C:\\Users\\preda\\AppData\\Local\\Luxmc\\luxmc.exe",
+  "InstalledSha256": "b13bbf8087b92091035edf421ba74e3c584b2e67a1af38c3efa112a71845cdcb",
+  "PreviousSha256": "b30b467d95d8f46bfa096d71178287ce405b732c41843378c41b73da3b5fb98b",
+  "RecoveryHelperRemoved": true,
+  "DirectLauncherShortcuts": 2,
+  "UninstallerUpdated": true,
+  "ProtectedFilesVerified": 3,
+  "DataPreserved": true,
+  "BackupDirectory": "C:\\Users\\preda\\AppData\\Local\\Luxmc-build\\backups\\abertura-direta-20261012-131658",
+  "Installer": "C:\\Users\\preda\\Downloads\\Lux MC Launcher - Abertura Direta.exe",
+  "InstallerSha256": "84fe3902b1013b5c26b54fdc49bb94d55d7c8be754545c1924d3bcd991c92dba",
+  "LauncherStarted": false,
+  "RuntimeTested": false,
+  "SecuritySettingsChanged": false
+}

@@ -1,0 +1,90 @@
+[
+  {
+    "name": "Vanilla 1.8.9",
+    "profileId": "5118cc6c-169d-4e51-bed0-23caa762ee78",
+    "version": "1.8.9",
+    "loader": "vanilla",
+    "loaderVersion": null,
+    "preparationSeconds": 5.03,
+    "status": "resources_ready_process_alive",
+    "readySeconds": 19.16,
+    "agentLoaded": true
+  },
+  {
+    "name": "Vanilla Perfected",
+    "profileId": "e8d0cd32-78b9-41db-b282-3ac6c53e3855",
+    "version": "26.2",
+    "loader": "fabric",
+    "loaderVersion": "0.19.3",
+    "preparationSeconds": 38.12,
+    "status": "resources_ready_process_alive",
+    "readySeconds": 116.39,
+    "agentLoaded": true
+  },
+  {
+    "name": "Vulkan Optimized",
+    "profileId": "6cc87194-af4e-4e00-baf6-002dada0cd1f",
+    "version": "26.1.2",
+    "loader": "fabric",
+    "loaderVersion": "0.19.3",
+    "preparationSeconds": 11.11,
+    "status": "resources_ready_process_alive",
+    "readySeconds": 58.92,
+    "agentLoaded": true
+  },
+  {
+    "name": "Luxmc validation vanilla 1791335033823317800",
+    "profileId": "8a9978e7-072d-416d-93b1-5023e9001858",
+    "version": "26.3",
+    "loader": "vanilla",
+    "loaderVersion": null,
+    "preparationSeconds": 18.06,
+    "status": "resources_ready_process_alive",
+    "readySeconds": 47.98,
+    "agentLoaded": true
+  },
+  {
+    "name": "Luxmc validation fabric 1791335085223317100",
+    "profileId": "293d1866-ca40-4b79-bdfb-815df8ab2651",
+    "version": "1.20.1",
+    "loader": "fabric",
+    "loaderVersion": "0.19.5",
+    "preparationSeconds": 5.11,
+    "status": "resources_ready_process_alive",
+    "readySeconds": 64.2,
+    "agentLoaded": true
+  },
+  {
+    "name": "Luxmc validation quilt 1791335152285733100",
+    "profileId": "707a2586-0f4c-4b92-a601-b6bd89fcfe60",
+    "version": "1.20.1",
+    "loader": "quilt",
+    "loaderVersion": "0.24.0",
+    "preparationSeconds": 3.88,
+    "status": "resources_ready_process_alive",
+    "readySeconds": 55.03,
+    "agentLoaded": true
+  },
+  {
+    "name": "Luxmc validation forge 1791335210877904300",
+    "profileId": "6800d7f6-26a8-4c30-a151-1c9c9236bcd2",
+    "version": "1.20.1",
+    "loader": "forge",
+    "loaderVersion": "47.4.10",
+    "preparationSeconds": 3.39,
+    "status": "resources_ready_process_alive",
+    "readySeconds": 27.45,
+    "agentLoaded": true
+  },
+  {
+    "name": "Luxmc validation neoforge 1791335241386032300",
+    "profileId": "3bc19bdb-8bb1-40d7-971b-98483fd29350",
+    "version": "1.21.1",
+    "loader": "neoforge",
+    "loaderVersion": "21.1.256",
+    "preparationSeconds": 6.41,
+    "status": "resources_ready_process_alive",
+    "readySeconds": 29.47,
+    "agentLoaded": true
+  }
+]

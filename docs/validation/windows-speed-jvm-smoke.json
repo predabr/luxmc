@@ -1,0 +1,26 @@
+[
+  {
+    "Java": 8,
+    "ExitCode": 0,
+    "Ms": 298,
+    "Version": "java version \"1.8.0_51\""
+  },
+  {
+    "Java": 17,
+    "ExitCode": 0,
+    "Ms": 247,
+    "Version": "openjdk version \"17.0.15\" 2025-04-15 LTS"
+  },
+  {
+    "Java": 21,
+    "ExitCode": 0,
+    "Ms": 255,
+    "Version": "openjdk version \"21.0.7\" 2025-04-15 LTS"
+  },
+  {
+    "Java": 25,
+    "ExitCode": 0,
+    "Ms": 503,
+    "Version": "openjdk version \"25.0.1\" 2025-10-21 LTS"
+  }
+]

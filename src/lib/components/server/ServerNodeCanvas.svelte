@@ -970,7 +970,6 @@
 			packProgress = 'Ajustando o servidor inteiro para o pack…';
 			const applied = await provisionPack(target, pack, plan, { onProgress: (message) => (packProgress = message) });
 			packProgress = '';
-			toast(`Pack “${pack.title}” configurado: ${applied.length} ajustes aplicados. Inicie o servidor.`, 'success');
 			await platform.loadServerData(target.id);
 			await platform.refreshServers();
 		} catch (cause) {
@@ -996,7 +995,6 @@
 				simulationDistance: worldDraft.simulationDistance
 			});
 			platform.settings = { ...platform.settings!, ...next };
-			toast('Mundo atualizado.', 'success');
 		} catch (cause) {
 			toast(serverMessage(cause), 'error');
 		} finally {
@@ -1028,7 +1026,6 @@
 		try {
 			await updateLocalServer(target.id, target.name, ramDraft, target.maxPlayers);
 			await platform.refreshServers();
-			toast(`RAM do servidor definida para ${formatGiB(ramDraft)}.`, 'success');
 		} catch (cause) {
 			toast(serverMessage(cause), 'error');
 		} finally {
@@ -1053,7 +1050,6 @@
 			await updateLocalServer(target.id, nameDraft.trim(), target.ramMb, target.maxPlayers);
 			persistedName = nameDraft.trim();
 			await platform.refreshServers();
-			toast('Nome do servidor atualizado.', 'success');
 		} catch (cause) {
 			nameDraft = target.name;
 			mirrorName();
@@ -1073,7 +1069,6 @@
 			const next = await saveServerSettings(target.id, { ...settings, port: configDraft.port, motd: configDraft.motd });
 			platform.settings = { ...platform.settings!, ...next };
 			await platform.refreshServers();
-			toast('Configuração salva.', 'success');
 		} catch (cause) {
 			toast(serverMessage(cause), 'error');
 		} finally {
@@ -1096,7 +1091,6 @@
 		deleting = true;
 		try {
 			await serverManage({ action: 'delete_server', id: target.id, name: target.name, deleteBackups: true });
-			toast(`Servidor “${target.name}” excluído.`, 'success');
 			deleteOpen = false;
 			deleteName = '';
 			await platform.refreshServers();
@@ -1119,7 +1113,6 @@
 		try {
 			await navigator.clipboard.writeText(value);
 			addressCopied = label;
-			toast(`Endereço ${label} copiado.`, 'success');
 			setTimeout(() => { if (addressCopied === label) addressCopied = ''; }, 1800);
 		} catch {
 			toast('Não foi possível copiar o endereço.', 'error');
@@ -1154,7 +1147,6 @@
 		try {
 			if (platform.publicAccess?.enabled) {
 				await serverPublicAccess(target.id, 'disable');
-				toast('Acesso externo encerrado.', 'info');
 			} else {
 				await serverPublicAccess(target.id, 'enable');
 				toast('Servidor exposto na internet com redirecionamento automático de porta.', 'success');
@@ -1192,7 +1184,6 @@
 		diagnosticBusy = true;
 		try {
 			await Promise.all([platform.refreshDiagnostic(), platform.refreshPublicAccess()]);
-			toast('Diagnóstico de rede atualizado.', 'info');
 		} finally {
 			diagnosticBusy = false;
 		}

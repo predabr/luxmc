@@ -267,7 +267,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                     await stopGame();
                     appState.isGameRunning = false;
                     gamingStats.onGameExit();
-                    toast(uiText("ui.69429e8fd4528906"), "info");
                 } catch (e) {
                     toast(uiText("ui.f635cd0acfe6def9") + String(e), "error");
                 } finally {

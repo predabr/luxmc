@@ -1,0 +1,58 @@
+[
+  {
+    "results": [
+      {
+        "enabled": 1,
+        "bank": "Nubank",
+        "updated_at": 1791771136,
+        "pix_configured": 1,
+        "panel_password_configured": 1
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "ENAM",
+      "served_by_colo": "ATL",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.1786
+      },
+      "duration": 0.1786,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 1073152,
+      "rows_read": 1,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "action": "config",
+        "detail": "Pedidos abertos por manutenção na Cloudflare, a pedido do dono; recebimento Pix existente preservado",
+        "created_at": 1791771136
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "ENAM",
+      "served_by_colo": "ATL",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.109
+      },
+      "duration": 0.109,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 1073152,
+      "rows_read": 11,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]

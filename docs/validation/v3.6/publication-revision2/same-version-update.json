@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "client": "Previous locally compiled 3.6.0 frontend, revision 1",
+  "responseSource": "Actual public release manifest fetched at test start, routed into the isolated browser fixture",
+  "remoteDisplayVersion": "3.6.0",
+  "remoteRevision": 2,
+  "updateOffered": true,
+  "installedUpdate": false,
+  "downloadUrl": "https://github.com/predabr/luxmc/releases/download/v3.6.1-revision.2/Lux.MC.Launcher.exe"
+}

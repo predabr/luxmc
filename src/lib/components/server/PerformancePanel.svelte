@@ -65,7 +65,6 @@
 				const next = { ...platform.settings, viewDistance: view, simulationDistance: simulation };
 				platform.settings = next;
 				await saveServerSettings(platform.config.id, next);
-				toast(`Perfil ${profile.name} aplicado: ${formatGiB(ram)}, visão ${view}, simulação ${simulation}.`, 'success');
 			} catch (cause) {
 				toast(serverMessage(cause), 'error');
 			}
@@ -89,7 +88,6 @@
 		try {
 			await updateLocalServer(config.id, config.name, value, config.maxPlayers);
 			ramDraft = null;
-			toast(`Memória do servidor ajustada para ${formatGiB(value)}. Vale na próxima inicialização.`, 'success');
 			await platform.refreshServers();
 		} catch (cause) {
 			ramDraft = null;

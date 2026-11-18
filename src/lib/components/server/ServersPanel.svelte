@@ -187,7 +187,6 @@
 		deleting = true;
 		try {
 			await serverManage({ action: 'delete_server', id: target.id, name: target.name, deleteBackups });
-			toast(`Servidor “${target.name}” excluído.`, 'success');
 			confirmDelete = null;
 			deleteName = '';
 			await platform.refreshServers();

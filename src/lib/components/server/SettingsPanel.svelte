@@ -40,7 +40,6 @@
 			await saveServerSettings(platform.selectedId, draft);
 			platform.settings = draft;
 			dirty = false;
-			toast('Configurações salvas em server.properties.', 'success');
 		} catch (cause) {
 			toast(serverMessage(cause), 'error');
 		} finally {
@@ -50,7 +49,6 @@
 
 	async function discard() {
 		await load();
-		toast('Alterações descartadas.', 'info');
 	}
 
 	onMount(() => void load());

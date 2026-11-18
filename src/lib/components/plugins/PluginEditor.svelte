@@ -138,7 +138,6 @@
 				: await plugins.create({ id: pluginId, name, author, description, permissions, source });
 			if (record) {
 				dirty = false;
-				toast(t("plugins.saved"), "success");
 				if (!editingId) await goto(`/plugins/${record.manifest.id}`);
 			}
 		} finally {

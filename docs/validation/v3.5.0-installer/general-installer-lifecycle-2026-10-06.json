@@ -1,0 +1,11 @@
+{
+  "Version": "3.5.0",
+  "InstallExitCode": 0,
+  "SameVersionReinstallExitCode": 0,
+  "UninstallExitCode": 0,
+  "ApplicationRemoved": true,
+  "RegistryRemoved": true,
+  "ProtectedFiles": 4,
+  "ProtectedDataPreserved": true,
+  "InstallerSha256": "870261977B3E4F59BC6308CE892FEBF09AB8D17993C64E453B48572AFF67AB2C"
+}

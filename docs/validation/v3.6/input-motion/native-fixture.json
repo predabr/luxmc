@@ -1,0 +1,43 @@
+{
+  "profile": {
+    "autoOptimize": true,
+    "createdAt": "2026-10-09T22:12:59.905402400Z",
+    "diskUsage": 0,
+    "favorite": false,
+    "forceDedicatedGpu": false,
+    "forceFullVerification": false,
+    "fullscreen": false,
+    "gameDir": "C:\\Users\\preda\\AppData\\Roaming\\github\\Luxmc\\data/instances/b7249eb9-657e-4332-aeef-c8584f4cde04/.minecraft",
+    "gamescopeFsr": false,
+    "gamescopeHeight": null,
+    "gamescopeWidth": null,
+    "icon": "grass_block",
+    "id": "b7249eb9-657e-4332-aeef-c8584f4cde04",
+    "instanceGroup": null,
+    "javaPath": null,
+    "jvmArgs": null,
+    "lastPlayed": null,
+    "launchCount": 0,
+    "loader": "vanilla",
+    "loaderVersion": null,
+    "mcVersion": "1.21.1",
+    "modCount": 0,
+    "name": "Teste temporário · cliques e animações",
+    "notes": null,
+    "postExitHook": null,
+    "preLaunchHook": null,
+    "ramMb": null,
+    "resolutionH": null,
+    "resolutionW": null,
+    "updatedAt": "2026-10-09T22:12:59.905402400Z",
+    "useGamemode": false,
+    "useGamescope": false,
+    "useMangohud": false,
+    "useVulkan": false
+  },
+  "initialIds": [
+    "38f6b575-2a33-4a6d-b0db-04b55ff302b0",
+    "62163edc-aa1d-408a-8b9d-56fc540a5dbe",
+    "c15b63d2-53dc-496e-abb2-2297b8b59b44"
+  ]
+}

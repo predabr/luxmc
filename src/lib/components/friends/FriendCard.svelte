@@ -46,7 +46,6 @@
         try {
             await navigator.clipboard.writeText(addr);
             copiedIp = true;
-            toast(uiText("ui.85bf877d94daa2ff", { arg0: addr }), "success");
             setTimeout(() => { copiedIp = false; }, 2000);
         } catch (error) { toast(String(error), "error"); }
     }

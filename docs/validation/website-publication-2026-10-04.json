@@ -1,0 +1,128 @@
+{
+  "site": "https://luxmc-r92.pages.dev/",
+  "deployment": "https://400f332e.luxmc-r92.pages.dev/",
+  "verifiedAt": "2026-10-05T00:42:06.930Z",
+  "pagesAndAssets": [
+    {
+      "route": "/",
+      "status": 200,
+      "bytes": 46986,
+      "matchesLocal": false,
+      "matchesLocalAfterHostingInjectionRemoved": true,
+      "hostingInjection": "Existing Cloudflare Pages Web Analytics snippet"
+    },
+    {
+      "route": "/skins",
+      "status": 200,
+      "bytes": 17742,
+      "matchesLocal": false,
+      "matchesLocalAfterHostingInjectionRemoved": true,
+      "hostingInjection": "Existing Cloudflare Pages Web Analytics snippet"
+    },
+    {
+      "route": "/conta",
+      "status": 200,
+      "bytes": 14479,
+      "matchesLocal": false,
+      "matchesLocalAfterHostingInjectionRemoved": true,
+      "hostingInjection": "Existing Cloudflare Pages Web Analytics snippet"
+    },
+    {
+      "route": "/privacidade",
+      "status": 200,
+      "bytes": 13490,
+      "matchesLocal": false,
+      "matchesLocalAfterHostingInjectionRemoved": true,
+      "hostingInjection": "Existing Cloudflare Pages Web Analytics snippet"
+    },
+    {
+      "route": "/termos",
+      "status": 200,
+      "bytes": 11552,
+      "matchesLocal": false,
+      "matchesLocalAfterHostingInjectionRemoved": true,
+      "hostingInjection": "Existing Cloudflare Pages Web Analytics snippet"
+    },
+    {
+      "route": "/design.css",
+      "status": 200,
+      "bytes": 81411,
+      "matchesLocal": true
+    },
+    {
+      "route": "/app.js",
+      "status": 200,
+      "bytes": 37692,
+      "matchesLocal": true
+    },
+    {
+      "route": "/cinematic.js",
+      "status": 200,
+      "bytes": 2729,
+      "matchesLocal": true
+    },
+    {
+      "route": "/studio.js",
+      "status": 200,
+      "bytes": 10847,
+      "matchesLocal": true
+    },
+    {
+      "route": "/assets/fonts/barlow-condensed-bold.woff2",
+      "status": 200,
+      "bytes": 22444,
+      "matchesLocal": true
+    },
+    {
+      "route": "/assets/launcher-home.webp",
+      "status": 200,
+      "bytes": 59618,
+      "matchesLocal": true
+    }
+  ],
+  "downloads": [
+    {
+      "platform": "windows",
+      "status": 302,
+      "target": "https://github.com/predabr/luxmc/releases/download/v2.0.2/Luxmc_2.0.2_x64-setup.exe"
+    },
+    {
+      "platform": "linux",
+      "status": 302,
+      "target": "https://github.com/predabr/luxmc/releases/download/v2.0.2/Luxmc_2.0.2_amd64.AppImage"
+    },
+    {
+      "platform": "deb",
+      "status": 302,
+      "target": "https://github.com/predabr/luxmc/releases/download/v2.0.2/Luxmc_2.0.2_amd64.deb"
+    },
+    {
+      "platform": "rpm",
+      "status": 302,
+      "target": "https://github.com/predabr/luxmc/releases/download/v2.0.2/Luxmc-2.0.2-1.x86_64.rpm"
+    },
+    {
+      "platform": "arch",
+      "status": 302,
+      "target": "https://github.com/predabr/luxmc/releases/download/v2.0.2/luxmc-2.0.2-1-x86_64.pkg.tar.zst"
+    },
+    {
+      "platform": "macos",
+      "status": 302,
+      "target": "https://github.com/predabr/luxmc/releases/download/v2.0.2/Luxmc_2.0.2_universal.dmg"
+    }
+  ],
+  "release": {
+    "status": 200,
+    "version": "v2.0.2"
+  },
+  "accountWithoutSession": {
+    "status": 401,
+    "message": "Sua sessão expirou. Entre novamente."
+  },
+  "notFound": {
+    "status": 404
+  },
+  "launcherPublished": false,
+  "verified": true
+}

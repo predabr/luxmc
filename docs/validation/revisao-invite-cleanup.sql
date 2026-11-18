@@ -1,0 +1,1 @@
+DELETE FROM shared_invites WHERE code_hash IN ('ce3fe5d3249bf2e7523312df652747da9beaf75ecd78ba8acfe154df334d2f0e','c6e82fafdf43a102d7a34a23f80338e005a2a84c0f049eab1065f186d007469f');

@@ -8,7 +8,7 @@
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { appState } from "$lib/stores/app.svelte";
 	import { joinWorld } from "$lib/utils/directJoin";
-	import { toast } from "$lib/stores/toasts.svelte";
+	
 	import { deepLinks } from "$lib/stores/deepLinks.svelte";
 	import { parseDeepLink } from "$lib/utils/deepLink";
 	let status = $state<VirtualLanStatus | null>(null);
@@ -48,7 +48,7 @@
 		catch (error) { if (!disposed) failure = String(error); }
 		finally { if (!disposed) busy = false; }
 	}
-	async function copy(value: string) { try { await navigator.clipboard.writeText(value); toast("Copiado", "success"); } catch (error) { failure = String(error); } }
+	async function copy(value: string) { try { await navigator.clipboard.writeText(value);  } catch (error) { failure = String(error); } }
 	async function enterWorld(id: string) {
 		if (joining) return;
 		joining = true; failure = "";

@@ -29,7 +29,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		disableExplicitGc = true;
 		parallelRefProc = true;
 		tieredCompilation = true;
-		toast(uiText("ui.9f0b5c2cf48f2755"), "success");
 	}
 
 	async function browseJava() {
@@ -37,7 +36,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			const selected = await open({ directory: false, multiple: false });
 			if (selected && typeof selected === "string") {
 				javaPath = selected;
-				toast(`Java selecionado: ${selected}`, "success");
 			}
 		} catch (e) {
 			toast(String(e), "error");

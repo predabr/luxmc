@@ -1,0 +1,20 @@
+{
+  "root": "C:\\Users\\preda\\AppData\\Local\\Temp\\luxmc-3.2-game-UTOjqi",
+  "results": [
+    {
+      "version": "1.8.9",
+      "process": {
+        "Id": 14572,
+        "MainWindowTitle": "Minecraft 1.8.9",
+        "Responding": true
+      },
+      "logExists": true,
+      "rendererInitialized": true,
+      "fatal": false
+    },
+    {
+      "version": "1.21.1",
+      "error": "Error: Command failed: powershell.exe -NoProfile -Command Get-Process -Id 14252 -ErrorAction SilentlyContinue | Select-Object Id,MainWindowTitle,Responding | ConvertTo-Json -Compress"
+    }
+  ]
+}

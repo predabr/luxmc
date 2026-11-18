@@ -123,7 +123,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			if (file && typeof file === "string") {
 				newIcon = convertFileSrc(file);
 				showIconPicker = false;
-				toast(uiText("ui.8e20eafc85920ffa"), "success");
 			}
 		} catch (e) {
 			toast(uiText("ui.30db10065a2fd909") + String(e), "error");
@@ -255,7 +254,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				gameDir: customGameDir.trim() || undefined,
 			});
 			createSuccess = true;
-			toast(t("instances.createdSuccess"), "success");
 			setTimeout(() => handleClose(), 1200);
 		} catch (e) {
 			lastError = uiText("ui.ba3d218390288dc6") + String(e);

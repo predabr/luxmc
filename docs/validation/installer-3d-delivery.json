@@ -1,0 +1,17 @@
+{
+  "InstallerPath": "C:\\Users\\preda\\Downloads\\Lux MC Launcher.exe",
+  "Size": 19215583,
+  "Sha256": "E1E1C5B80D8E2470A61B92E379AF48D50333FC12D7AC280A1F12B9A93A2CBBA3",
+  "InstallExitCode": 0,
+  "InstalledExe": "C:\\Users\\preda\\AppData\\Local\\Luxmc\\luxmc.exe",
+  "InstalledExeExists": true,
+  "UninstallerExists": true,
+  "VerifiedDataFiles": 3,
+  "DataPreserved": true,
+  "StartMenuShortcut": true,
+  "DesktopShortcut": true,
+  "RunningPid": 25676,
+  "WindowTitle": "io.github.luxmc.Luxmc-siw",
+  "Responding": true,
+  "VisibleLauncherWindow": true
+}

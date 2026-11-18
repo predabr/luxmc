@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "url": "http://127.0.0.1:8790/",
+  "sectionDimensions": {
+    "width": 1919,
+    "height": 1022,
+    "src": "http://127.0.0.1:8790/assets/captures-3.6/personalizer-window.svg"
+  },
+  "expanded": {
+    "width": 1919,
+    "height": 1022,
+    "src": "http://127.0.0.1:8790/assets/captures-3.6/personalizer-window.svg"
+  },
+  "imageMatchesLocalAsset": true,
+  "taskbarOutsideViewport": true
+}

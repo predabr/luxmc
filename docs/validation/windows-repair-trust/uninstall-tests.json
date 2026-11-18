@@ -1,0 +1,12 @@
+{
+  "source": "src-tauri/src/core/uninstall.rs",
+  "sourceSha256": "0c361802a03278b79e2eef3cf3d7d7b4d154c2a5411d220332ece59a83d02185",
+  "method": "rustc --edition=2021 --test -C lto=thin -C opt-level=2; native test execution",
+  "passed": 3,
+  "failed": 0,
+  "cases": [
+    "bedrock_cleanup_accepts_only_exact_minecraft_package_versions",
+    "cleanup_rejects_targets_containing_documents_before_any_removal",
+    "cleanup_removes_only_known_data_and_preserves_documents_and_other_apps"
+  ]
+}

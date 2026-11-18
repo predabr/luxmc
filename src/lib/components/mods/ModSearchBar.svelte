@@ -2,33 +2,34 @@
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { ChevronDown, SlidersHorizontal, Check, Globe } from "lucide-svelte";
 	import ProviderLogo from "./ProviderLogo.svelte";
+	import { catalogTypes } from "$lib/utils/catalogTypes";
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { onMount } from "svelte";
 	import { versionsList } from "$lib/api/launch";
 
 	let {
+		selectedType = $bindable("Modpack"),
 		selectedSource = $bindable("all"),
 		selectedVersion = $bindable("Qualquer Versão"),
 		selectedLoader = $bindable(null),
-		selectedCategory = $bindable(null),
-		contentType = "Modpack"
+		selectedCategory = $bindable(null)
 	}: {
+		selectedType: string;
 		selectedSource: "all" | "modrinth" | "curseforge" | "ftb";
 		selectedVersion: string;
 		selectedLoader: string | null;
 		selectedCategory: string | null;
-		contentType?: string;
 	} = $props();
 
     const sources = $derived<Array<{ id: "all" | "modrinth" | "curseforge" | "ftb"; label: string; icon?: typeof Globe }>>([
         { id: 'all', label: uiText('ui.8a0108a42be96e26'), icon: Globe },
         { id: 'modrinth', label: 'Modrinth' },
         { id: 'curseforge', label: 'CurseForge' },
-        ...(contentType === 'Modpack' ? [{ id: 'ftb' as const, label: 'Feed The Beast' }] : [])
+        ...(selectedType === 'Modpack' ? [{ id: 'ftb' as const, label: 'Feed The Beast' }] : [])
     ]);
     const activeCount = $derived(Number(selectedSource !== 'all') + Number(selectedVersion !== 'Qualquer Versão') + Number(!!selectedLoader) + Number(!!selectedCategory));
-	const showLoaders = $derived(contentType === 'Mod' || contentType === 'Modpack');
-	const showCategories = $derived(contentType === 'Modpack' || contentType === 'Mod');
+	const showLoaders = $derived(selectedType === 'Mod' || selectedType === 'Modpack');
+	const showCategories = $derived(selectedType === 'Modpack' || selectedType === 'Mod');
 
 	const modLoaders = [
 		{ name: "Fabric" },
@@ -53,7 +54,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		{ id: "storage", label: "Armazenamento" }, { id: "transportation", label: "Transporte" }
 	];
 
-	const categories = $derived(contentType === 'Mod' ? modCategories : modpackCategories);
+	const categories = $derived(selectedType === 'Mod' ? modCategories : modpackCategories);
 
 	let releaseVersions = $state<string[]>([]);
 	const mcVersions = $derived(["Qualquer Versão", ...new Set([

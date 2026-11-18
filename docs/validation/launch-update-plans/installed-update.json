@@ -1,0 +1,18 @@
+{
+  "Version": "3.9.1",
+  "Build": "Inicio Seguro",
+  "InstalledExe": "C:\\Users\\preda\\AppData\\Local\\Luxmc\\luxmc.exe",
+  "InstalledSha256": "1205adbe8506dbefefbbf12bcb7813c1cee0d4a011b8258a26af234be502ce05",
+  "PreviousSha256": "b13bbf8087b92091035edf421ba74e3c584b2e67a1af38c3efa112a71845cdcb",
+  "RecoveryHelperRemoved": true,
+  "DirectLauncherShortcuts": 2,
+  "UninstallerUpdated": true,
+  "ProtectedFilesVerified": 3,
+  "DataPreserved": true,
+  "BackupDirectory": "C:\\Users\\preda\\AppData\\Local\\Luxmc-build\\backups\\inicio-seguro-20261012-190353",
+  "Installer": "C:\\Users\\preda\\Downloads\\Lux MC Launcher - Inicio Seguro.exe",
+  "InstallerSha256": "9e4e0a332494b81480f67db3c1eb2f831767fab8a79498614e641a042fd77cb1",
+  "LauncherStarted": false,
+  "RuntimeTested": false,
+  "SecuritySettingsChanged": false
+}

@@ -1,0 +1,43 @@
+{
+  "version": "3.1.0",
+  "launcherName": "Luxmc",
+  "installedApplicationUpdated": false,
+  "newGithubReleaseCreated": false,
+  "site": "https://luxmc-r92.pages.dev",
+  "deployment": "https://1d144617.luxmc-r92.pages.dev",
+  "profileSchema": "0008_public_profiles.sql",
+  "frontendCheck": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "frontendTests": 129,
+  "portalTests": 40,
+  "rustTests": {
+    "passed": 133,
+    "ignored": 2
+  },
+  "browsers": {
+    "themes": [
+      "dark",
+      "light"
+    ],
+    "instanceRows": 1000,
+    "thumbnailsVisibleOnly": true,
+    "batchLimit": 32,
+    "downloadSurvivesNavigation": true,
+    "friendProfileOffline": true,
+    "selfProfileSave": true,
+    "loginWidths": [
+      1440,
+      960
+    ],
+    "siteWidths": [
+      1440,
+      390
+    ],
+    "menuLabelsFit": true,
+    "releaseNotesSanitized": true
+  },
+  "publicInstallerSha256": "2dc2228e8c595e06a8042e88ee193fc9a146230f1a287d9fe16fe4c3346231aa",
+  "installerState": "built-local-review"
+}

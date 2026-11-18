@@ -1,0 +1,140 @@
+[
+  {
+    "projectId": "913090",
+    "versions": [
+      {
+        "files": [
+          {
+            "filename": "ZJJK-3.2.1.zip",
+            "sha1": "",
+            "size": 1520292,
+            "url": "https://edge.forgecdn.net/files/8509/973/ZJJK-3.2.1.zip"
+          }
+        ],
+        "id": "8509973",
+        "loaders": [
+          "forge"
+        ],
+        "name": "ZJJK-3.2.1.zip",
+        "versionNumber": ""
+      },
+      {
+        "files": [
+          {
+            "filename": "ZJJK-3.2.zip",
+            "sha1": "",
+            "size": 1520257,
+            "url": "https://edge.forgecdn.net/files/8483/110/ZJJK-3.2.zip"
+          }
+        ],
+        "id": "8483110",
+        "loaders": [
+          "forge"
+        ],
+        "name": "ZJJK-3.2.zip",
+        "versionNumber": ""
+      },
+      {
+        "files": [
+          {
+            "filename": "ZJJK-3.1.zip",
+            "sha1": "",
+            "size": 1520330,
+            "url": "https://edge.forgecdn.net/files/8310/88/ZJJK-3.1.zip"
+          }
+        ],
+        "id": "8310088",
+        "loaders": [
+          "forge"
+        ],
+        "name": "ZJJK-3.1.zip",
+        "versionNumber": ""
+      },
+      {
+        "files": [
+          {
+            "filename": "ZJJK-3.0.1.zip",
+            "sha1": "",
+            "size": 1460349,
+            "url": "https://edge.forgecdn.net/files/7777/359/ZJJK-3.0.1.zip"
+          }
+        ],
+        "id": "7777359",
+        "loaders": [
+          "forge"
+        ],
+        "name": "ZJJK-3.0.1.zip",
+        "versionNumber": ""
+      }
+    ]
+  },
+  {
+    "projectId": "925200",
+    "versions": [
+      {
+        "files": [
+          {
+            "filename": "All the Mods 10-8.2.zip",
+            "sha1": "",
+            "size": 199005126,
+            "url": "https://edge.forgecdn.net/files/8945/86/All%20the%20Mods%2010-8.2.zip"
+          }
+        ],
+        "id": "8945086",
+        "loaders": [
+          "neoforge"
+        ],
+        "name": "All the Mods 10-8.2",
+        "versionNumber": ""
+      },
+      {
+        "files": [
+          {
+            "filename": "All the Mods 10-8.1.zip",
+            "sha1": "",
+            "size": 201751521,
+            "url": "https://edge.forgecdn.net/files/8764/211/All%20the%20Mods%2010-8.1.zip"
+          }
+        ],
+        "id": "8764211",
+        "loaders": [
+          "neoforge"
+        ],
+        "name": "All the Mods 10-8.1",
+        "versionNumber": ""
+      },
+      {
+        "files": [
+          {
+            "filename": "All the Mods 10-8.0.zip",
+            "sha1": "",
+            "size": 201588872,
+            "url": "https://edge.forgecdn.net/files/8649/77/All%20the%20Mods%2010-8.0.zip"
+          }
+        ],
+        "id": "8649077",
+        "loaders": [
+          "neoforge"
+        ],
+        "name": "All the Mods 10-8.0",
+        "versionNumber": ""
+      },
+      {
+        "files": [
+          {
+            "filename": "All the Mods 10-7.3.zip",
+            "sha1": "",
+            "size": 200280411,
+            "url": "https://edge.forgecdn.net/files/8558/519/All%20the%20Mods%2010-7.3.zip"
+          }
+        ],
+        "id": "8558519",
+        "loaders": [
+          "neoforge"
+        ],
+        "name": "All the Mods 10-7.3",
+        "versionNumber": ""
+      }
+    ]
+  }
+]

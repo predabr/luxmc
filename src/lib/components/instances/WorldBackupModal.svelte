@@ -175,7 +175,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 									class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1.5" })}
 									onclick={() => {
 										navigator.clipboard.writeText(b.filePath);
-										toast("Caminho do backup copiado!", "success");
 									}}
 									title={uiText("ui.6012ca7178f15af1")}
 								>

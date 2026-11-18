@@ -1,0 +1,68 @@
+[
+  {
+    "name": "Vanilla 1.8.9",
+    "profileId": "5118cc6c-169d-4e51-bed0-23caa762ee78",
+    "version": "1.8.9",
+    "loader": "vanilla",
+    "loaderVersion": null,
+    "preparationSeconds": 2.22,
+    "status": "resources_ready_process_alive",
+    "readySeconds": 13.33,
+    "agentLoaded": true
+  },
+  {
+    "name": "Luxmc validation vanilla 1791333414800175400",
+    "profileId": "73be5316-2ffd-45f8-ae5c-c4260ce8fc37",
+    "version": "26.3",
+    "loader": "vanilla",
+    "loaderVersion": null,
+    "preparationSeconds": 3.95,
+    "status": "resources_ready_process_alive",
+    "readySeconds": 31.39,
+    "agentLoaded": true
+  },
+  {
+    "name": "Luxmc validation fabric 1791333450006755300",
+    "profileId": "4aaf1f93-27f1-4e5b-8514-3fbc3d3ad881",
+    "version": "1.20.1",
+    "loader": "fabric",
+    "loaderVersion": "0.19.5",
+    "preparationSeconds": 1.06,
+    "status": "resources_ready_process_alive",
+    "readySeconds": 52.77,
+    "agentLoaded": true
+  },
+  {
+    "name": "Luxmc validation quilt 1791333505836453700",
+    "profileId": "2cdd4a04-294c-44a7-9bda-ddf817b354d8",
+    "version": "1.20.1",
+    "loader": "quilt",
+    "loaderVersion": "0.24.0",
+    "preparationSeconds": 1.23,
+    "status": "resources_ready_process_alive",
+    "readySeconds": 66.61,
+    "agentLoaded": true
+  },
+  {
+    "name": "Luxmc validation forge 1791333575995149900",
+    "profileId": "7c53e947-2766-4af1-afd8-fb55d162f879",
+    "version": "1.20.1",
+    "loader": "forge",
+    "loaderVersion": "47.4.10",
+    "preparationSeconds": 0.95,
+    "status": "resources_ready_process_alive",
+    "readySeconds": 31.27,
+    "agentLoaded": true
+  },
+  {
+    "name": "Luxmc validation neoforge 1791333610877757500",
+    "profileId": "8c234405-e482-4d52-b838-aafdec455010",
+    "version": "1.21.1",
+    "loader": "neoforge",
+    "loaderVersion": "21.1.256",
+    "preparationSeconds": 1.08,
+    "status": "resources_ready_process_alive",
+    "readySeconds": 32.69,
+    "agentLoaded": true
+  }
+]

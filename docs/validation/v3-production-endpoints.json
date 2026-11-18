@@ -1,0 +1,43 @@
+[
+  {
+    "route": "/",
+    "status": 200,
+    "location": null
+  },
+  {
+    "route": "/skins",
+    "status": 200,
+    "location": null
+  },
+  {
+    "route": "/conta",
+    "status": 200,
+    "location": null
+  },
+  {
+    "route": "/design.css",
+    "status": 200,
+    "location": null
+  },
+  {
+    "route": "/app.js",
+    "status": 200,
+    "location": null
+  },
+  {
+    "route": "/api/latest-release",
+    "status": 200,
+    "location": null,
+    "version": "v2.0.2"
+  },
+  {
+    "route": "/download/windows",
+    "status": 302,
+    "location": "https://github.com/predabr/luxmc/releases/download/v2.0.2/Luxmc_2.0.2_x64-setup.exe"
+  },
+  {
+    "route": "/download/linux",
+    "status": 302,
+    "location": "https://github.com/predabr/luxmc/releases/download/v2.0.2/Luxmc_2.0.2_amd64.AppImage"
+  }
+]

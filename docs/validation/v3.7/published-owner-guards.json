@@ -1,0 +1,17 @@
+{
+  "ownerOnlyEndpointsProtected": true,
+  "checks": [
+    {
+      "action": "owner_users",
+      "anonymousStatus": 401
+    },
+    {
+      "action": "owner_tags",
+      "anonymousStatus": 401
+    },
+    {
+      "action": "owner_delete",
+      "anonymousStatus": 401
+    }
+  ]
+}

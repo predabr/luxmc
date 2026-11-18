@@ -62,7 +62,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     });
 
     async function copyReport() {
-        try { await navigator.clipboard.writeText(report); toast(uiText("ui.a1bdb563a765ac41"), "success"); }
+        try { await navigator.clipboard.writeText(report);  }
         catch { toast(uiText("ui.f88678a3b0b84003"), "error"); }
     }
 </script>

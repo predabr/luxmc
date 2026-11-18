@@ -63,7 +63,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			shareCode = await instanceExportShareCode(profileId);
 			await navigator.clipboard.writeText(shareCode);
 			playSound("chime");
-			toast(uiText("ui.f0088fc5edc7c9fa"), "success");
 		} catch (error) {
 			toast(uiText("ui.9f46d6ffe73ac2ca") + String(error), "error");
 		} finally {

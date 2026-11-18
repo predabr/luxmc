@@ -1,0 +1,85 @@
+{
+  "checkedAt": "2026-10-10T20:59:19.131Z",
+  "packs": [
+    {
+      "name": "Fabulously Optimized",
+      "referenceRestored": true,
+      "updated": false,
+      "updateMilliseconds": null,
+      "versionId": "MKDr2HvF",
+      "minecraft": "26.3",
+      "originalPreserved": true,
+      "worldsPreserved": true,
+      "worlds": 2,
+      "providerUpdateStatus": {
+        "changelog": "- Readded Language Reload, No Chat Reports, Puzzle\n- Updated Entity Model Features, Entity Texture Features, Cloth Config API, e4mc, Iris Shaders, Lithium, MoreCulling, Renice Shot\n- Temporarily removed: Cubes Without Borders, Paginated Advancements, Polytone",
+        "currentVersion": "MKDr2HvF",
+        "hasUpdate": false,
+        "latestVersion": "15.0.0-alpha.5",
+        "projectId": "1KVo5zza",
+        "source": "modrinth",
+        "versionId": "MKDr2HvF"
+      }
+    },
+    {
+      "name": "Cobblemon Official Modpack [Fabric]",
+      "referenceRestored": true,
+      "updated": false,
+      "updateMilliseconds": null,
+      "versionId": "Cqimd3JM",
+      "minecraft": "1.21.1",
+      "originalPreserved": true,
+      "worldsPreserved": true,
+      "worlds": 1,
+      "providerUpdateStatus": {
+        "changelog": "Updated to Cobblemon 1.8.1\n\nUpdated Mods:\n* Just Enough Items (JEI)\n* Xaero's Minimap\n* Xaero's World Map\n\nUpdated Shader Packs:\n* Complementary Shaders",
+        "currentVersion": "Cqimd3JM",
+        "hasUpdate": false,
+        "latestVersion": "1.8.1",
+        "projectId": "5FFgwNNP",
+        "source": "modrinth",
+        "versionId": "Cqimd3JM"
+      }
+    },
+    {
+      "name": "Zeefski Jujutsu Kaisen Craft",
+      "referenceRestored": true,
+      "updated": true,
+      "updateMilliseconds": 73002,
+      "versionId": "8509973",
+      "minecraft": "1.20.1",
+      "originalPreserved": true,
+      "worldsPreserved": true,
+      "worlds": 1,
+      "providerUpdateStatus": {
+        "changelog": null,
+        "currentVersion": "3.2",
+        "hasUpdate": false,
+        "latestVersion": "ZJJK-3.2.1.zip",
+        "projectId": "913090",
+        "source": "curseforge",
+        "versionId": "8509973"
+      }
+    },
+    {
+      "name": "All the Mods 10 - ATM10",
+      "referenceRestored": true,
+      "updated": false,
+      "updateMilliseconds": null,
+      "versionId": "8945086",
+      "minecraft": "1.21.1",
+      "originalPreserved": true,
+      "worldsPreserved": true,
+      "worlds": 0,
+      "providerUpdateStatus": {
+        "changelog": null,
+        "currentVersion": "8.2",
+        "hasUpdate": false,
+        "latestVersion": "All the Mods 10-8.2",
+        "projectId": "925200",
+        "source": "curseforge",
+        "versionId": "8945086"
+      }
+    }
+  ]
+}

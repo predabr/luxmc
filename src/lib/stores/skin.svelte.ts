@@ -1,7 +1,7 @@
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 import { authAccounts, authRestoreMicrosoft, authSaveAppearance } from "$lib/api/auth";
 import { account, saveCurrentAccount } from "./account.svelte";
-import { toast } from "./toasts.svelte";
+
 
 let pendingSave: Promise<void> = Promise.resolve();
 export async function saveAppearance(skinUrl: string, variant: "classic" | "slim", capeUrl: string | null, avatarUrl?: string): Promise<void> {

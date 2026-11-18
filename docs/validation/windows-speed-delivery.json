@@ -1,0 +1,15 @@
+{
+  "path": "C:\\Users\\preda\\Downloads\\Luxmc-2.0.2-windows-otimizado.exe",
+  "workspaceExecutable": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\Luxmc.exe",
+  "sha256": "FDE475501D2DB8C18533E0D69A3E978DC0946816EE31DD4997C1370232C637E7",
+  "bytes": 38067712,
+  "profile": "release",
+  "optimizationLevel": 3,
+  "lto": "thin",
+  "windowsSubsystem": 2,
+  "frontendEmbedded": true,
+  "existingLauncherStillRunning": true,
+  "site": "https://luxmc-r92.pages.dev",
+  "siteDeployment": "https://07360abb.luxmc-r92.pages.dev",
+  "createdAt": "2026-10-04T12:08:00.9420771-03:00"
+}

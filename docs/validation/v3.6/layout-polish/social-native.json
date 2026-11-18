@@ -1,0 +1,12 @@
+{
+  "authenticatedProfileRetrieved": true,
+  "matchesRequestedOwner": true,
+  "id": "43d26fda-6fbd-4727-8680-f96aca47dcf3",
+  "role": "owner",
+  "hasCustomName": true,
+  "hasPortrait": true,
+  "portraitType": "image/gif",
+  "hasBanner": true,
+  "instanceCount": 3,
+  "temporaryTests": []
+}

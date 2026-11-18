@@ -5,6 +5,7 @@ use crate::db::models::AccountRow;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 use tauri::Emitter;
+use tauri::Manager;
 use tauri::State;
 use uuid::Uuid;
 
@@ -106,24 +107,71 @@ pub async fn auth_login(
         ))
     })?;
 
-    app.emit("launcher-log", "Opening browser for Microsoft login...")
-        .ok();
-    crate::commands::instances::open_url_safe(&pending.url).map_err(|e| {
-        let msg = format!(
-            "Failed to open browser: {}. Please open this URL manually:\n{}",
-            e, pending.url
-        );
-        AppError::Internal(msg)
-    })?;
+    const LOGIN_WINDOW: &str = "microsoft-login";
+    if let Some(existing) = app.get_webview_window(LOGIN_WINDOW) {
+        let _ = existing.close();
+    }
+    let login_url: tauri::Url = pending
+        .url
+        .parse()
+        .map_err(|e| AppError::Internal(format!("Invalid Microsoft login URL: {}", e)))?;
+    let login_window = tauri::WebviewWindowBuilder::new(
+        &app,
+        LOGIN_WINDOW,
+        tauri::WebviewUrl::External(login_url),
+    )
+    .title("Entrar com Microsoft · Luxmc")
+    .inner_size(430.0, 640.0)
+    .min_inner_size(360.0, 520.0)
+    .center()
+    .resizable(true)
+    .build()
+    .map_err(|e| AppError::Internal(format!("Failed to open the Microsoft login window: {}", e)))?;
+    let _ = login_window.set_focus();
 
     app.emit(
         "launcher-log",
         "Waiting for login callback on http://localhost:8453/callback ...",
     )
     .ok();
-    let callback = oauth_server::wait_for_callback(&listener, 300)
-        .await
-        .map_err(|e| AppError::Internal(e))?;
+
+    // Se o usuário fechar a janela embutida, cancela a espera em vez de pendurar por 5 minutos.
+    let (close_tx, close_rx) = tokio::sync::oneshot::channel::<()>();
+    let watch_app = app.clone();
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+            if watch_app.get_webview_window("microsoft-login").is_none() {
+                let _ = close_tx.send(());
+                break;
+            }
+        }
+    });
+
+    let callback = tokio::select! {
+        result = oauth_server::wait_for_callback(&listener, 300) => {
+            match result {
+                Ok(callback) => callback,
+                Err(e) => {
+                    if let Some(w) = app.get_webview_window(LOGIN_WINDOW) {
+                        let _ = w.close();
+                    }
+                    return Err(AppError::Internal(e));
+                }
+            }
+        }
+        _ = close_rx => {
+            if let Some(w) = app.get_webview_window(LOGIN_WINDOW) {
+                let _ = w.close();
+            }
+            return Err(AppError::InvalidState(
+                "Você fechou a janela de login antes de concluir. Tente novamente.".into(),
+            ));
+        }
+    };
+    if let Some(w) = app.get_webview_window(LOGIN_WINDOW) {
+        let _ = w.close();
+    }
 
     if callback.state != pending.state {
         return Err(AppError::InvalidState(

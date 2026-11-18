@@ -8,7 +8,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { Cpu, ImagePlus, X, LoaderCircle } from "lucide-svelte";
     import { loadFolderImages, saveFolderImage, prepareFolderImage } from "$lib/utils/folderImages";
     import LuxAccountForm from "$lib/components/profile/LuxAccountForm.svelte";
-    let localProfile = $state(false);
     import { appState } from "$lib/stores/app.svelte";
 	import { fade, slide, fly } from "svelte/transition";
 	import { onMount } from "svelte";
@@ -67,7 +66,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { playClick, playSuccess } from "$lib/utils/sounds";
 	import {
 		authDevLogin,
-		authOfflineLogin,
 		authLogin,
 		authGetClientId,
 		authSetClientId,
@@ -87,14 +85,13 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	const { t } = useTranslation();
 
-	let loginTab = $state<"microsoft" | "luxmc" | "offline">("microsoft");
-	let offlineName = $state("");
+	let loginTab = $state<"microsoft" | "luxmc">("microsoft");
 	let isLoggingIn = $state(false);
 	let isLoggingInMicrosoft = $state(false);
-	let savedAccounts = $state<string[]>([]);
 	let showMsClientIdModal = $state(false);
 	let msClientIdInput = $state("");
 	let isSavingClientId = $state(false);
+	let appVersion = $state("");
 
 	let searchQuery = $state("");
 	let selectedGroup = $state<string | null>(null);
@@ -136,12 +133,11 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
             const image = await prepareFolderImage(file);
             try { folderImages = saveFolderImage(folderImages, folder, image); }
             catch { toast(uiText('library.imageStorageError'), 'error'); return; }
-            toast(uiText('library.imageSaved'), 'success');
         } catch (error) { toast(uiText(error instanceof Error && error.message === 'limit' ? 'library.imageLimit' : 'library.imageInvalid'), 'error'); }
         finally { folderImageBusy = false; }
     }
     function removeFolderImage(name: string) {
-        try { folderImages = saveFolderImage(folderImages, name, null); toast(uiText('library.imageRemoved'), 'success'); }
+        try { folderImages = saveFolderImage(folderImages, name, null);  }
         catch { toast(uiText('library.imageStorageError'), 'error'); }
     }
 	let showNewGroupPrompt = $state(false);
@@ -205,22 +201,13 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
             localStorage.setItem('luxmc_library_folders_v2', JSON.stringify(customGroups));
             folderImages = loadFolderImages(customGroups);
         } catch {}
-		const savedAccsRaw = localStorage.getItem("luxmc_saved_nicknames");
-		if (savedAccsRaw) {
-			try {
-				savedAccounts = JSON.parse(savedAccsRaw);
-			} catch {}
-		} else {
-			const legacyMap = localStorage.getItem("luxmc_offline_passwords");
-			if (legacyMap) {
-				try {
-					savedAccounts = Object.keys(JSON.parse(legacyMap));
-				} catch {}
-			}
-		}
 
 		if (!account.value) {
 			void loadCurrentAccount();
+		}
+
+		if (!appVersion) {
+			import("@tauri-apps/api/app").then(({ getVersion }) => getVersion()).then(v => { appVersion = v; }).catch(() => {});
 		}
 
 		loadVersions();
@@ -255,66 +242,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		} catch {}
 	}
 
-	function saveSavedAccounts(list: string[]) {
-		savedAccounts = list;
-		if (typeof window !== "undefined") {
-			localStorage.setItem("luxmc_saved_nicknames", JSON.stringify(list));
-		}
-	}
-
-	function deleteSavedAccount(name: string) {
-		const updated = savedAccounts.filter(n => n.toLowerCase() !== name.toLowerCase());
-		saveSavedAccounts(updated);
-		toast(uiText("ui.e73a0a4974f82317", {arg0: (name)}), "info");
-	}
-
-	async function handleOfflineAuth(customNick?: string) {
-		if (isLoggingIn || isLoggingInMicrosoft) return;
-		const name = (customNick || offlineName).trim();
-		if (!name) {
-			toast(uiText("ui.2ea8d2dc1d25389a"), "error");
-			return;
-		}
-
-		isLoggingIn = true;
-		try {
-			const backendAcc = await authOfflineLogin(name);
-			const skinUrl = backendAcc?.skinUrl || `https://minotar.net/skin/${name}`;
-			const newAcc = {
-				id: backendAcc?.id || ("offline_" + Date.now()),
-				username: name,
-				uuid: backendAcc?.uuid || ("offline-" + name.toLowerCase()),
-				minecraftToken: "",
-				expiresAt: 0,
-				skinUrl,
-				skinVariant: "classic",
-				capeUrl: null
-			};
-
-			void saveCurrentAccount(newAcc);
-			activeSkinStore.setSkin({
-				id: newAcc.uuid,
-				name: newAcc.username,
-				url: `https://mc-heads.net/body/${newAcc.username}/300`,
-				skinUrl,
-				avatarUrl: `https://mc-heads.net/avatar/${newAcc.username}/100`,
-				type: "steve"
-			});
-
-			if (!savedAccounts.some(n => n.toLowerCase() === name.toLowerCase())) {
-				saveSavedAccounts([name, ...savedAccounts]);
-			}
-
-			toast(`Bem-vindo, ${name}!`, "success");
-			playSuccess();
-			account.value = newAcc;
-		} catch (e) {
-			toast(uiText("ui.86b8a84c140df857") + String(e), "error");
-		} finally {
-			isLoggingIn = false;
-		}
-	}
-
 	async function handleMicrosoftLogin() {
 		if (isLoggingIn || isLoggingInMicrosoft) return;
 		isLoggingInMicrosoft = true;
@@ -334,7 +261,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	async function startMsLogin() {
 		isLoggingInMicrosoft = true;
 		try {
-			toast(uiText("ui.9e5f8df7532c38f7"), "info");
 			const acc = await authLogin();
 			const skinModel = acc.skinVariant?.toLowerCase() === "slim" ? "alex" : "steve";
 			const skinUrl = acc.skinUrl || `https://minotar.net/skin/${acc.username}`;
@@ -380,11 +306,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					.catch(() => {});
 			}
 
-			if (!savedAccounts.some(n => n.toLowerCase() === newAcc.username.toLowerCase())) {
-				saveSavedAccounts([newAcc.username, ...savedAccounts]);
-			}
-
-			toast(uiText("ui.d4d05ee9d7210443", {arg0: (newAcc.username)}), "success");
 			playSuccess();
 			account.value = newAcc;
 		} catch (e) {
@@ -404,7 +325,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		try {
 			await authSetClientId(val);
 			showMsClientIdModal = false;
-			toast(uiText("ui.69958948b529e62f"), "success");
 			await startMsLogin();
 		} catch (e) {
 			toast(uiText("ui.7fa73e80e61671ca") + String(e), "error");
@@ -426,7 +346,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				expiresAt: devAcc.expiresAt ? (devAcc.expiresAt < 1e11 ? devAcc.expiresAt * 1000 : devAcc.expiresAt) : 0
 			};
 			void saveCurrentAccount(newAcc);
-			toast(`Modo Dev Ativo: ${devAcc.username}`, "info");
 			playSuccess();
 			account.value = newAcc;
 		} catch (e) {
@@ -494,7 +413,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				]
 			}).catch(() => {});
 
-			toast(`🎮 Minecraft ${verId} iniciado! (PID: ${result.pid})`, "success");
             void handlePostLaunchActions(result.pid);
 		} catch (e) {
 			toast(uiText("ui.5a696268f07e8812") + String(e), "error");
@@ -512,7 +430,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			await stopGame();
 			appState.isGameRunning = false;
 			gamingStats.onGameExit();
-			toast(uiText("ui.69429e8fd4528906"), "info");
 		} catch (e) {
 			appState.isGameRunning = false;
 			gamingStats.onGameExit();
@@ -574,7 +491,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			});
 
 			showCreateModal = false;
-			toast(uiText("ui.1b6566167e91c704", {arg0: (input.name)}), "success");
 		} catch (e) {
 			toast(uiText("ui.e9e569706d7fbe7a") + String(e), "error");
 		}
@@ -586,7 +502,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		if (!customGroups.includes(name)) {
 			customGroups = [...customGroups, name];
             localStorage.setItem("luxmc_library_folders_v2", JSON.stringify(customGroups));
-			toast(uiText("ui.4e66ec1ac77df784", {arg0: (name)}), "success");
 		}
 		newGroupName = "";
         selectedGroup = null;
@@ -607,7 +522,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
             folderImages = saveFolderImage(folderImages, folder, null);
             if (selectedGroup === folder) selectedGroup = null;
             deletingFolder = '';
-            toast('Pasta removida. Suas instâncias e mundos foram preservados.', 'success');
         } catch (error) { deletingFolderError = String(error); }
         finally { deletingFolderBusy = false; }
     }
@@ -616,7 +530,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         const instance = deletingInstance;
         if (!instance || deletingInstanceBusy) return;
         deletingInstanceBusy = true; deletingInstanceError = '';
-        try { await profilesDelete(instance.id); profiles.remove(instance.id); deletingInstance = null; toast('Instância e arquivos removidos do disco.', 'success'); }
+        try { await profilesDelete(instance.id); profiles.remove(instance.id); deletingInstance = null;  }
         catch (error) { deletingInstanceError = String(error); }
         finally { deletingInstanceBusy = false; }
     }
@@ -657,123 +571,81 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 {#if !account.value}
 
-	<div
-		class="relative min-h-[calc(100dvh-2rem)] w-full flex items-center justify-center p-6 select-none overflow-hidden"
-	>
-		<div class="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgb(var(--brand-500)/0.18),transparent)] pointer-events-none"></div>
-		<div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-[radial-gradient(ellipse_at_center,rgb(var(--brand-500)/0.12),transparent_70%)] rounded-full pointer-events-none"></div>
+	<div class="login-stage relative min-h-[calc(100dvh-2rem)] w-full flex items-center justify-center p-6 select-none overflow-hidden">
+		<div class="login-nebula pointer-events-none" aria-hidden="true"></div>
+		<div class="login-stars pointer-events-none" aria-hidden="true"></div>
 
-				<div
-			class="auth-surface w-full max-w-[480px] border border-fg/12 rounded-xl p-7 sm:p-8 relative z-10 space-y-4"
+		<div
+			class="auth-surface relative z-10 w-full max-w-[420px] rounded-3xl px-8 py-10 flex flex-col items-center text-center gap-6"
 			in:fly={{ easing: backOut, y: 16, duration: 240 }}
 		>
-			<div class="flex flex-col items-center text-center gap-2 pb-1">
-				<img loading="lazy" decoding="async" src="/logo.png" alt="Luxmc" class="h-12 w-12 object-contain" />
-				<h1 class="text-[15px] font-extrabold uppercase tracking-[.14em] text-fg">Entrar na sua conta Luxmc</h1>
+			<img src="/logo.png" alt="Luxmc" class="h-16 w-16 object-contain" />
+			<div class="space-y-1.5">
+				<h1 class="text-xl font-extrabold tracking-tight text-fg">{uiText('ui.2f3682327047d300')}</h1>
+				<p class="text-sm text-fg-muted">{uiText('ui.54f9715d07d21af5')}</p>
 			</div>
 
-			<div class="login-methods" role="tablist" aria-label="Método de login">
-				<button type="button" role="tab" aria-selected={loginTab === 'microsoft'} class="login-method" class:active={loginTab === 'microsoft'} disabled={isLoggingIn || isLoggingInMicrosoft} onclick={() => (loginTab = 'microsoft')}>
-					<MicrosoftLogo size={15} /> Microsoft
-				</button>
-				<button type="button" role="tab" aria-selected={loginTab === 'luxmc'} class="login-method" class:active={loginTab === 'luxmc'} disabled={isLoggingIn} onclick={() => { loginTab = 'luxmc'; localProfile = false; }}>
-					<img src="/logo.png" alt="" class="h-4 w-4 object-contain" /> Luxmc
-				</button>
-				<button type="button" role="tab" aria-selected={loginTab === 'luxmc' && localProfile} class="login-method" class:active={loginTab === 'luxmc' && localProfile} disabled={isLoggingIn} onclick={() => { loginTab = 'luxmc'; localProfile = true; }}>
-					<User class="h-3.5 w-3.5" /> Offline
-				</button>
-			</div>
-
-			{#if loginTab === 'microsoft'}
-				{#if isLoggingInMicrosoft}
-					<div role="status" aria-live="polite" class="login-status">
-						<div class="flex w-full items-center justify-between">
-							<MicrosoftLogo size={22} />
-							<Loader2 class="h-4 w-4 animate-spin text-brand-400 motion-reduce:animate-none" />
-						</div>
-						<p class="font-semibold text-fg">{uiText('design.browserLogin')}</p>
-						<p class="text-xs leading-relaxed text-fg-muted">{uiText('design.browserLoginHint')}</p>
+			{#if isLoggingInMicrosoft}
+				<div role="status" aria-live="polite" class="login-status w-full">
+					<div class="flex w-full items-center justify-between">
+						<MicrosoftLogo size={22} />
+						<Loader2 class="h-4 w-4 animate-spin text-brand-400 motion-reduce:animate-none" />
 					</div>
-				{:else}
+					<p class="font-semibold text-fg">{uiText('ui.7b258b8a8dbb4fc2')}</p>
+				</div>
+			{:else if loginTab === 'luxmc'}
+				<div class="w-full text-left" in:fade={{ easing: quintOut, duration: 200 }}>
+					<LuxAccountForm bind:busy={isLoggingIn} />
 					<button
 						type="button"
-						class={launcherButton({ variant: 'microsoft', size: 'lg', class: 'w-full' })}
+						class="login-back"
+						onclick={() => { playClick(); loginTab = 'microsoft'; }}
+						disabled={isLoggingIn}
+					>
+						<ArrowLeft class="h-3.5 w-3.5" />
+						{uiText('common.back')}
+					</button>
+				</div>
+			{:else}
+				<div class="login-choices grid w-full grid-cols-2 gap-3">
+					<button
+						type="button"
+						class="login-choice login-choice-ms"
+						aria-label="Microsoft"
 						onclick={() => { playClick(); handleMicrosoftLogin(); }}
 						disabled={isLoggingIn}
 					>
 						<MicrosoftLogo size={18} />
-						<span class="font-semibold">{uiText('auth.signIn')}</span>
+						<span class="font-semibold">Microsoft</span>
 					</button>
-				{/if}
-			{:else if !localProfile}
-				<div class="login-split">
-					<LuxAccountForm bind:busy={isLoggingIn} />
-					<div class="login-ms-col">
-						<button
-							type="button"
-							class="login-ms-btn"
-							onclick={() => { playClick(); loginTab = 'microsoft'; }}
-							disabled={isLoggingIn || isLoggingInMicrosoft}
-						>
-							<MicrosoftLogo size={16} />
-							<span>{uiText('auth.signIn')}</span>
-						</button>
-					</div>
-				</div>
-			{:else}
-				<div class="login-form" in:fade={{ easing: quintOut, duration: 200 }}>
-					<label class="login-label" for="offline-nick-input">{uiText('ui.2e2972baf919c7b6')}</label>
-					<div class="login-field">
-						<img
-							loading="lazy"
-							decoding="async"
-							src={`https://mc-heads.net/avatar/${offlineName.trim() || 'Steve'}/32`}
-							alt=""
-							class="h-5 w-5 shrink-0 rounded"
-						/>
-						<input
-							id="offline-nick-input"
-							type="text"
-							placeholder={uiText('ui.44c104681ef49837')}
-							bind:value={offlineName}
-							maxlength="16"
-							onkeydown={(e) => { if (e.key === 'Enter') handleOfflineAuth(); }}
-						/>
-					</div>
-					<button type="button" class="login-submit" onclick={() => { playClick(); handleOfflineAuth(); }} disabled={isLoggingIn || isLoggingInMicrosoft}>
-						{#if isLoggingIn}<Loader2 class="h-4 w-4 animate-spin" />{/if}
-						{uiText('home.offlineCta')}
+					<button
+						type="button"
+						class="login-choice login-choice-lux"
+						aria-label="Luxmc"
+						onclick={() => { playClick(); loginTab = 'luxmc'; }}
+						disabled={isLoggingIn}
+					>
+						<img src="/logo.png" alt="" class="h-5 w-5 object-contain" />
+						<span class="font-semibold">Luxmc</span>
 					</button>
-					{#if savedAccounts.length > 0}
-						<div class="login-saved">
-							<span class="login-label">{uiText('ui.e7f8cb3ab06ffcd0')}</span>
-							<div class="login-saved-list">
-								{#each savedAccounts as accName (accName)}
-									<span class="login-saved-item">
-										<button type="button" onclick={() => handleOfflineAuth(accName)}>
-											<img loading="lazy" decoding="async" src={`https://mc-heads.net/avatar/${accName}/32`} alt="" class="h-4 w-4 rounded" />
-											<span>{accName}</span>
-										</button>
-										<button type="button" class="login-saved-remove" aria-label={uiText('mods.remove')} onclick={() => deleteSavedAccount(accName)}>×</button>
-									</span>
-								{/each}
-							</div>
-						</div>
-					{/if}
 				</div>
 			{/if}
 
+			<p class="text-[11px] leading-relaxed text-fg/45">{uiText('ui.d11a68d4702c8eab')}</p>
+
 			<div class="login-footer">
 				<button type="button" class="login-icon-btn" onclick={() => (showMsClientIdModal = true)} title={uiText('ui.563dfb14d03e1d7f')}>
-					<User class="h-5 w-5" />
+					<User class="h-4 w-4" />
 					<span>Conta</span>
 				</button>
 				<button type="button" class="login-icon-btn" onclick={() => goto('/settings')} title="Configurações do launcher">
-					<Settings class="h-5 w-5" />
+					<Settings class="h-4 w-4" />
 					<span>Configurações</span>
 				</button>
 			</div>
 		</div>
+
+		<span class="absolute bottom-3 right-4 z-10 text-[11px] font-medium text-fg/35">{appVersion ? `v${appVersion}` : ''}</span>
 
 	{#if showMsClientIdModal}
 		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/80 backdrop-blur-sm" in:fade={{ easing: quintOut, duration: 220 }}>

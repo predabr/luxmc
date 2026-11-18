@@ -1,0 +1,100 @@
+
+7-Zip 26.04 (x64) : Copyright (c) 1999-2026 Igor Pavlov : 2026-10-05
+
+Scanning the drive for archives:
+1 file, 21270563 bytes (21 MiB)
+
+Listing archive: release-windows\Lux MC Launcher - Abertura Direta.exe
+
+--
+Path = release-windows\Lux MC Launcher - Abertura Direta.exe
+Type = Nsis
+Physical Size = 21270563
+Method = LZMA:23
+Solid = +
+Headers Size = 79752
+Embedded Stub Size = 108544
+SubType = NSIS-3 Unicode
+
+----------
+Path = $PLUGINSDIR\System.dll
+Size = 12288
+Packed Size = 21162015
+Modified = 
+Attributes = 
+Method = LZMA:23
+Solid = +
+Offset = 0
+
+Path = $PLUGINSDIR\modern-wizard.bmp
+Size = 154542
+Packed Size = 
+Modified = 2026-10-04 15:43:40.0000000
+Attributes = 
+Method = LZMA:23
+Solid = +
+Offset = 12292
+
+Path = $PLUGINSDIR\nsDialogs.dll
+Size = 9728
+Packed Size = 
+Modified = 
+Attributes = 
+Method = LZMA:23
+Solid = +
+Offset = 166838
+
+Path = $PLUGINSDIR\nsis_tauri_utils.dll
+Size = 34304
+Packed Size = 
+Modified = 
+Attributes = 
+Method = LZMA:23
+Solid = +
+Offset = 176570
+
+Path = $PLUGINSDIR\StartMenu.dll
+Size = 7680
+Packed Size = 
+Modified = 
+Attributes = 
+Method = LZMA:23
+Solid = +
+Offset = 210878
+
+Path = $PLUGINSDIR\modern-header.bmp
+Size = 31454
+Packed Size = 
+Modified = 2026-10-04 15:43:40.0000000
+Attributes = 
+Method = LZMA:23
+Solid = +
+Offset = 218562
+
+Path = $TEMP\MicrosoftEdgeWebview2Setup.exe
+Size = 1850576
+Packed Size = 
+Modified = 2026-10-04 13:00:24.0000000
+Attributes = 
+Method = LZMA:23
+Solid = +
+Offset = 250020
+
+Path = luxmc.exe
+Size = 43220992
+Packed Size = 
+Modified = 2026-10-12 13:13:06.0000000
+Attributes = 
+Method = LZMA:23
+Solid = +
+Offset = 2100600
+
+Path = uninstall.exe
+Size = 
+Packed Size = 
+Modified = 
+Attributes = 
+Method = LZMA:23
+Solid = +
+Offset = 45321596
+

@@ -1,0 +1,11 @@
+{
+  "Version": "3.0.2",
+  "InstallExitCode": 0,
+  "SameVersionReinstallExitCode": 0,
+  "UninstallExitCode": 0,
+  "ApplicationRemoved": true,
+  "RegistryRemoved": true,
+  "ProtectedFiles": 11,
+  "ProtectedDataPreserved": true,
+  "InstallerSha256": "8C11F5866C9DBC78713E356482B7243F1BB5F90E6CDE0114D1775979C6EFEA60"
+}

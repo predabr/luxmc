@@ -1,0 +1,262 @@
+{
+  "passed": true,
+  "iconRequestsBeforeScroll": 128,
+  "folderDeletion": true,
+  "recentNavigation": true,
+  "friendPublicIdentity": true,
+  "bedrockContent": true,
+  "contrasts": [
+    {
+      "theme": "default-light",
+      "accentTheme": "gold",
+      "label": "Estáveis",
+      "ratio": 5.017982992033196
+    },
+    {
+      "theme": "default-light",
+      "accentTheme": "gold",
+      "label": "Preview",
+      "ratio": 5.017982992033196
+    },
+    {
+      "theme": "default-light",
+      "accentTheme": "gold",
+      "label": "Betas",
+      "ratio": 5.017982992033196
+    },
+    {
+      "theme": "default-light",
+      "accentTheme": "cyan",
+      "label": "Estáveis",
+      "ratio": 4.969776345178902
+    },
+    {
+      "theme": "default-light",
+      "accentTheme": "cyan",
+      "label": "Preview",
+      "ratio": 4.969776345178902
+    },
+    {
+      "theme": "default-light",
+      "accentTheme": "cyan",
+      "label": "Betas",
+      "ratio": 4.969776345178902
+    },
+    {
+      "theme": "default-light",
+      "accentTheme": "emerald",
+      "label": "Estáveis",
+      "ratio": 5.085817466323554
+    },
+    {
+      "theme": "default-light",
+      "accentTheme": "emerald",
+      "label": "Preview",
+      "ratio": 5.085817466323554
+    },
+    {
+      "theme": "default-light",
+      "accentTheme": "emerald",
+      "label": "Betas",
+      "ratio": 5.085817466323554
+    },
+    {
+      "theme": "default-light",
+      "accentTheme": "rose",
+      "label": "Estáveis",
+      "ratio": 4.697112144822063
+    },
+    {
+      "theme": "default-light",
+      "accentTheme": "rose",
+      "label": "Preview",
+      "ratio": 4.697112144822063
+    },
+    {
+      "theme": "default-light",
+      "accentTheme": "rose",
+      "label": "Betas",
+      "ratio": 4.697112144822063
+    },
+    {
+      "theme": "default-light",
+      "accentTheme": "violet",
+      "label": "Estáveis",
+      "ratio": 5.698586217871195
+    },
+    {
+      "theme": "default-light",
+      "accentTheme": "violet",
+      "label": "Preview",
+      "ratio": 5.698586217871195
+    },
+    {
+      "theme": "default-light",
+      "accentTheme": "violet",
+      "label": "Betas",
+      "ratio": 5.698586217871195
+    },
+    {
+      "theme": "default-light",
+      "accentTheme": "orange",
+      "label": "Estáveis",
+      "ratio": 4.848245648522235
+    },
+    {
+      "theme": "default-light",
+      "accentTheme": "orange",
+      "label": "Preview",
+      "ratio": 4.848245648522235
+    },
+    {
+      "theme": "default-light",
+      "accentTheme": "orange",
+      "label": "Betas",
+      "ratio": 4.848245648522235
+    },
+    {
+      "theme": "default-light",
+      "accentTheme": "blue",
+      "label": "Estáveis",
+      "ratio": 5.168555560022562
+    },
+    {
+      "theme": "default-light",
+      "accentTheme": "blue",
+      "label": "Preview",
+      "ratio": 5.168555560022562
+    },
+    {
+      "theme": "default-light",
+      "accentTheme": "blue",
+      "label": "Betas",
+      "ratio": 5.168555560022562
+    },
+    {
+      "theme": "default-dark",
+      "accentTheme": "gold",
+      "label": "Estáveis",
+      "ratio": 5.017982992033196
+    },
+    {
+      "theme": "default-dark",
+      "accentTheme": "gold",
+      "label": "Preview",
+      "ratio": 5.017982992033196
+    },
+    {
+      "theme": "default-dark",
+      "accentTheme": "gold",
+      "label": "Betas",
+      "ratio": 5.017982992033196
+    },
+    {
+      "theme": "default-dark",
+      "accentTheme": "cyan",
+      "label": "Estáveis",
+      "ratio": 4.969776345178902
+    },
+    {
+      "theme": "default-dark",
+      "accentTheme": "cyan",
+      "label": "Preview",
+      "ratio": 4.969776345178902
+    },
+    {
+      "theme": "default-dark",
+      "accentTheme": "cyan",
+      "label": "Betas",
+      "ratio": 4.969776345178902
+    },
+    {
+      "theme": "default-dark",
+      "accentTheme": "emerald",
+      "label": "Estáveis",
+      "ratio": 5.085817466323554
+    },
+    {
+      "theme": "default-dark",
+      "accentTheme": "emerald",
+      "label": "Preview",
+      "ratio": 5.085817466323554
+    },
+    {
+      "theme": "default-dark",
+      "accentTheme": "emerald",
+      "label": "Betas",
+      "ratio": 5.085817466323554
+    },
+    {
+      "theme": "default-dark",
+      "accentTheme": "rose",
+      "label": "Estáveis",
+      "ratio": 4.697112144822063
+    },
+    {
+      "theme": "default-dark",
+      "accentTheme": "rose",
+      "label": "Preview",
+      "ratio": 4.697112144822063
+    },
+    {
+      "theme": "default-dark",
+      "accentTheme": "rose",
+      "label": "Betas",
+      "ratio": 4.697112144822063
+    },
+    {
+      "theme": "default-dark",
+      "accentTheme": "violet",
+      "label": "Estáveis",
+      "ratio": 5.698586217871195
+    },
+    {
+      "theme": "default-dark",
+      "accentTheme": "violet",
+      "label": "Preview",
+      "ratio": 5.698586217871195
+    },
+    {
+      "theme": "default-dark",
+      "accentTheme": "violet",
+      "label": "Betas",
+      "ratio": 5.698586217871195
+    },
+    {
+      "theme": "default-dark",
+      "accentTheme": "orange",
+      "label": "Estáveis",
+      "ratio": 4.848245648522235
+    },
+    {
+      "theme": "default-dark",
+      "accentTheme": "orange",
+      "label": "Preview",
+      "ratio": 4.848245648522235
+    },
+    {
+      "theme": "default-dark",
+      "accentTheme": "orange",
+      "label": "Betas",
+      "ratio": 4.848245648522235
+    },
+    {
+      "theme": "default-dark",
+      "accentTheme": "blue",
+      "label": "Estáveis",
+      "ratio": 5.168555560022562
+    },
+    {
+      "theme": "default-dark",
+      "accentTheme": "blue",
+      "label": "Preview",
+      "ratio": 5.168555560022562
+    },
+    {
+      "theme": "default-dark",
+      "accentTheme": "blue",
+      "label": "Betas",
+      "ratio": 5.168555560022562
+    }
+  ]
+}

@@ -58,7 +58,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			await saveCurrentAccount(updated);
 		}
 		isEditingNick = false;
-		toast(uiText("profileCard.nicknameSaved"), "success");
 	}
 
 	async function handleLogout() {
@@ -67,7 +66,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         }
 		account.clear();
 		onClose();
-		toast(uiText("ui.a15ae849056f492b"), "info");
 		goto("/");
 	}
 
@@ -121,7 +119,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         <MembershipCard />
 
         <div class="space-y-2">
-            <div class="grid grid-cols-2 gap-2"><button type="button" class={launcherButton({variant: "primary"})} onclick={handleNavigateSkins}><Shirt class="h-4 w-4" />{uiText("ui.3eea64827771de1e")}</button><button type="button" class={launcherButton({variant: "secondary"})} onclick={async () => { if (account.value?.uuid) { await navigator.clipboard.writeText(account.value.uuid); toast(uiText("profileCard.idCopied"), "success"); } }}><Copy class="h-4 w-4" />{uiText("profileCard.copyId")}</button></div>
+            <div class="grid grid-cols-2 gap-2"><button type="button" class={launcherButton({variant: "primary"})} onclick={handleNavigateSkins}><Shirt class="h-4 w-4" />{uiText("ui.3eea64827771de1e")}</button><button type="button" class={launcherButton({variant: "secondary"})} onclick={async () => { if (account.value?.uuid) { await navigator.clipboard.writeText(account.value.uuid);  } }}><Copy class="h-4 w-4" />{uiText("profileCard.copyId")}</button></div>
             {#if friendsState.ownProfile?.role === 'owner'}<a href="/owner-tools" class={launcherButton({variant: "secondary", block: true})} onclick={onClose}><ShieldCheck class="h-4 w-4" />{uiText('ownerTools.title')}</a>{/if}
         </div>
 

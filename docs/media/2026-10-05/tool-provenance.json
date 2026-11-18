@@ -1,0 +1,18 @@
+{
+  "ffmpeg": {
+    "package": "imageio-ffmpeg 0.6.0",
+    "source": "https://files.pythonhosted.org/packages/2c/c6/fa760e12a2483469e2bf5058c5faff664acf66cadb4df2ad6205b016a73d/imageio_ffmpeg-0.6.0-py3-none-win_amd64.whl",
+    "wheelSha256": "02fa47c83703c37df6bfe4896aab339013f62bf02c5ebf2dce6da56af04ffc0a",
+    "wheelIntegrity": "verified against PyPI",
+    "binary": "C:\\Users\\preda\\AppData\\Local\\Luxmc-video-tools\\imageio\\imageio_ffmpeg\\binaries\\ffmpeg-win-x86_64-v7.1.exe",
+    "binarySha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3",
+    "install": "local task directory; no global install"
+  },
+  "ffprobe": {
+    "package": "@ffprobe-installer/win32-x64",
+    "version": "5.1.0",
+    "url": "https://registry.npmjs.org/@ffprobe-installer/win32-x64/-/win32-x64-5.1.0.tgz",
+    "integrity": "sha512-jMGYeAgkrdn4e2vvYt/qakgHRE3CPju4bn5TmdPfoAm1BlX1mY9cyMd8gf5vSzI8gH8Zq5WQAyAkmekX/8TSTg==",
+    "sha256": "f28c4751e7367205267025aaf0fcfc921e34d9b7edaa46bd9c8abaf367fc9051"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "ExitCode": 0,
+  "InstalledPath": "C:\\Users\\preda\\AppData\\Local\\Luxmc\\luxmc.exe",
+  "BinaryMatches": false,
+  "InstalledVersion": "2.0.2",
+  "UninstallString": "\"C:\\Users\\preda\\AppData\\Local\\Luxmc\\uninstall.exe\"",
+  "StartMenuShortcut": true,
+  "DesktopShortcut": true,
+  "BundleMarkerOnlyDifference": true,
+  "ChangedBytes": 3,
+  "InstallerPath": "C:\\Users\\preda\\Downloads\\Luxmc Launcher Instalador.exe",
+  "InstallerSha256": "70F8F27766C6DB8AA0AB871AC1CE0047A6BDB43467C5772DE86CCB26851B40EC",
+  "InstallerSize": 19176338,
+  "LaunchExitCode": 0,
+  "ExistingLauncherInstance": "Luxmc-2.0.2-catalogo-skins",
+  "InteractiveLaunchNotVerified": true
+}

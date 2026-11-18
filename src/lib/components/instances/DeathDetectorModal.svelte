@@ -12,7 +12,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		AlertTriangle
 	} from "lucide-svelte";
 	import { api } from "$lib/api/client";
-	import { toast } from "$lib/stores/toasts.svelte";
+	
 	import Modal from "$lib/components/ui/Modal.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 
@@ -63,7 +63,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		const text = `/execute in minecraft:${deathInfo.dimension.toLowerCase()} run tp @s ${Math.round(deathInfo.x)} ${Math.round(deathInfo.y)} ${Math.round(deathInfo.z)}`;
 		navigator.clipboard.writeText(text);
 		copied = true;
-		toast("Comando de teletransporte copiado para o clipboard!", "success");
 		setTimeout(() => copied = false, 2000);
 	}
 </script>

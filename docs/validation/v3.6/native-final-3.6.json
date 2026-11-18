@@ -1,0 +1,44 @@
+{
+  "startedAt": "2026-10-09T19:54:54.452Z",
+  "checks": [
+    {
+      "name": "build",
+      "version": "3.6.0"
+    },
+    {
+      "name": "account",
+      "authenticatedAccountSelected": true,
+      "credentialsRecorded": false
+    },
+    {
+      "name": "real-modpack-install",
+      "project": "fabulously-optimized",
+      "version": "6.5.0",
+      "minecraft": "1.21.1",
+      "verifiedFiles": 50,
+      "seconds": 24.4
+    },
+    {
+      "name": "game-process",
+      "started": true,
+      "preparationSeconds": 7.9
+    },
+    {
+      "name": "minecraft-renderer",
+      "initialized": true,
+      "responding": true,
+      "windowPresent": true,
+      "worldsModified": false
+    },
+    {
+      "name": "game-stability",
+      "observedAfterRendererSeconds": 90,
+      "processAlive": true
+    },
+    {
+      "name": "normal-shutdown",
+      "stoppedCleanly": true,
+      "forcedTermination": false
+    }
+  ]
+}

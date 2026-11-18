@@ -51,7 +51,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				version: activeInstance.mcVersion,
 				loader: activeInstance.loader
 			};
-			toast(`Iniciando ${activeInstance.name}...`, "success");
 		} catch (e) {
 			toast(uiText("ui.61910b3c799dce6f") + String(e), "error");
 		} finally {

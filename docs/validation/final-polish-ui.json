@@ -1,0 +1,24 @@
+[
+  {
+    "theme": "light",
+    "artworkRecovered": true,
+    "geometry": {
+      "inside": true,
+      "clearTitle": true,
+      "footer": true
+    },
+    "scrollDelta": 1600,
+    "errors": []
+  },
+  {
+    "theme": "dark",
+    "artworkRecovered": true,
+    "geometry": {
+      "inside": true,
+      "clearTitle": true,
+      "footer": true
+    },
+    "scrollDelta": 1600,
+    "errors": []
+  }
+]

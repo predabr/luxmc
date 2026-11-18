@@ -1,0 +1,207 @@
+﻿1
+00:00:00,000 --> 00:00:03,920
+Lux MC. Seu jeito de jogar.
+
+2
+00:00:04,000 --> 00:00:09,097
+Instâncias, versões e modpacks reunidos na biblioteca.
+
+3
+00:00:09,177 --> 00:00:13,920
+Escolha sua aventura sem perder o controle dos arquivos.
+
+4
+00:00:14,000 --> 00:00:19,059
+Tempo jogado, mods e memória ficam visíveis em cada cartão.
+
+5
+00:00:19,139 --> 00:00:23,920
+Organize, personalize e escolha a instância que vai jogar.
+
+6
+00:00:24,000 --> 00:00:28,533
+Comece com Vanilla ou escolha um loader compatível.
+
+7
+00:00:28,613 --> 00:00:33,920
+Defina nome, memória e versão antes de criar sua instância.
+
+8
+00:00:34,000 --> 00:00:38,127
+Descubra conteúdo de Modrinth e CurseForge.
+
+9
+00:00:38,207 --> 00:00:43,920
+Use filtros de versão e loader para encontrar opções compatíveis.
+
+10
+00:00:44,000 --> 00:00:48,503
+Abra o modpack e configure sua própria instância.
+
+11
+00:00:48,583 --> 00:00:53,920
+Selecione a versão disponível e a memória antes do download.
+
+12
+00:00:54,000 --> 00:00:58,658
+Veja versão, loader, memória e conteúdo instalado.
+
+13
+00:00:58,738 --> 00:01:03,920
+Mantenha seus modpacks separados e encontre as ferramentas da instância.
+
+14
+00:01:04,000 --> 00:01:08,384
+Pesquise e organize mods sem sair da instância.
+
+15
+00:01:08,464 --> 00:01:13,920
+Recursos, shaders e datapacks têm suas próprias abas.
+
+16
+00:01:14,000 --> 00:01:19,493
+Controles, configuração, exportação e backups ficam reunidos.
+
+17
+00:01:19,573 --> 00:01:23,920
+Abra a ferramenta necessária e volte para sua instância.
+
+18
+00:01:24,000 --> 00:01:31,020
+Visualize skins, movimento e capa no personalizador.
+
+19
+00:01:31,100 --> 00:01:37,920
+Importe sua textura e reaplique a aparência quando quiser.
+
+20
+00:01:38,000 --> 00:01:42,588
+O NameMC ajuda a descobrir e importar novas skins.
+
+21
+00:01:42,668 --> 00:01:47,920
+Use a seleção, um link de skin ou seu próprio arquivo PNG.
+
+22
+00:01:48,000 --> 00:01:52,658
+Veja quem está online e acompanhe a atividade dos amigos.
+
+23
+00:01:52,738 --> 00:01:57,920
+Seu perfil e código ficam ao lado da lista, com ações claras.
+
+24
+00:01:58,000 --> 00:02:02,850
+Busque um jogador por nickname ou pelo código completo.
+
+25
+00:02:02,930 --> 00:02:07,920
+Confira o perfil antes de enviar o pedido de amizade.
+
+26
+00:02:08,000 --> 00:02:12,753
+Os pedidos recebidos mostram ações para aceitar ou recusar.
+
+27
+00:02:12,833 --> 00:02:17,920
+Convites enviados ficam identificados enquanto aguardam resposta.
+
+28
+00:02:18,000 --> 00:02:22,744
+Participantes, convite e controles da sala ficam reunidos.
+
+29
+00:02:22,824 --> 00:02:27,920
+Use a mesma versão e mods compatíveis; esta sala é uma demonstração.
+
+30
+00:02:28,000 --> 00:02:32,572
+Resolução, comportamento do launcher e efeitos de som.
+
+31
+00:02:32,652 --> 00:02:37,920
+As preferências ficam organizadas por categoria e são persistentes.
+
+32
+00:02:38,000 --> 00:02:42,799
+Escolha tema, cores, transparência e papel de parede.
+
+33
+00:02:42,879 --> 00:02:47,920
+Animações e efeitos podem acompanhar sua preferência de desempenho.
+
+34
+00:02:48,000 --> 00:02:52,266
+Gerencie o Java e a memória com opções compatíveis.
+
+35
+00:02:52,346 --> 00:02:57,920
+O launcher reaproveita bibliotecas preparadas para reduzir trabalho repetido.
+
+36
+00:02:58,000 --> 00:03:02,207
+O idioma pode seguir o sistema ou uma escolha manual.
+
+37
+00:03:02,287 --> 00:03:07,920
+Português e espanhol são reconhecidos; outros idiomas usam inglês.
+
+38
+00:03:08,000 --> 00:03:13,019
+Confira o espaço usado por instâncias, Java e cache.
+
+39
+00:03:13,099 --> 00:03:17,920
+Encontre os dados do launcher e os atalhos de armazenamento.
+
+40
+00:03:18,000 --> 00:03:22,160
+Conecte Microsoft ou sua conta Luxmc para começar.
+
+41
+00:03:22,240 --> 00:03:27,920
+A autorização Microsoft acontece no navegador, sem informar a senha ao launcher.
+
+42
+00:03:28,000 --> 00:03:32,603
+Encontre os mundos salvos dentro de cada instância.
+
+43
+00:03:32,683 --> 00:03:37,920
+Veja os detalhes do save e acesse as ferramentas de backup.
+
+44
+00:03:38,000 --> 00:03:43,358
+Conta, perfil social e personalização ficam ao seu alcance.
+
+45
+00:03:43,438 --> 00:03:47,920
+Acesse o portal ou escolha a aparência da sua conta.
+
+46
+00:03:48,000 --> 00:03:53,230
+Comandos personalizados podem acompanhar o início e o fim da sessão.
+
+47
+00:03:53,310 --> 00:03:57,920
+Configure esse comportamento por instância quando precisar.
+
+48
+00:03:58,000 --> 00:04:03,219
+Modo streamer, detalhes no Discord e preferências de privacidade.
+
+49
+00:04:03,299 --> 00:04:07,920
+Você controla as opções que fazem sentido para sua sessão.
+
+50
+00:04:08,000 --> 00:04:14,001
+Lux MC Launcher: biblioteca, personalização e amigos.
+
+51
+00:04:14,081 --> 00:04:19,920
+Instale, escolha uma instância e prepare sua próxima aventura.
+
+52
+00:04:20,000 --> 00:04:26,920
+Lux MC Launcher. Seu próximo mundo começa aqui.

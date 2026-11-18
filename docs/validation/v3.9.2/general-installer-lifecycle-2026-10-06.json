@@ -1,0 +1,15 @@
+{
+  "Version": "3.9.2",
+  "InstallExitCode": 0,
+  "SameVersionReinstallExitCode": 0,
+  "UninstallExitCode": 0,
+  "ApplicationRemoved": true,
+  "RegistryRemoved": true,
+  "ProtectedFiles": 4,
+  "ProtectedDataPreserved": true,
+  "CompleteCleanupVerified": false,
+  "DirectLauncherShortcutsVerified": true,
+  "LegacyRepairMigrationVerified": true,
+  "DirectLauncherProtocolVerified": true,
+  "InstallerSha256": "E651194377FEE9C1C97C3C4814979D16A6E8261EBF8CA71CC4049EF1C8ED69EE"
+}

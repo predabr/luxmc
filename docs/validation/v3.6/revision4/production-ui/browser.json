@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "roomProfiles": true,
+  "avatarFallback": true,
+  "backToFriends": true,
+  "lanFirst": true,
+  "settingsBackground": "rgba(0, 0, 0, 0)",
+  "instanceBackground": "rgba(0, 0, 0, 0)",
+  "ownerTags": true,
+  "ownerDeletion": true,
+  "publicTags": true,
+  "nonOwnerControlsHidden": true
+}

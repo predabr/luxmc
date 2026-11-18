@@ -1,0 +1,557 @@
+{
+  "total_count": 2,
+  "jobs": [
+    {
+      "id": 114033450566,
+      "run_id": 37993496244,
+      "workflow_name": "CI",
+      "head_branch": "main",
+      "run_url": "https://api.github.com/repos/predabr/luxmc/actions/runs/37993496244",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOUQmo7M8AAAAajOxeRg",
+      "head_sha": "9b8bf3f6ea45854fc034e181bb6bb82f437b6cbd",
+      "url": "https://api.github.com/repos/predabr/luxmc/actions/jobs/114033450566",
+      "html_url": "https://github.com/predabr/luxmc/actions/runs/37993496244/job/114033450566",
+      "status": "in_progress",
+      "conclusion": null,
+      "created_at": "2026-10-09T21:26:50Z",
+      "started_at": "2026-10-09T21:26:52Z",
+      "completed_at": null,
+      "name": "Validate (windows-latest)",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-09T21:26:53Z",
+          "completed_at": "2026-10-09T21:26:57Z"
+        },
+        {
+          "name": "Checkout repository",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-09T21:26:57Z",
+          "completed_at": "2026-10-09T21:27:05Z"
+        },
+        {
+          "name": "Setup Node.js",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-09T21:27:05Z",
+          "completed_at": "2026-10-09T21:27:15Z"
+        },
+        {
+          "name": "Setup pnpm",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-10-09T21:27:15Z",
+          "completed_at": "2026-10-09T21:27:20Z"
+        },
+        {
+          "name": "Install Dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-10-09T21:27:20Z",
+          "completed_at": "2026-10-09T21:27:40Z"
+        },
+        {
+          "name": "Install System Dependencies (Validation)",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 6,
+          "started_at": "2026-10-09T21:27:40Z",
+          "completed_at": "2026-10-09T21:27:40Z"
+        },
+        {
+          "name": "Setup Rust Toolchain",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-10-09T21:27:40Z",
+          "completed_at": "2026-10-09T21:28:02Z"
+        },
+        {
+          "name": "Cache Rust Dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-10-09T21:28:02Z",
+          "completed_at": "2026-10-09T21:29:39Z"
+        },
+        {
+          "name": "Frontend Lint (svelte-check)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-10-09T21:29:39Z",
+          "completed_at": "2026-10-09T21:30:45Z"
+        },
+        {
+          "name": "Frontend tests",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-10-09T21:30:45Z",
+          "completed_at": "2026-10-09T21:31:12Z"
+        },
+        {
+          "name": "Install browser for content regression tests",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-10-09T21:31:12Z",
+          "completed_at": "2026-10-09T21:34:21Z"
+        },
+        {
+          "name": "Content and scrolling regression tests",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12,
+          "started_at": "2026-10-09T21:34:21Z",
+          "completed_at": "2026-10-09T21:37:05Z"
+        },
+        {
+          "name": "Website tests",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13,
+          "started_at": "2026-10-09T21:37:05Z",
+          "completed_at": "2026-10-09T21:37:14Z"
+        },
+        {
+          "name": "Release manifest tests",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14,
+          "started_at": "2026-10-09T21:37:14Z",
+          "completed_at": "2026-10-09T21:37:15Z"
+        },
+        {
+          "name": "Dependency audit",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 15,
+          "started_at": "2026-10-09T21:37:15Z",
+          "completed_at": "2026-10-09T21:37:17Z"
+        },
+        {
+          "name": "Frontend Build",
+          "status": "in_progress",
+          "conclusion": null,
+          "number": 16,
+          "started_at": "2026-10-09T21:37:17Z",
+          "completed_at": null
+        },
+        {
+          "name": "Prepare Windows verifier",
+          "status": "pending",
+          "conclusion": null,
+          "number": 17,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Recovery verifier tests",
+          "status": "pending",
+          "conclusion": null,
+          "number": 18,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Rust Compilation Check",
+          "status": "pending",
+          "conclusion": null,
+          "number": 19,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Tauri native compilation",
+          "status": "pending",
+          "conclusion": null,
+          "number": 20,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Windows instance deletion regression",
+          "status": "pending",
+          "conclusion": null,
+          "number": 21,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Rust Tests",
+          "status": "pending",
+          "conclusion": null,
+          "number": 22,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Prepare Java versions for loader integration tests",
+          "status": "pending",
+          "conclusion": null,
+          "number": 23,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Prevent graphics calls before Minecraft initialization",
+          "status": "pending",
+          "conclusion": null,
+          "number": 24,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Reuse prepared Java in isolated loader fixtures",
+          "status": "pending",
+          "conclusion": null,
+          "number": 25,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Rust integration tests",
+          "status": "pending",
+          "conclusion": null,
+          "number": 26,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Rust dependency audit",
+          "status": "pending",
+          "conclusion": null,
+          "number": 27,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Post Cache Rust Dependencies",
+          "status": "pending",
+          "conclusion": null,
+          "number": 51,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Post Setup pnpm",
+          "status": "pending",
+          "conclusion": null,
+          "number": 52,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Post Setup Node.js",
+          "status": "pending",
+          "conclusion": null,
+          "number": 53,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Post Checkout repository",
+          "status": "pending",
+          "conclusion": null,
+          "number": 54,
+          "started_at": null,
+          "completed_at": null
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/predabr/luxmc/check-runs/114033450566",
+      "labels": [
+        "windows-latest"
+      ],
+      "runner_id": 1000001320,
+      "runner_name": "GitHub Actions 1000001320",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 114033450976,
+      "run_id": 37993496244,
+      "workflow_name": "CI",
+      "head_branch": "main",
+      "run_url": "https://api.github.com/repos/predabr/luxmc/actions/runs/37993496244",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOUQmo7M8AAAAajOxf4A",
+      "head_sha": "9b8bf3f6ea45854fc034e181bb6bb82f437b6cbd",
+      "url": "https://api.github.com/repos/predabr/luxmc/actions/jobs/114033450976",
+      "html_url": "https://github.com/predabr/luxmc/actions/runs/37993496244/job/114033450976",
+      "status": "in_progress",
+      "conclusion": null,
+      "created_at": "2026-10-09T21:26:50Z",
+      "started_at": "2026-10-09T21:26:52Z",
+      "completed_at": null,
+      "name": "Validate (ubuntu-22.04)",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-09T21:26:53Z",
+          "completed_at": "2026-10-09T21:26:57Z"
+        },
+        {
+          "name": "Checkout repository",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-09T21:26:57Z",
+          "completed_at": "2026-10-09T21:26:59Z"
+        },
+        {
+          "name": "Setup Node.js",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-09T21:26:59Z",
+          "completed_at": "2026-10-09T21:27:02Z"
+        },
+        {
+          "name": "Setup pnpm",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-10-09T21:27:02Z",
+          "completed_at": "2026-10-09T21:27:03Z"
+        },
+        {
+          "name": "Install Dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-10-09T21:27:03Z",
+          "completed_at": "2026-10-09T21:27:07Z"
+        },
+        {
+          "name": "Install System Dependencies (Validation)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-10-09T21:27:07Z",
+          "completed_at": "2026-10-09T21:27:51Z"
+        },
+        {
+          "name": "Setup Rust Toolchain",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-10-09T21:27:51Z",
+          "completed_at": "2026-10-09T21:27:52Z"
+        },
+        {
+          "name": "Cache Rust Dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-10-09T21:27:52Z",
+          "completed_at": "2026-10-09T21:28:53Z"
+        },
+        {
+          "name": "Frontend Lint (svelte-check)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-10-09T21:28:53Z",
+          "completed_at": "2026-10-09T21:29:13Z"
+        },
+        {
+          "name": "Frontend tests",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-10-09T21:29:13Z",
+          "completed_at": "2026-10-09T21:29:25Z"
+        },
+        {
+          "name": "Install browser for content regression tests",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-10-09T21:29:25Z",
+          "completed_at": "2026-10-09T21:29:39Z"
+        },
+        {
+          "name": "Content and scrolling regression tests",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12,
+          "started_at": "2026-10-09T21:29:39Z",
+          "completed_at": "2026-10-09T21:31:37Z"
+        },
+        {
+          "name": "Website tests",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13,
+          "started_at": "2026-10-09T21:31:37Z",
+          "completed_at": "2026-10-09T21:31:41Z"
+        },
+        {
+          "name": "Release manifest tests",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14,
+          "started_at": "2026-10-09T21:31:41Z",
+          "completed_at": "2026-10-09T21:31:42Z"
+        },
+        {
+          "name": "Dependency audit",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 15,
+          "started_at": "2026-10-09T21:31:42Z",
+          "completed_at": "2026-10-09T21:31:42Z"
+        },
+        {
+          "name": "Frontend Build",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 16,
+          "started_at": "2026-10-09T21:31:42Z",
+          "completed_at": "2026-10-09T21:32:04Z"
+        },
+        {
+          "name": "Prepare Windows verifier",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 17,
+          "started_at": "2026-10-09T21:32:04Z",
+          "completed_at": "2026-10-09T21:32:04Z"
+        },
+        {
+          "name": "Recovery verifier tests",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 18,
+          "started_at": "2026-10-09T21:32:04Z",
+          "completed_at": "2026-10-09T21:32:12Z"
+        },
+        {
+          "name": "Rust Compilation Check",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19,
+          "started_at": "2026-10-09T21:32:12Z",
+          "completed_at": "2026-10-09T21:32:51Z"
+        },
+        {
+          "name": "Tauri native compilation",
+          "status": "in_progress",
+          "conclusion": null,
+          "number": 20,
+          "started_at": "2026-10-09T21:32:51Z",
+          "completed_at": null
+        },
+        {
+          "name": "Windows instance deletion regression",
+          "status": "pending",
+          "conclusion": null,
+          "number": 21,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Rust Tests",
+          "status": "pending",
+          "conclusion": null,
+          "number": 22,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Prepare Java versions for loader integration tests",
+          "status": "pending",
+          "conclusion": null,
+          "number": 23,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Prevent graphics calls before Minecraft initialization",
+          "status": "pending",
+          "conclusion": null,
+          "number": 24,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Reuse prepared Java in isolated loader fixtures",
+          "status": "pending",
+          "conclusion": null,
+          "number": 25,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Rust integration tests",
+          "status": "pending",
+          "conclusion": null,
+          "number": 26,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Rust dependency audit",
+          "status": "pending",
+          "conclusion": null,
+          "number": 27,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Post Cache Rust Dependencies",
+          "status": "pending",
+          "conclusion": null,
+          "number": 51,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Post Setup pnpm",
+          "status": "pending",
+          "conclusion": null,
+          "number": 52,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Post Setup Node.js",
+          "status": "pending",
+          "conclusion": null,
+          "number": 53,
+          "started_at": null,
+          "completed_at": null
+        },
+        {
+          "name": "Post Checkout repository",
+          "status": "pending",
+          "conclusion": null,
+          "number": 54,
+          "started_at": null,
+          "completed_at": null
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/predabr/luxmc/check-runs/114033450976",
+      "labels": [
+        "ubuntu-22.04"
+      ],
+      "runner_id": 1000001321,
+      "runner_name": "GitHub Actions 1000001321",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    }
+  ]
+}

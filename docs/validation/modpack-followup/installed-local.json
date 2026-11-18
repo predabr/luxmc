@@ -1,0 +1,18 @@
+{
+  "Version": "3.9.1",
+  "Build": "Modpacks em Dia",
+  "Method": "Verified application files updated in existing installation",
+  "InstallerStatus": "Verified files installed directly; installer not executed; security settings unchanged",
+  "InstalledExe": "C:\\Users\\preda\\AppData\\Local\\Luxmc\\luxmc.exe",
+  "InstalledSha256": "b30b467d95d8f46bfa096d71178287ce405b732c41843378c41b73da3b5fb98b",
+  "PreviousSha256": "51648089ded9050e35c5845a9bf4682f144b5447d6e46bf9158ab23772ea627e",
+  "BuiltProgramVerified": true,
+  "RecoveryHelperVerified": true,
+  "ProtectedFilesVerified": 3,
+  "DataPreserved": true,
+  "BackupDirectory": "C:\\Users\\preda\\AppData\\Local\\Luxmc-build\\backups\\modpacks-em-dia-20261012-115304",
+  "Installer": "C:\\Users\\preda\\Downloads\\Lux MC Launcher - Modpacks em Dia.exe",
+  "InstallerSha256": "a03c6dc9a6f29c2274c77af5fbe8d5a6afd0d0c67376f2b8ad0676e064bbf0e6",
+  "LauncherStarted": false,
+  "RuntimeTested": false
+}

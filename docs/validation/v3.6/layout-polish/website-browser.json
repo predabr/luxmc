@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "heroEntrance": true,
+  "pointerMotion": true,
+  "sectionReveals": true,
+  "productTour": true,
+  "pauseRestoresContent": true,
+  "reducedMotion": true,
+  "faqKeyboard": true,
+  "mobile": {
+    "width": 390,
+    "scrollWidth": 390
+  }
+}

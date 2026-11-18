@@ -1,0 +1,32 @@
+[
+  {
+    "name": "desktop",
+    "overflow": false,
+    "heroBackground": "rgb(242, 247, 255)",
+    "cardBackground": "rgb(19, 27, 41)",
+    "links": [
+      "/",
+      "/#recursos",
+      "/planos",
+      "/#mods",
+      "/conta",
+      "/#download"
+    ],
+    "errors": []
+  },
+  {
+    "name": "mobile",
+    "overflow": false,
+    "heroBackground": "rgb(242, 247, 255)",
+    "cardBackground": "rgb(19, 27, 41)",
+    "links": [
+      "/",
+      "/#recursos",
+      "/planos",
+      "/#mods",
+      "/conta",
+      "/#download"
+    ],
+    "errors": []
+  }
+]

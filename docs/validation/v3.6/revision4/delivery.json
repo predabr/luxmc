@@ -1,0 +1,13 @@
+{
+  "name": "Luxmc 3.6 — Jogar Juntos",
+  "version": "3.6.0",
+  "revision": 4,
+  "delivery": "local",
+  "published": false,
+  "artifact": {
+    "name": "Lux MC Launcher.exe",
+    "bytes": 21284646,
+    "sha256": "d4f441bd06f48769edd251e3efb6a107179f00e03660f04957136a4b40bb976b"
+  },
+  "verifiedAt": "2026-10-10T21:28:18.068Z"
+}

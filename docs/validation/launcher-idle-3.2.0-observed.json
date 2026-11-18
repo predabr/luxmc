@@ -1,0 +1,95 @@
+{
+  "version": "3.2.0",
+  "mode": "visible idle interface; personalized wallpaper; no Minecraft running",
+  "logicalProcessors": 12,
+  "sampleCount": 20,
+  "processCount": 7,
+  "averageWorkingSetMb": 739.9,
+  "maxWorkingSetMb": 740.1,
+  "averageCpuPercent": 1.25,
+  "samples": [
+    {
+      "workingSetMb": 737.5,
+      "cpuPercent": 1.0
+    },
+    {
+      "workingSetMb": 738.0,
+      "cpuPercent": 0.0
+    },
+    {
+      "workingSetMb": 740.1,
+      "cpuPercent": 1.0
+    },
+    {
+      "workingSetMb": 740.1,
+      "cpuPercent": 0.0
+    },
+    {
+      "workingSetMb": 740.1,
+      "cpuPercent": 1.0
+    },
+    {
+      "workingSetMb": 740.1,
+      "cpuPercent": 1.0
+    },
+    {
+      "workingSetMb": 740.1,
+      "cpuPercent": 1.0
+    },
+    {
+      "workingSetMb": 740.1,
+      "cpuPercent": 1.0
+    },
+    {
+      "workingSetMb": 740.1,
+      "cpuPercent": 1.0
+    },
+    {
+      "workingSetMb": 740.1,
+      "cpuPercent": 1.0
+    },
+    {
+      "workingSetMb": 740.1,
+      "cpuPercent": 1.0
+    },
+    {
+      "workingSetMb": 740.1,
+      "cpuPercent": 3.0
+    },
+    {
+      "workingSetMb": 740.1,
+      "cpuPercent": 1.0
+    },
+    {
+      "workingSetMb": 740.1,
+      "cpuPercent": 3.0
+    },
+    {
+      "workingSetMb": 740.1,
+      "cpuPercent": 2.0
+    },
+    {
+      "workingSetMb": 740.1,
+      "cpuPercent": 1.0
+    },
+    {
+      "workingSetMb": 740.1,
+      "cpuPercent": 1.0
+    },
+    {
+      "workingSetMb": 740.1,
+      "cpuPercent": 2.0
+    },
+    {
+      "workingSetMb": 740.1,
+      "cpuPercent": 2.0
+    },
+    {
+      "workingSetMb": 740.1,
+      "cpuPercent": 1.0
+    }
+  ],
+  "timestamp": "2026-10-08T22:44:39.5108699Z",
+  "memoryUnit": "MiB",
+  "memoryMethod": "Sum of process working sets; shared pages may be counted more than once"
+}

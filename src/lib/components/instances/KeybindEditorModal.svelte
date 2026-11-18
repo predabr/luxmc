@@ -110,7 +110,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		isSaving = true;
 		try {
 			await keybindsUpdate(profileId, pendingUpdates);
-			toast(uiText("ui.3e9b650bc548eabe"), "success");
 			pendingUpdates = {};
 			loadKeybinds();
 			onClose();

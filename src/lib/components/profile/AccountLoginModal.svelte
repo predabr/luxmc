@@ -6,8 +6,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import LuxAccountForm from "./LuxAccountForm.svelte";
 	import { fade, scale } from "svelte/transition";
 	import { 
-		User, 
-		Check, 
 		X, 
 		Sparkles, 
 		LogIn, 
@@ -18,7 +16,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { account, saveCurrentAccount } from "$lib/stores/account.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
 	import MicrosoftLogo from "$lib/components/ui/MicrosoftLogo.svelte";
-	import { authLogin, authOfflineLogin, type AuthAccount } from "$lib/api";
+	import { authLogin, type AuthAccount } from "$lib/api";
 	import { toast } from "$lib/stores/toasts.svelte";
 
 	let { 
@@ -31,8 +29,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		onAccountAdded?: (acc: AuthAccount) => void;
 	} = $props();
 
-	let tab = $state<"luxmc" | "offline" | "microsoft">("luxmc");
-	let offlineUsername = $state("");
+	let tab = $state<"luxmc" | "microsoft">("luxmc");
 	let isLoggingIn = $state(false);
 	let errorMsg = $state<string | null>(null);
 
@@ -49,50 +46,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			capeType: acc.capeUrl ? "custom" : "none",
 			customCapeUrl: acc.capeUrl || ""
 		});
-	}
-
-	async function handleOfflineLogin() {
-		if (isLoggingIn) return;
-		const trimmed = offlineUsername.trim();
-		if (!trimmed) {
-			errorMsg = "Por favor, digite um nickname.";
-			return;
-		}
-		if (trimmed.length < 3 || trimmed.length > 16) {
-			errorMsg = "O nickname deve ter entre 3 e 16 caracteres.";
-			return;
-		}
-		if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) {
-			errorMsg = uiText("ui.ed9583ced94dc1a4");
-			return;
-		}
-
-		isLoggingIn = true;
-		errorMsg = null;
-		try {
-			const acc = await authOfflineLogin(trimmed);
-			account.value = {
-				id: acc.id,
-				username: acc.username,
-				uuid: acc.uuid,
-				minecraftToken: acc.accessToken,
-				expiresAt: acc.expiresAt ? (acc.expiresAt < 1e11 ? acc.expiresAt * 1000 : acc.expiresAt) : 0,
-				skinUrl: acc.skinUrl ?? null,
-				skinVariant: acc.skinVariant ?? "classic",
-				capeUrl: acc.capeUrl ?? null
-			};
-			void saveCurrentAccount(account.value);
-			updateActiveAppearance(acc);
-			toast(uiText("ui.953b1b10d0d549e9", {arg0: (trimmed)}), "success");
-			onAccountAdded?.(acc);
-			isLoggingIn = false;
-			handleClose();
-		} catch (e) {
-			errorMsg = uiText("ui.9538dd9126533a1c") + String(e);
-			toast(errorMsg, "error");
-		} finally {
-			isLoggingIn = false;
-		}
 	}
 
 	async function handleMicrosoftLogin() {
@@ -113,7 +66,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			};
 			void saveCurrentAccount(account.value);
 			updateActiveAppearance(acc);
-			toast(uiText("ui.fbb71389641a9e1d", {arg0: (acc.username)}), "success");
 			onAccountAdded?.(acc as AuthAccount);
 			isLoggingIn = false;
 			handleClose();
@@ -128,7 +80,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	function handleClose() {
 		if (isLoggingIn) return;
-		offlineUsername = "";
 		errorMsg = null;
 		isLoggingIn = false;
 		isOpen = false;
@@ -179,59 +130,20 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				</button>
 			</div>
 
-			<!-- Tab Switcher (Offline vs Microsoft) -->
+			<!-- Tab Switcher (Luxmc vs Microsoft) -->
 			<div class="p-6">
-                <div class="grid grid-cols-3 gap-2" aria-label={uiText('loginDesign.method')}>
-                    {#each ['luxmc', 'microsoft', 'offline'] as method}
-                        <button type="button" aria-label={method === 'microsoft' ? 'Microsoft' : method === 'luxmc' ? 'Luxmc' : uiText('ui.2793472a35db2b80')} aria-pressed={tab === method} disabled={isLoggingIn} onclick={() => { tab = method as typeof tab; errorMsg = null; }} class="flex min-w-0 flex-col items-start gap-3 rounded-2xl border p-3 text-left transition-colors {tab === method ? 'border-brand-400/50 bg-brand-500/10' : 'border-border bg-bg-subtle hover:border-fg/25'}">
-                            {#if method === 'microsoft'}<MicrosoftLogo size={19} />{:else if method === 'luxmc'}<img src="/logo.png" alt="" class="h-6 w-6 object-contain" />{:else}<User class="h-5 w-5 text-fg-muted" />{/if}
-                            <span class="text-xs font-semibold text-fg">{method === 'microsoft' ? 'Microsoft' : method === 'luxmc' ? 'Luxmc' : uiText('ui.2793472a35db2b80')}</span><span class="text-[10px] leading-relaxed text-fg-muted">{uiText(`loginDesign.${method}`)}</span>
+                <div class="grid grid-cols-2 gap-2" aria-label={uiText('loginDesign.method')}>
+                    {#each ['luxmc', 'microsoft'] as method}
+                        <button type="button" aria-label={method === 'microsoft' ? 'Microsoft' : 'Luxmc'} aria-pressed={tab === method} disabled={isLoggingIn} onclick={() => { tab = method as typeof tab; errorMsg = null; }} class="flex min-w-0 flex-col items-start gap-3 rounded-2xl border p-3 text-left transition-colors {tab === method ? 'border-brand-400/50 bg-brand-500/10' : 'border-border bg-bg-subtle hover:border-fg/25'}">
+                            {#if method === 'microsoft'}<MicrosoftLogo size={19} />{:else}<img src="/logo.png" alt="" class="h-6 w-6 object-contain" />{/if}
+                            <span class="text-xs font-semibold text-fg">{method === 'microsoft' ? 'Microsoft' : 'Luxmc'}</span><span class="text-[10px] leading-relaxed text-fg-muted">{uiText(`loginDesign.${method}`)}</span>
                         </button>
                     {/each}
                 </div>
 
-				<!-- Offline Tab Body -->
 				{#if tab === 'luxmc'}
                     <LuxAccountForm bind:busy={isLoggingIn} onAuthenticated={(value) => { onAccountAdded?.(value); handleClose(); }} />
-                {:else if tab === 'offline'}
-					<form onsubmit={(e) => { e.preventDefault(); handleOfflineLogin(); }} class="space-y-4 pt-4">
-						<div class="space-y-1.5">
-							<label for="offline-nick" class="text-xs font-bold text-fg/70 block">{uiText("ui.3984c02f20c59f47")}</label>
-							<div class="relative">
-								<input 
-									id="offline-nick"
-									type="text"
-									bind:value={offlineUsername}
-									placeholder={uiText("ui.7cecfb21a92e00f4")}
-									maxlength="16"
-									class="w-full h-11 px-4 rounded-xl bg-bg-subtle border border-fg/10 text-xs font-bold text-fg outline-none focus:border-brand-500 transition-[color,background-color,border-color,box-shadow,transform,opacity] placeholder:text-fg/30"
-								/>
-							</div>
-							<p class="mt-1 text-xs leading-relaxed text-fg-muted">{uiText("ui.60b07bd459a3c12a")}</p>
-						</div>
-
-						{#if errorMsg}
-							<div class="p-3 bg-red-500/10 border border-red-500/25 rounded-xl text-xs text-red-400 font-bold flex items-center gap-2">
-								<AlertCircle class="w-4 h-4 shrink-0" />
-								<span>{errorMsg}</span>
-							</div>
-						{/if}
-
-						<button 
-							type="submit"
-							disabled={isLoggingIn || !offlineUsername.trim()}
-							class={launcherButton({ variant: "primary", size: "sm", class: "w-full disabled:opacity-50 flex items-center justify-center gap-2" })}
-						>
-							{#if isLoggingIn}
-								<div class="w-4 h-4 rounded-full border-2 border-bg-overlay border-t-transparent animate-spin"></div>
-								{uiText("ui.a89d514549530e6e")}
-							{:else}
-								<Check class="w-4 h-4 stroke-[3]" />
-								{uiText("ui.6c88e3c5a5292efb")}
-							{/if}
-						</button>
-					</form>
-				{:else}
+                {:else}
 					<!-- Microsoft Tab Body -->
 					<div class="space-y-4 pt-4 text-center">
 						<div class="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl space-y-1 text-left">
@@ -265,7 +177,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 								{uiText("ui.e9a973d6fbcd7875")}
 							{/if}
 						</button>
-						{#if isLoggingIn}<p role="status" class="text-xs text-fg/60 leading-relaxed">{uiText("design.browserLoginHint")}</p>{/if}
+						{#if isLoggingIn}<p role="status" class="text-xs text-fg/60 leading-relaxed">{uiText("ui.7b258b8a8dbb4fc2")}</p>{/if}
 					</div>
 				{/if}
 			</div>

@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-07",
+  "version": "3.1.0",
+  "frontend": { "files": 24, "passed": 133, "failed": 0 },
+  "rustLibrary": { "passed": 141, "failed": 0, "ignored": 2 },
+  "rustCheck": true,
+  "loaderAndVersionIntegration": { "passed": 11, "failed": 0, "loaders": ["vanilla", "fabric", "quilt", "forge", "neoforge"], "playableGameSessionStarted": false },
+  "productionFrontendBuild": true,
+  "browser": {
+    "groupsAndProfile": ["dark", "light"],
+    "gameDirectoriesPreserved": true,
+    "gifBytesPreserved": true,
+    "socialAndPersistentDownloads": ["dark", "light"],
+    "homeMenuAndUpdateNotes": true,
+    "siteWidths": [1440, 390]
+  },
+  "quiltPreparation": {
+    "minecraft": "1.20.1",
+    "loader": "0.28.1",
+    "libraries": 11,
+    "coldSeconds": 2.6871317,
+    "warmSeconds": 0.2162559,
+    "warmNetworkBlocked": true
+  },
+  "externalTwoComputerP2PTest": false,
+  "published": false,
+  "userInstallationChanged": false
+}

@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "production": true,
+  "ownerOverview": true,
+  "anonymousDenied": 401,
+  "stats": {
+    "total": 12,
+    "online": 1,
+    "playing": 0
+  },
+  "returnedProfiles": 12,
+  "timestamp": "2026-10-10T18:28:30.551Z"
+}

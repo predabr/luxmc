@@ -1,0 +1,36 @@
+{
+  "startedAt": "2026-10-09T16:11:41.697Z",
+  "checks": [
+    {
+      "name": "build",
+      "version": "3.5.0"
+    },
+    {
+      "name": "account",
+      "authenticatedAccountSelected": true,
+      "credentialsRecorded": false
+    },
+    {
+      "name": "game-process",
+      "started": true,
+      "preparationSeconds": 3
+    },
+    {
+      "name": "minecraft-renderer",
+      "initialized": true,
+      "responding": true,
+      "windowPresent": true,
+      "worldsModified": false
+    },
+    {
+      "name": "game-stability",
+      "observedAfterRendererSeconds": 90,
+      "processAlive": true
+    },
+    {
+      "name": "normal-shutdown",
+      "stoppedCleanly": true,
+      "forcedTermination": false
+    }
+  ]
+}

@@ -64,7 +64,6 @@
 		busyId = target.id;
 		try {
 			await serverManage({ action: 'remove_backup', id: platform.selectedId, backup: target.id });
-			toast('Backup excluído.', 'info');
 			confirmDelete = null;
 			await load();
 		} catch (cause) {

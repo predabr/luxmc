@@ -1,0 +1,64 @@
+{
+  "isolated": true,
+  "userInstallationModified": false,
+  "currentVersion": "3.5.0",
+  "previousVersion": "3.2.0",
+  "initial": {
+    "healthy": true,
+    "repaired": false,
+    "rolledBack": false,
+    "version": "3.5.0",
+    "changedFiles": [],
+    "invalidFiles": [],
+    "previousAvailable": true
+  },
+  "repairWithoutPreviousVersion": {
+    "healthy": true,
+    "repaired": true,
+    "rolledBack": false,
+    "version": "3.5.0",
+    "changedFiles": [
+      "luxmc.exe"
+    ],
+    "invalidFiles": [
+      "luxmc.exe"
+    ],
+    "previousAvailable": false
+  },
+  "rollbackWithPreviousVersion": {
+    "healthy": true,
+    "repaired": true,
+    "rolledBack": true,
+    "version": "3.2.0",
+    "changedFiles": [
+      "luxmc.exe"
+    ],
+    "invalidFiles": [
+      "luxmc.exe"
+    ],
+    "previousAvailable": true
+  },
+  "verificationAfterRollback": {
+    "healthy": true,
+    "repaired": false,
+    "rolledBack": true,
+    "version": "3.2.0",
+    "changedFiles": [],
+    "invalidFiles": [],
+    "previousAvailable": true
+  },
+  "rollbackWithCorruptedCurrentCache": {
+    "healthy": true,
+    "repaired": true,
+    "rolledBack": true,
+    "version": "3.2.0",
+    "changedFiles": [
+      "luxmc.exe"
+    ],
+    "invalidFiles": [
+      "luxmc.exe"
+    ],
+    "previousAvailable": true
+  },
+  "binarySha256": "862f34a17f7eab1cbe87ba96b419688aa3118041c75aa0498a4fb32dc0e9e548"
+}

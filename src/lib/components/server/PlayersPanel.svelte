@@ -39,7 +39,6 @@
 		busyName = name + command;
 		try {
 			await moderateServer(platform.selectedId, command, name);
-			toast(`Comando ${command} enviado para ${name}.`, 'success');
 			await load();
 		} catch (cause) {
 			toast(serverMessage(cause), 'error');
@@ -54,7 +53,6 @@
 		busyName = target.name + 'ban';
 		try {
 			await moderateServer(platform.selectedId, 'ban', target.name, banReason.trim());
-			toast(`${target.name} foi banido do servidor.`, 'success');
 			confirmBan = null;
 			banReason = '';
 			await load();

@@ -1,0 +1,47 @@
+{
+  "file": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\docs\\media\\2026-10-10\\exports\\Lux MC Launcher 3.6 - Filme Oficial.mp4",
+  "bytes": 22292249,
+  "duration": 72.166667,
+  "vertical": false,
+  "video": {
+    "index": 0,
+    "codec_name": "h264",
+    "codec_type": "video",
+    "width": 1280,
+    "height": 720,
+    "r_frame_rate": "30/1"
+  },
+  "audio": {
+    "index": 1,
+    "codec_name": "aac",
+    "codec_type": "audio",
+    "sample_rate": "44100",
+    "channels": 2,
+    "r_frame_rate": "0/0"
+  },
+  "fullDecodePassed": true,
+  "contactSheet": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\docs\\media\\2026-10-10\\exports\\Lux MC Launcher 3.6 - Filme Oficial - revisão.png",
+  "frames": [
+    {
+      "second": 2,
+      "frame": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\docs\\media\\2026-10-10\\exports\\Lux MC Launcher 3.6 - Filme Oficial - quadro 1.png"
+    },
+    {
+      "second": 18.04166675,
+      "frame": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\docs\\media\\2026-10-10\\exports\\Lux MC Launcher 3.6 - Filme Oficial - quadro 2.png"
+    },
+    {
+      "second": 36.0833335,
+      "frame": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\docs\\media\\2026-10-10\\exports\\Lux MC Launcher 3.6 - Filme Oficial - quadro 3.png"
+    },
+    {
+      "second": 54.12500025,
+      "frame": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\docs\\media\\2026-10-10\\exports\\Lux MC Launcher 3.6 - Filme Oficial - quadro 4.png"
+    },
+    {
+      "second": 70.166667,
+      "frame": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\docs\\media\\2026-10-10\\exports\\Lux MC Launcher 3.6 - Filme Oficial - quadro 5.png"
+    }
+  ],
+  "loudness": "Summary:\r\n\r\n  Integrated loudness:\r\n    I:         -25.0 LUFS\r\n    Threshold: -35.0 LUFS\r\n\r\n  Loudness range:\r\n    LRA:         5.0 LU\r\n    Threshold: -45.4 LUFS\r\n    LRA low:   -27.6 LUFS\r\n    LRA high:  -22.7 LUFS\r\n\r\n  True peak:\r\n    Peak:       -6.6 dBFS\r\n[out#0/null @ 0000024524a1a4c0] video:930KiB audio:12428KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: unknown\r\nframe= 2165 fps=0.0 q=-0.0 Lsize=N/A time=00:01:12.14 bitrate=N/A speed= 111x    \r\n"
+}

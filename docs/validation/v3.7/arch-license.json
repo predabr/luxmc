@@ -1,0 +1,11 @@
+{
+  "package": "luxmc-3.7.0-1-x86_64.pkg.tar.zst",
+  "version": "3.7.0-1",
+  "license": "custom:Luxmc",
+  "licenseFileIncluded": true,
+  "allOtherFilesPreserved": true,
+  "binarySha256": "dbc9b808c082c35a4111cbdd52b4cc46f19c81e6e4cfbb83cba6db7cbb445fbc",
+  "originalSha256": "d34bcbefb842ed4d93fc185053ce11d296150c42aafa827446f4d492ce619b46",
+  "sha256": "7935bba42b0305ef35bdfaa859508bb7bac94e0313dd14f8b674d11fb071cb13",
+  "bytes": 23829659
+}

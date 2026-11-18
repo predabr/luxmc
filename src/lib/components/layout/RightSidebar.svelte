@@ -79,7 +79,6 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 		friendsState.disconnect();
 		account.clear();
 		showAccountMenu = false;
-		toast(uiText("ui.9524cb8472a03761"), "info");
 	}
 
 	const isMicrosoft = $derived(

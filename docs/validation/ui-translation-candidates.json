@@ -1,0 +1,191 @@
+[
+  {
+    "file": "src\\lib\\components\\home\\FavoriteServerWidget.svelte",
+    "start": 772,
+    "end": 791,
+    "type": "literal",
+    "value": "jogar.mush.com.br"
+  },
+  {
+    "file": "src\\lib\\components\\home\\FavoriteServerWidget.svelte",
+    "start": 987,
+    "end": 1006,
+    "type": "literal",
+    "value": "jogar.redesky.com"
+  },
+  {
+    "file": "src\\lib\\components\\instances\\KeybindEditorModal.svelte",
+    "start": 5634,
+    "end": 5641,
+    "type": "literal",
+    "value": "Todos"
+  },
+  {
+    "file": "src\\lib\\components\\instances\\KeybindEditorModal.svelte",
+    "start": 992,
+    "end": 999,
+    "type": "literal",
+    "value": "Todos"
+  },
+  {
+    "file": "src\\lib\\components\\instances\\KeybindEditorModal.svelte",
+    "start": 1596,
+    "end": 1603,
+    "type": "literal",
+    "value": "Todos"
+  },
+  {
+    "file": "src\\lib\\components\\instances\\KeybindEditorModal.svelte",
+    "start": 1824,
+    "end": 1831,
+    "type": "literal",
+    "value": "Todos"
+  },
+  {
+    "file": "src\\lib\\components\\mods\\ModSearchBar.svelte",
+    "start": 5727,
+    "end": 5744,
+    "type": "literal",
+    "value": "Qualquer Versão"
+  },
+  {
+    "file": "src\\lib\\components\\mods\\ModSearchBar.svelte",
+    "start": 465,
+    "end": 482,
+    "type": "literal",
+    "value": "Qualquer Versão"
+  },
+  {
+    "file": "src\\lib\\components\\mods\\ModSearchBar.svelte",
+    "start": 1379,
+    "end": 1396,
+    "type": "literal",
+    "value": "Qualquer Versão"
+  },
+  {
+    "file": "src\\lib\\components\\mods\\ModSearchBar.svelte",
+    "start": 1438,
+    "end": 1455,
+    "type": "literal",
+    "value": "Qualquer Versão"
+  },
+  {
+    "file": "src\\lib\\components\\settings\\LanguageSection.svelte",
+    "start": 1313,
+    "end": 1331,
+    "type": "text",
+    "value": "Português (Brasil)"
+  },
+  {
+    "file": "src\\lib\\components\\ui\\MiniPlayer.svelte",
+    "start": 2572,
+    "end": 2591,
+    "type": "literal",
+    "value": "jogar.mush.com.br"
+  },
+  {
+    "file": "src\\routes\\instances\\+page.svelte",
+    "start": 12504,
+    "end": 12541,
+    "type": "literal",
+    "value": "Nenhum mod de desempenho compatível"
+  },
+  {
+    "file": "src\\routes\\instances\\+page.svelte",
+    "start": 12569,
+    "end": 12600,
+    "type": "literal",
+    "value": "O pacote de otimização requer"
+  },
+  {
+    "file": "src\\routes\\instances\\[id]\\+page.svelte",
+    "start": 73179,
+    "end": 73187,
+    "type": "literal",
+    "value": "mundos"
+  },
+  {
+    "file": "src\\routes\\instances\\[id]\\+page.svelte",
+    "start": 93912,
+    "end": 93920,
+    "type": "literal",
+    "value": "mundos"
+  },
+  {
+    "file": "src\\routes\\instances\\[id]\\+page.svelte",
+    "start": 93984,
+    "end": 93992,
+    "type": "literal",
+    "value": "mundos"
+  },
+  {
+    "file": "src\\routes\\instances\\[id]\\+page.svelte",
+    "start": 40081,
+    "end": 40089,
+    "type": "literal",
+    "value": "mundos"
+  },
+  {
+    "file": "src\\routes\\instances\\[id]\\+page.svelte",
+    "start": 44494,
+    "end": 44502,
+    "type": "literal",
+    "value": "mundos"
+  },
+  {
+    "file": "src\\routes\\mods\\+page.svelte",
+    "start": 3467,
+    "end": 3484,
+    "type": "literal",
+    "value": "Qualquer Versão"
+  },
+  {
+    "file": "src\\routes\\mods\\+page.svelte",
+    "start": 4989,
+    "end": 5006,
+    "type": "literal",
+    "value": "Qualquer Versão"
+  },
+  {
+    "file": "src\\routes\\mods\\+page.svelte",
+    "start": 5067,
+    "end": 5084,
+    "type": "literal",
+    "value": "Qualquer Versão"
+  },
+  {
+    "file": "src\\routes\\mods\\+page.svelte",
+    "start": 5368,
+    "end": 5385,
+    "type": "literal",
+    "value": "Qualquer Versão"
+  },
+  {
+    "file": "src\\routes\\mods\\+page.svelte",
+    "start": 9378,
+    "end": 9385,
+    "type": "literal",
+    "value": "vídeo"
+  },
+  {
+    "file": "src\\routes\\mods\\+page.svelte",
+    "start": 10865,
+    "end": 10882,
+    "type": "literal",
+    "value": "Qualquer Versão"
+  },
+  {
+    "file": "src\\routes\\mods\\+page.svelte",
+    "start": 17402,
+    "end": 17419,
+    "type": "literal",
+    "value": "Qualquer Versão"
+  },
+  {
+    "file": "src\\routes\\settings\\+page.svelte",
+    "start": 35586,
+    "end": 35604,
+    "type": "text",
+    "value": "Português (Brasil)"
+  }
+]

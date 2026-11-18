@@ -1,0 +1,40 @@
+{
+  "version": "3.6.0",
+  "revision": 1,
+  "checks": [
+    {
+      "name": "locked-file-failure",
+      "databaseRecordPreserved": true
+    },
+    {
+      "name": "real-java-deletion",
+      "filesRemoved": true,
+      "databaseRecordRemoved": true,
+      "otherInstancePreserved": true
+    },
+    {
+      "name": "appearance",
+      "selectedThemePreserved": true,
+      "selectedWallpaperPreserved": true,
+      "explicitAnimationsEnabled": true
+    },
+    {
+      "name": "real-bedrock-removal",
+      "version": "1.20.81.01",
+      "windowsPackageRemoved": true,
+      "cachedFilesRemoved": true,
+      "libraryRecordRemoved": true
+    },
+    {
+      "name": "bedrock-world-preservation",
+      "filesVerified": 0,
+      "originalFilesPreserved": true
+    },
+    {
+      "name": "bedrock-restoration",
+      "version": "1.26.52.3",
+      "installedAgain": true
+    }
+  ],
+  "binarySha256": "4f1efcbdb7fd3cc251f2d832f804af40f2626c31fcf68e627432b6099566d694"
+}

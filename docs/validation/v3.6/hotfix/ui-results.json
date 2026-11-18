@@ -1,0 +1,36 @@
+[
+  {
+    "performanceMode": false,
+    "reducedMotion": true,
+    "explicitAnimations": true,
+    "themeRestored": true,
+    "modalClickable": true,
+    "menuNeverBlocksBody": true,
+    "repeatedCancelAndSearch": true,
+    "clickableAfterDeletionAndWaiting": true,
+    "actualNavigationAndTabMotion": true,
+    "failedDeletePreservesInstance": true,
+    "retryDeletesInstance": true,
+    "bedrockRenameAndDelete": true,
+    "bedrockInternalVersionSelection": true,
+    "spinnerRotates": true,
+    "errors": []
+  },
+  {
+    "performanceMode": true,
+    "reducedMotion": true,
+    "explicitAnimations": true,
+    "themeRestored": true,
+    "modalClickable": true,
+    "menuNeverBlocksBody": true,
+    "repeatedCancelAndSearch": true,
+    "clickableAfterDeletionAndWaiting": true,
+    "actualNavigationAndTabMotion": true,
+    "failedDeletePreservesInstance": true,
+    "retryDeletesInstance": true,
+    "bedrockRenameAndDelete": true,
+    "bedrockInternalVersionSelection": true,
+    "spinnerRotates": true,
+    "errors": []
+  }
+]

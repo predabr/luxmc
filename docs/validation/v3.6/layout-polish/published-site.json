@@ -1,0 +1,19 @@
+{
+  "passed": true,
+  "origin": "https://luxmc-r92.pages.dev",
+  "deployment": "90c2e775",
+  "assetsMatchLocalBuild": true,
+  "githubMutations": false,
+  "hashes": [
+    {
+      "file": "revision.css",
+      "sha256": "48a0918c4839ab0402d21ec2a4ea6ccc687b5f334c28e565d747fedab34ac779",
+      "bytes": 9602
+    },
+    {
+      "file": "cinematic.js",
+      "sha256": "6f78599a5e19e618003f4bcf3dcb8ee177f3ea6d78d84b48b505408b31ef1e0e",
+      "bytes": 4707
+    }
+  ]
+}

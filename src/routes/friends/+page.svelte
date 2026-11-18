@@ -124,7 +124,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 			if (target) {
 				await friendsState.action("invite", target.id);
-				toast(uiText("friendsDesign.inviteSent", { name: target.username }), "success");
             } else {
                 throw new Error(uiText("ui.d7433f454fe54e8a"));
             }
@@ -147,7 +146,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         if (!friendsState.me) return;
         try {
             await navigator.clipboard.writeText(`${friendsState.me.username}#${friendsState.me.id.slice(0, 8)}`);
-            toast(uiText("ui.31b0fc0e4eaf096e"), "success");
         } catch (error) { toast(String(error), "error"); }
     }
 

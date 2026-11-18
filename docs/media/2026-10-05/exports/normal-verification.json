@@ -1,0 +1,41 @@
+{
+  "path": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\docs\\media\\2026-10-05\\exports\\Lux MC Launcher - Tour Completo.mp4",
+  "subtitles": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\docs\\media\\2026-10-05\\exports\\Lux MC Launcher - Tour Completo.srt",
+  "contactSheet": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\docs\\media\\2026-10-05\\exports\\Lux MC Launcher - Tour Completo-contactsheet.jpg",
+  "durationSeconds": 267.0,
+  "sha256": "8922e6f8ab924d6b2400de335a05623ceb3ecddc673925c2ddbd626e52d2ad0b",
+  "narration": "Microsoft Daniel pt-BR",
+  "music": "Original procedural composition; no third-party samples",
+  "data": "Frontend real do launcher; fixture isolada de demonstracao",
+  "metadata": {
+    "programs": [],
+    "streams": [
+      {
+        "index": 0,
+        "codec_name": "h264",
+        "codec_type": "video",
+        "width": 1920,
+        "height": 1080,
+        "r_frame_rate": "30/1"
+      },
+      {
+        "index": 1,
+        "codec_name": "aac",
+        "codec_type": "audio",
+        "sample_rate": "48000",
+        "channels": 2,
+        "r_frame_rate": "0/0"
+      }
+    ],
+    "format": {
+      "duration": "267.000000",
+      "size": "28652281"
+    }
+  },
+  "audioQuality": {
+    "integratedLufs": -16.0,
+    "loudnessRangeLu": 2.8,
+    "truePeakDbfs": -1.3,
+    "fullDecode": "passed"
+  }
+}

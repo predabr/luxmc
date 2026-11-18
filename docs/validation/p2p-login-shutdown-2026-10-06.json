@@ -1,0 +1,16 @@
+{
+  "userWorldModified": false,
+  "javaAgentSha256": "090edcb239a8975036fd7095c4244b8dab94de4002d60568fd9f52e820214952",
+  "version": "3.0.2",
+  "githubPublished": false,
+  "actualMinecraftVersion": "26.3",
+  "evidence": [
+    "[12:11:13] [Netty Local IO #2/INFO]: [STDOUT]: [LUXMC_P2P] Private LAN login support: net/minecraft/server/network/ServerLoginPacketListenerImpl",
+    "[12:11:14] [Render thread/INFO]: Published LAN server on port 62586",
+    "[12:11:15] [Luxmc-World-Regression/INFO]: [STDOUT]: LUXMC_WORLD_LOGIN_PASS: actual Minecraft LAN login succeeded for private offline profile while server authentication was enabled",
+    "[12:11:15] [Render thread/INFO]: Stopping!"
+  ],
+  "privateLoginSucceeded": true,
+  "twoComputerValidation": "pending",
+  "minecraftExitCode": 0
+}

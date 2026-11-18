@@ -70,7 +70,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		try {
 			await javaUninstall(major);
 			runtimes = runtimes.map((r) => r.major === major ? { ...r, installed: false, path: null, versionString: null, isSystem: false } : r);
-			toast(`Java ${major} removido`, "info");
 		} catch (e) {
 			toast(uiText("ui.f84bd43980dfffa1", {arg0: (major), arg1: (e)}), "error");
 		}

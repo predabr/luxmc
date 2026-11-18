@@ -1,0 +1,31 @@
+{
+  "deliveredAt": "2026-10-05T16:12:43.8612938Z",
+  "verification": "Full decode passed; contact sheets and final library/NameMC frames inspected; H264/AAC 30fps; PT-BR narration and captions",
+  "clips": "Fresh capture after launcher changes, 25 scenes plus installed native NameMC public gallery",
+  "files": [
+    {
+      "path": "C:\\Users\\preda\\Downloads\\Lux MC Launcher - Shorts.mp4",
+      "previousSha256": "0D0DCF6911EE7A13CD17860FFB687B6C6E643E762E27F16B354A6A9789F69760",
+      "sha256": "D819F03CD3573BEE0A2CCFB66688336508E49F1CCE5D341480BDA42A9BBFD59F",
+      "bytes": 5455924
+    },
+    {
+      "path": "C:\\Users\\preda\\Downloads\\Lux MC Launcher - Shorts.srt",
+      "previousSha256": "84EF0A432227CC895158C8E40F9E2A380BCBF87A767B9627C24F9E9080688882",
+      "sha256": "84EF0A432227CC895158C8E40F9E2A380BCBF87A767B9627C24F9E9080688882",
+      "bytes": 866
+    },
+    {
+      "path": "C:\\Users\\preda\\Downloads\\Lux MC Launcher - Tour Completo.mp4",
+      "previousSha256": null,
+      "sha256": "8922E6F8AB924D6B2400DE335A05623CEB3ECDDC673925C2DDBD626E52D2AD0B",
+      "bytes": 28652281
+    },
+    {
+      "path": "C:\\Users\\preda\\Downloads\\Lux MC Launcher - Tour Completo.srt",
+      "previousSha256": null,
+      "sha256": "E331CFBCC49B596ECDAC3166582DC364673BCC90A4537907C4A6F9418F4120A4",
+      "bytes": 5084
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "scenarios": [
+    {
+      "theme": "dark",
+      "errors": [],
+      "overflow": false,
+      "clipped": [],
+      "compactClipped": []
+    },
+    {
+      "theme": "light",
+      "errors": [],
+      "overflow": false,
+      "clipped": [],
+      "compactClipped": []
+    }
+  ],
+  "fixtureOnly": true
+}

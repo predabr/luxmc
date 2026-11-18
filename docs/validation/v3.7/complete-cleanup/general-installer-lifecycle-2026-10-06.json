@@ -1,0 +1,12 @@
+{
+  "Version": "3.7.0",
+  "InstallExitCode": 0,
+  "SameVersionReinstallExitCode": 0,
+  "UninstallExitCode": 0,
+  "ApplicationRemoved": true,
+  "RegistryRemoved": true,
+  "ProtectedFiles": 4,
+  "ProtectedDataPreserved": true,
+  "CompleteCleanupVerified": true,
+  "InstallerSha256": "275991C96F1EAE9087251BF16BEF71847076FB1506EB3CA69F7C7B0FB903DA6E"
+}

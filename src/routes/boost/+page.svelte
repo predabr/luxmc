@@ -83,7 +83,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			const freed = await optimizerTrimMemory();
 			if (freed) {
 				playSound("chime");
-				toast(uiText("ui.960cf645c805c439"), "success");
 			} else {
 				toast(uiText("ui.8306b22090417500"), "info");
 			}
@@ -127,7 +126,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			activeProfile.jvmArgs = argsString;
 			activeProfile.autoOptimize = true;
 			playSound("chime");
-			toast(uiText("ui.56a49ac0592f7861"), "success");
 		} catch (e) {
 			toast(uiText("ui.7a916bb8e0104909", {arg0: (String(e))}), "error");
 		}
@@ -137,7 +135,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		const text = generatedFlags.join(" ");
 		navigator.clipboard.writeText(text).then(() => {
 			copiedFlags = true;
-			toast(uiText("ui.b1bd70e209fd2186"), "success");
 			setTimeout(() => copiedFlags = false, 2500);
 		}).catch((e) => toast(uiText("ui.25be28c16b3339a8") + String(e), "error"));
 	}

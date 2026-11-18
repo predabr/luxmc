@@ -1,0 +1,30 @@
+{
+  "passed": true,
+  "fixtureOnly": true,
+  "scenarios": [
+    {
+      "theme": "dark",
+      "saved": true,
+      "serverValidation": true,
+      "cropApplied": true,
+      "gifPreserved": true,
+      "unsavedGuard": true,
+      "failureRetainsDraft": true,
+      "favouritesOrdered": true,
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "theme": "light",
+      "saved": true,
+      "serverValidation": true,
+      "cropApplied": true,
+      "gifPreserved": true,
+      "unsavedGuard": true,
+      "failureRetainsDraft": true,
+      "favouritesOrdered": true,
+      "overflow": false,
+      "errors": []
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "LocalOnly": true,
+  "Version": "3.6.0",
+  "InstallerExitCode": 0,
+  "ProtectedFilesVerified": 5,
+  "InstanceFoldersPreserved": true,
+  "InstalledBinaryMatchesBuild": true,
+  "RepairVerifierHealthy": true,
+  "InstallerSha256": "3dec0ed15d8ddd5d863d69a607381c7dc1d4eaaa5a8c0cf045240d4c848395cf"
+}

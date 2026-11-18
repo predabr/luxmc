@@ -1,0 +1,15 @@
+{
+  "results": [
+    {
+      "windowReadiness": true,
+      "monitorSurvivesNavigation": true,
+      "errorRestoresWindow": true,
+      "launcherWindowNotDestroyed": true
+    },
+    {
+      "earlyExitDoesNotHide": true,
+      "duplicateDownloadRemoved": true
+    }
+  ],
+  "errors": []
+}

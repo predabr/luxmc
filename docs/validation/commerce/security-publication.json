@@ -1,0 +1,38 @@
+{
+  "verifiedAt": "2026-10-11T20:30:46.7902991Z",
+  "deployment": "https://7d9e607e.luxmc-r92.pages.dev",
+  "migration": "0015_commerce_security",
+  "panelStatus": 200,
+  "nativeStatus": 200,
+  "nativeAdminQueue": 428,
+  "anonymousAdminQueue": 401,
+  "foreignOriginLogin": 403,
+  "membership": "pro",
+  "expiresAt": 1794336161,
+  "twoFactorActive": false,
+  "checkoutEnabled": false,
+  "panelHeaders": {
+    "csp": [
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://api.modrinth.com https://api.github.com https://eu.mc-api.net https://api.mcstatus.io https://api.mcsrvstat.us https://mineskin.eu; media-src 'self' blob:; worker-src 'self' blob:; frame-src 'self' https://www.youtube-nocookie.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'",
+      "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+    ],
+    "cacheControl": "no-store, public, must-revalidate, max-age=0",
+    "robots": "noindex, nofollow"
+  },
+  "apiHeaders": {
+    "frameOptions": "DENY",
+    "csp": "default-src 'none'; frame-ancestors 'none'",
+    "cacheControl": "no-store"
+  },
+  "unitTestsPassed": 70,
+  "frontendCheckErrors": 0,
+  "browserTests": "passed",
+  "githubPublished": false,
+  "launcherStarted": false,
+  "browserLoginVerified": true,
+  "ownerProVisible": true,
+  "productionScreenshots": [
+    "painel-simplificado-publicado.png",
+    "painel-seguranca-publicado.png"
+  ]
+}

@@ -69,12 +69,6 @@
 		const target = lanAddresses[0] ?? localAddress;
 		try {
 			await navigator.clipboard.writeText(target);
-			toast(
-				lanAddresses.length > 0
-					? `Endereço da rede local copiado: ${target}`
-					: `Endereço copiado para a área de transferência: ${target}`,
-				'success'
-			);
 		} catch {
 			toast('Não foi possível copiar automaticamente.', 'error');
 		}

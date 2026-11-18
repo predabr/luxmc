@@ -111,7 +111,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		account.value = newAcc;
 		void saveCurrentAccount(newAcc);
 		showMenu = false;
-		toast(uiText("ui.469397bc9e6ea5aa", {arg0: (acc.username)}), "success");
 	}
 </script>
 

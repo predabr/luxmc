@@ -1,0 +1,116 @@
+{
+  "id": "1ocGzRHv",
+  "slug": "vanilla-perfected",
+  "title": "Vanilla Perfected",
+  "icon_url": "https://cdn.modrinth.com/data/1ocGzRHv/ebec737126db7637001194ca5560ae58413d338f_96.webp",
+  "gallery": [
+    {
+      "url": "https://cdn.modrinth.com/data/1ocGzRHv/images/9dc0a7377d15f85a23465d628f6cc51a657bbd14_350.webp",
+      "raw_url": "https://cdn.modrinth.com/data/1ocGzRHv/images/9dc0a7377d15f85a23465d628f6cc51a657bbd14.png",
+      "featured": true,
+      "title": "Chaos Cubed Banner Image",
+      "description": null,
+      "created": "2026-07-23T14:25:12.541801Z",
+      "ordering": 0
+    },
+    {
+      "url": "https://cdn.modrinth.com/data/1ocGzRHv/images/7a1631415efea55132c9c5e45b5debf70365214a_350.webp",
+      "raw_url": "https://cdn.modrinth.com/data/1ocGzRHv/images/7a1631415efea55132c9c5e45b5debf70365214a.png",
+      "featured": false,
+      "title": "Complementary Shaders",
+      "description": "Included with these shaders are my specific settings in order to replicate the exact look seen in my videos!",
+      "created": "2025-11-22T20:41:03.950819Z",
+      "ordering": 1
+    },
+    {
+      "url": "https://cdn.modrinth.com/data/1ocGzRHv/images/23a15dd1e7b72a270f59b86b3bbd484dddd5aecb_350.webp",
+      "raw_url": "https://cdn.modrinth.com/data/1ocGzRHv/images/23a15dd1e7b72a270f59b86b3bbd484dddd5aecb.png",
+      "featured": false,
+      "title": "I Like Vanilla Shaders",
+      "description": "An optional Shader Pack that you can select if Complementary isn't your style! (pictured, but not featured in VP, is the mod Punchy)",
+      "created": "2026-05-09T04:29:32.416077Z",
+      "ordering": 2
+    },
+    {
+      "url": "https://cdn.modrinth.com/data/1ocGzRHv/images/61aca29a5debac3a9c757ec954bada251f174102_350.webp",
+      "raw_url": "https://cdn.modrinth.com/data/1ocGzRHv/images/61aca29a5debac3a9c757ec954bada251f174102.png",
+      "featured": false,
+      "title": "Dungeons and Taverns!",
+      "description": "Adds endless new structures to all dimensions of Minecraft, many of which are directly inspired by Minecraft Dungeons!",
+      "created": "2025-11-28T00:35:08.979298Z",
+      "ordering": 2
+    },
+    {
+      "url": "https://cdn.modrinth.com/data/1ocGzRHv/images/4a22bab4370a3565b26b44465971a2db702f81ef_350.webp",
+      "raw_url": "https://cdn.modrinth.com/data/1ocGzRHv/images/4a22bab4370a3565b26b44465971a2db702f81ef.png",
+      "featured": false,
+      "title": "Better Statistics Screen",
+      "description": "Makes viewing your statistics much easier with a brand new UI!",
+      "created": "2024-10-07T13:36:36.580702Z",
+      "ordering": 3
+    },
+    {
+      "url": "https://cdn.modrinth.com/data/1ocGzRHv/images/59ac757d4bdf940cad00e26085a136b1b845da96_350.webp",
+      "raw_url": "https://cdn.modrinth.com/data/1ocGzRHv/images/59ac757d4bdf940cad00e26085a136b1b845da96.png",
+      "featured": false,
+      "title": "Custom Panorama",
+      "description": "Every VP update comes with custom splash text and a brand new Panorama featuring Modpack content and visuals for the game drop!",
+      "created": "2026-07-23T15:07:08.842315Z",
+      "ordering": 3
+    },
+    {
+      "url": "https://cdn.modrinth.com/data/1ocGzRHv/images/e2c95cd04f0d509a8467de161ba2aa8c69605890_350.webp",
+      "raw_url": "https://cdn.modrinth.com/data/1ocGzRHv/images/e2c95cd04f0d509a8467de161ba2aa8c69605890.png",
+      "featured": false,
+      "title": "Elytra Trims",
+      "description": "Allows you to dye your Elytra like Leather Armor as well as add Armor Trims to it for extra designs!",
+      "created": "2025-12-26T14:58:12.836978Z",
+      "ordering": 4
+    },
+    {
+      "url": "https://cdn.modrinth.com/data/1ocGzRHv/images/a2705c92b438f38bb449b7f38c374685880617a4_350.webp",
+      "raw_url": "https://cdn.modrinth.com/data/1ocGzRHv/images/a2705c92b438f38bb449b7f38c374685880617a4.png",
+      "featured": false,
+      "title": "Recolourful Containers",
+      "description": "Adds unique UI elements to the Inventory Screen as well as all Utility Blocks in the game!",
+      "created": "2024-10-07T13:44:12.427738Z",
+      "ordering": 5
+    },
+    {
+      "url": "https://cdn.modrinth.com/data/1ocGzRHv/images/f1b00eee4ec682150f015059cae1af0873d9b996_350.webp",
+      "raw_url": "https://cdn.modrinth.com/data/1ocGzRHv/images/f1b00eee4ec682150f015059cae1af0873d9b996.png",
+      "featured": false,
+      "title": "Flashback",
+      "description": "Adds a Theater Mode to Minecraft allowing you to record in your world, then go back for cinematic screenshots, time lapses, etc!",
+      "created": "2026-02-06T05:29:49.707304Z",
+      "ordering": 6
+    },
+    {
+      "url": "https://cdn.modrinth.com/data/1ocGzRHv/images/72ffab2bd8927f728704f7f412c36d4dfab3352d_350.webp",
+      "raw_url": "https://cdn.modrinth.com/data/1ocGzRHv/images/72ffab2bd8927f728704f7f412c36d4dfab3352d.png",
+      "featured": false,
+      "title": "Light Overlay!",
+      "description": "Helps you visualize where you need light sources to prevent mob spawns!",
+      "created": "2026-07-23T13:59:01.077112Z",
+      "ordering": 7
+    },
+    {
+      "url": "https://cdn.modrinth.com/data/1ocGzRHv/images/7d53da0891a1bd27c2c951566e63db0bbe014763_350.webp",
+      "raw_url": "https://cdn.modrinth.com/data/1ocGzRHv/images/7d53da0891a1bd27c2c951566e63db0bbe014763.png",
+      "featured": false,
+      "title": "Enchanted Books: Re-covered",
+      "description": "All enchanted books now generate with unique covers so you know what the book is before ever having to highlight it!",
+      "created": "2025-05-01T17:38:30.705263Z",
+      "ordering": 7
+    },
+    {
+      "url": "https://cdn.modrinth.com/data/1ocGzRHv/images/7a7dbe8d0f2c15a9b27d0aeb27d225c056c30934_350.webp",
+      "raw_url": "https://cdn.modrinth.com/data/1ocGzRHv/images/7a7dbe8d0f2c15a9b27d0aeb27d225c056c30934.png",
+      "featured": false,
+      "title": "Better F3 & much MORE!",
+      "description": "A much cleaner and more readable F3 Screen that you can customize every aspect of!",
+      "created": "2024-10-07T13:57:00.113781Z",
+      "ordering": 8
+    }
+  ]
+}

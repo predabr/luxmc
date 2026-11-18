@@ -348,5 +348,24 @@ Verificação: amostragem a cada 400 ms por 40 s com servidor online + telemetri
 - Fix: recuperação limitada — `scheduleViewerRecovery()` tenta `disposeViewer()` + `createViewer()` até 4× (espaçamento 1,5s×tentativa), acionado do catch da criação e do catch do render; `recoveryAttempts = 0` num render bem-sucedido; timer limpo no cleanup do `onMount`; o retry só exige `mounted` (painel escondido não desiste mais — criar viewer invisível é inofensivo, o render é controlado por `running`).
 - Validação: `pnpm check` 0/0; `release-3.9.2` com o chromium empacotado do playwright (igual ao CI) PASS; suíte completa **47/47** com chromium empacotado. Commit `be32851` → **CI 43891593961 success** (ubuntu + windows).
 
+## 17/11 — Nova logo em tudo + fim dos toasts de confirmação
+
+### Troca de dica de login embutido
+- `AccountLoginModal.svelte` usa agora `ui.7b258b8a8dbb4fc2` ("Conclua o login na janela que abriu."); chaves órfãs `design.browserLogin`/`browserLoginHint` removidas de en/pt-BR/es (vírgula final de `loginDescription` corrigida).
+- Testes atualizados: `tests/account-login-concurrency.browser.cjs` (aba via `aria-label="Microsoft"`, assegura `[disabled]` nas duas abas) e `tests/login-review.browser.cjs` (formulário novo `#lux-user`/`#lux-pass`, sem passo "Próximo"). Ainda pendente de execução com vite próprio na porta 1420.
+
+### Nova logo (cubo azul brilhante + portas douradas)
+- Anexo do usuário (JPEG 1920×1920) recuperado do storage do opencode (`session_message` seq 27352, base64 em `data.files[0].data`) → master em `static/brand/luxmc-hero.jpg`; cópia extraída em `%TEMP%\opencode\new-logo0.jpg`.
+- `scripts/render-brand.cjs` reescrito para pipeline raster: tile de quadrado arredondado (raio 0.2, fundo preservado — sem chroma-key para não furar as portas douradas nem criar halos) renderizado em 8 alvos (`src-tauri/icons/source-1024.png`, `static/logo.png`, `static/brand/luxmc-mark-512.png`, `static/branding/luxmc-emblem*.png`, `static/favicon.png`, `website/assets/*`). SVGs antigos `luxmc-icon.svg`/`luxmc-mark.svg` apagados.
+- `pnpm tauri icon` regenerou os 17 ícones desktop; **android/ios restaurados via git checkout** (foreground adaptativo não pode ser tile pré-arredondado — decisão da rodada anterior mantida). 18 arquivos de ícone alterados ao todo.
+
+### Remoção dos toasts de confirmação
+- Política: **remover** todos os `success` e `info` triviais ("X copiado!", "salvo", "aplicado", "ativado", "iniciado com PID", "criado com sucesso"); **manter** erros/warnings, conclusões de operações longas (instalações, updates, imports/exports, backups, UPnP, exposição, restart), toasts de progresso, carregadores de artefato (link mclo.gs, códigos de convite/importação), notificações não solicitadas (amigos, updater, crash-doctor, conquistas, perf-guard), canal de toasts de plugins, guardas/explicações (modo online/offline do servidor, cond info/error de mods de desempenho) e feedback de join.
+- Codemod (`%TEMP%\opencode\remove-toasts.cjs`): scanner balanceado por parênteses com detecção de nível, remoção em linha inteira/inline, cadeias `.then(() => toast(...))` (o `.catch` vizinho é preservado), ordem descendente por linha e revisão em modo `--dry` antes de gravar. Bug apanhado em revisão: falso-positivo de `isLineOnly` quando a chamada fecha em outra linha (só afetou `OverviewPanel:72`, consertado à mão).
+- **90 remoções via codemod** (45 arquivos) + consertos manuais: `instances/[id]:939` mantém só o ramo de erro (`if (failed) toast(..., 'error')`), `routes/+page.svelte:494` e `CreateInstanceModal.svelte:257` ("Instância criada com sucesso!" — o modal já tem tela própria de sucesso), `instances/+page.svelte:577` (toast exibia o rótulo do botão "Duplicar"). Total ≈ 97 confirmações removidas; 114 success/info informativas mantidas.
+- Imports de `toast` não usados limpos em 6 arquivos (script conservador que só remove quando não há mais chamada `toast(` no arquivo).
+- Verificação: `pnpm check` **0/0**; `pnpm test:run` **248/248** (duas passadas seguidas verdes; uma falha isolada não reproduzível em execuções capturadas).
+
+
 
 

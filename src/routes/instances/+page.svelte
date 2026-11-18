@@ -451,7 +451,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				startTime: Math.floor(Date.now() / 1000)
 			}).catch(() => {});
 			profiles.setLastPlayed(p.id);
-			toast(`🎮 Minecraft ${verId} (${p.name}) iniciado! (PID: ${res.pid})`, "success");
             void handlePostLaunchActions(res.pid);
 		} catch (e) {
 			toast(uiText("ui.ca8c81cc4b1149af") + String(e), "error");
@@ -541,7 +540,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		selectionMode = false;
 		if (count > 0) {
 			playSound("delete");
-			toast(uiText("ui.0a0f81bf7b3cf421", {arg0: (count)}), "success");
 		}
 	}
 
@@ -576,7 +574,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				createdAt: new Date(p.createdAt).getTime(),
 				updatedAt: new Date(p.updatedAt).getTime(),
 			});
-			toast(t("instances.duplicate"), "success");
 		} catch (e) {
 			toast(t("instances.failedDuplicate", { error: String(e) }), "error");
 		}
@@ -644,7 +641,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		profiles.update(notesId, { notes: notesText });
 		const id = notesId;
 		const notes = notesText || null;
-		try { await instanceSetNotes(id, notes); toast(t("instances.notesSaved"), "success"); }
+		try { await instanceSetNotes(id, notes);  }
 		catch (e) { toast(t("instances.failedSaveNotes", { error: String(e) }), "error"); }
 		finally { savingNotes = false; notesId = null; notesText = ""; }
 	}
@@ -1328,7 +1325,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                             try {
                                 if (await deleteInstance(id)) {
                                     confirmDeleteInstance = null;
-                                    toast(uiText("ui.bc3196ede9748fff", {arg0: name}), "success");
                                 }
                             } finally { deleting = false; }
 						}}

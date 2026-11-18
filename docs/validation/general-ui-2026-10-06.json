@@ -1,0 +1,30 @@
+[
+  {
+    "theme": "dark",
+    "wallpaper": false,
+    "keyboardSelection": true,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "theme": "dark",
+    "wallpaper": true,
+    "keyboardSelection": true,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "theme": "light",
+    "wallpaper": false,
+    "keyboardSelection": true,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "theme": "light",
+    "wallpaper": true,
+    "keyboardSelection": true,
+    "overflow": false,
+    "errors": []
+  }
+]

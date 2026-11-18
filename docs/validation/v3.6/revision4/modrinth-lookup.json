@@ -1,0 +1,80 @@
+[
+  {
+    "projectId": "1KVo5zza",
+    "name": "Fabulously Optimized",
+    "latest": [
+      {
+        "id": "MKDr2HvF",
+        "name": "15.0.0-alpha.5",
+        "channel": "alpha",
+        "minecraft": [
+          "26.3"
+        ]
+      },
+      {
+        "id": "9toQ7Bv7",
+        "name": "15.0.0-alpha.4",
+        "channel": "alpha",
+        "minecraft": [
+          "26.3"
+        ]
+      },
+      {
+        "id": "9TjRcKTW",
+        "name": "15.0.0-alpha.3",
+        "channel": "alpha",
+        "minecraft": [
+          "26.3"
+        ]
+      }
+    ],
+    "installed": [
+      {
+        "id": "MKDr2HvF",
+        "name": "15.0.0-alpha.5",
+        "minecraft": [
+          "26.3"
+        ]
+      }
+    ]
+  },
+  {
+    "projectId": "5FFgwNNP",
+    "name": "Cobblemon Official Modpack [Fabric]",
+    "latest": [
+      {
+        "id": "Cqimd3JM",
+        "name": "1.8.1",
+        "channel": "release",
+        "minecraft": [
+          "1.21.1"
+        ]
+      },
+      {
+        "id": "zsTAkftH",
+        "name": "1.8",
+        "channel": "release",
+        "minecraft": [
+          "1.21.1"
+        ]
+      },
+      {
+        "id": "Lydu1ZNo",
+        "name": "1.7.3",
+        "channel": "release",
+        "minecraft": [
+          "1.21.1"
+        ]
+      }
+    ],
+    "installed": [
+      {
+        "id": "Cqimd3JM",
+        "name": "1.8.1",
+        "minecraft": [
+          "1.21.1"
+        ]
+      }
+    ]
+  }
+]

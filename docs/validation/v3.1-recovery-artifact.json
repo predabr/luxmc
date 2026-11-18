@@ -1,0 +1,10 @@
+{
+  "version": "3.1.0",
+  "baselineRecovery": true,
+  "verificationBeforeMutation": true,
+  "uninstallerRestored": true,
+  "invalidBackupRejected": true,
+  "userDataPreserved": true,
+  "installedApplicationUnchanged": true,
+  "installedApplicationSha256": "680e6ac799828d8939bb10bcde0607950cc59f2b3f31ac585c23318f2f924ea6"
+}

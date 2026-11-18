@@ -1,0 +1,16 @@
+{
+  "root": "C:\\Users\\preda\\AppData\\Local\\Temp\\luxmc-3.2-game-c4hK0A",
+  "results": [
+    {
+      "version": "26.3",
+      "process": {
+        "Id": 30152,
+        "MainWindowTitle": "Minecraft 26.3",
+        "Responding": true
+      },
+      "logExists": true,
+      "rendererInitialized": true,
+      "fatal": false
+    }
+  ]
+}

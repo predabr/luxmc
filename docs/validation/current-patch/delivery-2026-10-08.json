@@ -1,0 +1,12 @@
+{
+  "version": "3.5.0",
+  "path": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\release-windows\\Luxmc-3.5.0-ajustes.exe",
+  "size": 20887334,
+  "sha256": "eb3004efe050ea4a6f76ee3dc7856dc6cd8a2c79a569807cd8f8e71d2823ffad",
+  "publishedToGithub": false,
+  "publishedInstallerToWebsite": false,
+  "siteDeployed": true,
+  "nativeTestsPassed": 156,
+  "nativeTestsIgnored": 2,
+  "websiteTestsPassed": 44
+}

@@ -1,0 +1,33 @@
+{
+  "native": true,
+  "production": true,
+  "savedNameVisible": true,
+  "savedGifRendered": true,
+  "nativeShieldScans": [
+    {
+      "name": "All the Mods 10 - ATM10",
+      "mods": 490,
+      "clean": true,
+      "firstMs": 2294,
+      "cachedMs": 581
+    },
+    {
+      "name": "RLCraft",
+      "mods": 178,
+      "clean": true,
+      "firstMs": 997,
+      "cachedMs": 171
+    },
+    {
+      "name": "Zombie Invade 100 Days",
+      "mods": 143,
+      "clean": true,
+      "firstMs": 543,
+      "cachedMs": 223
+    }
+  ],
+  "isolatedAppearancePreviews": true,
+  "staticThumbnailAnimations": true,
+  "editorRetainedSavedNameAndGif": true,
+  "launcherRemainedOpen": true
+}

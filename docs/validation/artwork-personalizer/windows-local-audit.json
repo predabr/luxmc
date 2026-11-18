@@ -1,0 +1,43 @@
+{
+  "version": "3.9.1",
+  "timestamp": "2026-10-12T13:28:25.3546930Z",
+  "commit": null,
+  "run": null,
+  "components": [
+    {
+      "component": "installer",
+      "filename": "Lux MC Launcher - Capas e Personalizador.exe",
+      "bytes": 21421894,
+      "sha256": "711808a28a38dd56d514a2d016998eb027d68579d60d8fce64c9d0b66641ae42",
+      "authenticode": "NotSigned",
+      "publisher": null
+    },
+    {
+      "component": "program",
+      "filename": "luxmc.exe",
+      "bytes": 43211264,
+      "sha256": "51648089ded9050e35c5845a9bf4682f144b5447d6e46bf9158ab23772ea627e",
+      "authenticode": "NotSigned",
+      "publisher": null
+    },
+    {
+      "component": "recovery-helper",
+      "filename": "luxmc-repair.exe",
+      "bytes": 391168,
+      "sha256": "16afbbe8e9466acb3989cb96d94e1f2333b10fd518e349de16dd5bf631519ad7",
+      "authenticode": "NotSigned",
+      "publisher": null
+    }
+  ],
+  "defender": {
+    "signatureVersion": "1.459.684.0",
+    "scanExitCode": 0,
+    "output": [
+      "Scan starting...\r\nScan finished.\r\nScanning C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\release-windows\\Lux MC Launcher - Capas e Personalizador.exe found no threats.\r\n",
+      "Scan starting...\r\nScan finished.\r\nScanning C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\docs\\validation\\artwork-personalizer\\audit-components\\luxmc.exe found no threats.\r\n",
+      "Scan starting...\r\nScan finished.\r\nScanning C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\docs\\validation\\artwork-personalizer\\audit-components\\luxmc-repair.exe found no threats.\r\n"
+    ]
+  },
+  "windowsTrustConfirmed": false,
+  "independentVendorApprovalConfirmed": false
+}

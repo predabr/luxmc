@@ -124,7 +124,7 @@
 
 	function copySelection() {
 		const value = filtered.map((line) => line.text).join('\n');
-		void navigator.clipboard.writeText(value).then(() => toast('Console copiado.', 'success')).catch(() => toast('Não foi possível copiar.', 'error'));
+		void navigator.clipboard.writeText(value).catch(() => toast('Não foi possível copiar.', 'error'));
 	}
 
 	onMount(() => {

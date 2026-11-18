@@ -1,0 +1,85 @@
+1
+00:00:01,029 --> 00:00:03,109
+Seu próximo mundo começa aqui.
+
+2
+00:00:03,430 --> 00:00:05,900
+Este é o Luxmc 3.6.
+
+3
+00:00:06,660 --> 00:00:12,149
+Na biblioteca, você organiza instâncias
+em pastas, escolhe sua versão e mantém
+
+4
+00:00:12,149 --> 00:00:15,170
+mods, mundos e configurações separados.
+
+5
+00:00:15,920 --> 00:00:17,150
+Quer mudar a experiência?
+
+6
+00:00:17,790 --> 00:00:19,509
+Explore modpacks no
+Modrinth e no CurseForge.
+
+7
+00:00:20,709 --> 00:00:24,440
+Abra a descrição, confira as
+versões e prepare a sua instância.
+
+8
+00:00:25,260 --> 00:00:30,569
+Tudo o que você instalou fica fácil de
+encontrar: mods, pacotes de recursos,
+
+9
+00:00:30,919 --> 00:00:33,140
+shaders e ferramentas, no mesmo lugar.
+
+10
+00:00:33,289 --> 00:00:36,290
+O visual também é seu.
+
+11
+00:00:36,779 --> 00:00:42,140
+Escolha o tema, personalize seu perfil
+e veja suas skins em três dimensões.
+
+12
+00:00:42,900 --> 00:00:46,390
+Na área de amigos, sua turma
+encontra o perfil que você criou.
+
+13
+00:00:46,939 --> 00:00:50,639
+E os ajustes deixam você escolher
+como o launcher se comporta.
+
+14
+00:00:51,440 --> 00:00:52,219
+Prefere Bedrock?
+
+15
+00:00:52,949 --> 00:00:56,179
+Ele também tem a sua biblioteca
+no Windows, com recursos
+
+16
+00:00:56,209 --> 00:00:57,550
+e mundos por instância.
+
+17
+00:00:58,070 --> 00:01:00,559
+Para jogar, é necessária
+a licença do Minecraft.
+
+18
+00:01:01,820 --> 00:01:04,369
+Conheça o Luxmc 3.6.
+
+19
+00:01:04,710 --> 00:01:07,720
+Acesse o site oficial e
+baixe o Lux MC Launcher.

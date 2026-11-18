@@ -1,0 +1,12 @@
+{
+  "installedApplication": true,
+  "cancelAndReopen": true,
+  "deletionThroughUi": true,
+  "waitAfterDeleteSeconds": 30,
+  "navigationToSettingsAfterWaiting": true,
+  "settingsJavaTabClickable": true,
+  "returnedToInstances": true,
+  "noRemainingDeleteDialog": true,
+  "originalProfiles": 3,
+  "launcherLeftOpen": true
+}

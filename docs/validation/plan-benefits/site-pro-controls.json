@@ -1,0 +1,82 @@
+[
+  {
+    "name": "Paleta",
+    "options": [
+      {
+        "value": "brand",
+        "disabled": false
+      },
+      {
+        "value": "ocean",
+        "disabled": false
+      },
+      {
+        "value": "mint",
+        "disabled": false
+      },
+      {
+        "value": "sunset",
+        "disabled": false
+      },
+      {
+        "value": "rose",
+        "disabled": false
+      },
+      {
+        "value": "lilac",
+        "disabled": false
+      }
+    ]
+  },
+  {
+    "name": "Moldura do avatar",
+    "options": [
+      {
+        "value": "none",
+        "disabled": false
+      },
+      {
+        "value": "halo",
+        "disabled": false
+      },
+      {
+        "value": "double",
+        "disabled": false
+      },
+      {
+        "value": "orbit",
+        "disabled": false
+      }
+    ]
+  },
+  {
+    "name": "Efeito",
+    "options": [
+      {
+        "value": "none",
+        "disabled": false
+      },
+      {
+        "value": "shimmer",
+        "disabled": false
+      },
+      {
+        "value": "pulse",
+        "disabled": false
+      }
+    ]
+  },
+  {
+    "name": "Composição",
+    "options": [
+      {
+        "value": "classic",
+        "disabled": false
+      },
+      {
+        "value": "centered",
+        "disabled": false
+      }
+    ]
+  }
+]

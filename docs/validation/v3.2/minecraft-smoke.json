@@ -1,0 +1,16 @@
+{
+  "root": "C:\\Users\\preda\\AppData\\Local\\Temp\\luxmc-3.2-game-xW4SdJ",
+  "results": [
+    {
+      "version": "1.21.1",
+      "process": {
+        "Id": 30716,
+        "MainWindowTitle": "Minecraft 1.21.1",
+        "Responding": true
+      },
+      "logExists": true,
+      "rendererInitialized": true,
+      "fatal": false
+    }
+  ]
+}

@@ -129,7 +129,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		selectedServer = normalized;
 		localStorage.setItem("luxmc_favorite_server", JSON.stringify(selectedServer));
 		showEditModal = false;
-		toast(uiText("ui.91b9e64467b10a2a", {arg0: (selectedServer.name)}), "success");
 		pingServer();
 	}
 

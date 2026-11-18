@@ -129,7 +129,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		const link = `luxmc://join/${hostResult.externalIp}:${hostPort}`;
 		navigator.clipboard.writeText(link);
 		hasCopiedCode = true;
-		toast(uiText("ui.7b7b3db4059029b7"), "success");
 		setTimeout(() => hasCopiedCode = false, 2500);
 	}
 </script>

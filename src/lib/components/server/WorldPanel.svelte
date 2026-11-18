@@ -52,7 +52,6 @@
 		try {
 			await saveServerSettings(platform.selectedId, draft);
 			dirty = false;
-			toast('Configuração do mundo salva.', 'success');
 			void platform.loadServerData(platform.selectedId);
 		} catch (cause) {
 			toast(serverMessage(cause), 'error');
@@ -63,7 +62,6 @@
 
 	async function resetDraft() {
 		await load();
-		toast('Alterações descartadas.', 'info');
 	}
 
 	async function applyGamerule(rule: ResolvedGamerule, value: string) {
@@ -75,7 +73,6 @@
 		const mapped = rule.mapValue ? rule.mapValue(value) : value;
 		try {
 			await sendServerCommand(platform.selectedId, `gamerule ${rule.serverName} ${mapped}`);
-			toast(`gamerule ${rule.serverName} ${mapped} enviado ao servidor.`, 'success');
 		} catch (cause) {
 			toast(serverMessage(cause), 'error');
 		}

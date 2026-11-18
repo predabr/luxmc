@@ -1,0 +1,313 @@
+[
+  {
+    "theme": "dark",
+    "route": "/",
+    "actualRoute": "/",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "dark",
+    "route": "/mods",
+    "actualRoute": "/mods",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "dark",
+    "route": "/instances",
+    "actualRoute": "/instances",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "dark",
+    "route": "/friends",
+    "actualRoute": "/friends",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "dark",
+    "route": "/settings",
+    "actualRoute": "/settings",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "dark",
+    "route": "/skins",
+    "actualRoute": "/skins",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "dark",
+    "route": "/news",
+    "actualRoute": "/news",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "dark",
+    "route": "/hosting",
+    "actualRoute": "/hosting",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "dark",
+    "route": "/workshop",
+    "actualRoute": "/workshop",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "dark",
+    "route": "/screenshots",
+    "actualRoute": "/screenshots",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "dark",
+    "route": "/logs-history",
+    "actualRoute": "/logs-history",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "dark",
+    "route": "/logs",
+    "actualRoute": "/logs",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "dark",
+    "route": "/organizer",
+    "actualRoute": "/",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "dark",
+    "route": "/boost",
+    "actualRoute": "/instances",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "dark",
+    "route": "/teamwork-preview",
+    "actualRoute": "/teamwork-preview",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "light",
+    "route": "/",
+    "actualRoute": "/",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "light",
+    "route": "/mods",
+    "actualRoute": "/mods",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "light",
+    "route": "/instances",
+    "actualRoute": "/instances",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "light",
+    "route": "/friends",
+    "actualRoute": "/friends",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "light",
+    "route": "/settings",
+    "actualRoute": "/settings",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "light",
+    "route": "/skins",
+    "actualRoute": "/skins",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "light",
+    "route": "/news",
+    "actualRoute": "/news",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "light",
+    "route": "/hosting",
+    "actualRoute": "/hosting",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "light",
+    "route": "/workshop",
+    "actualRoute": "/workshop",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "light",
+    "route": "/screenshots",
+    "actualRoute": "/screenshots",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "light",
+    "route": "/logs-history",
+    "actualRoute": "/logs-history",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "light",
+    "route": "/logs",
+    "actualRoute": "/logs",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "light",
+    "route": "/organizer",
+    "actualRoute": "/",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "light",
+    "route": "/boost",
+    "actualRoute": "/instances",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "theme": "light",
+    "route": "/teamwork-preview",
+    "actualRoute": "/teamwork-preview",
+    "noPageErrors": true,
+    "noRootOverflow": true,
+    "reducedMotion": true
+  },
+  {
+    "route": "/",
+    "entranceAnimation": true,
+    "animationFinished": true
+  },
+  {
+    "route": "/mods",
+    "entranceAnimation": true,
+    "animationFinished": true
+  },
+  {
+    "route": "/instances",
+    "entranceAnimation": true,
+    "animationFinished": true
+  },
+  {
+    "route": "/friends",
+    "entranceAnimation": true,
+    "animationFinished": true
+  },
+  {
+    "route": "/settings",
+    "entranceAnimation": true,
+    "animationFinished": true
+  },
+  {
+    "route": "/skins",
+    "entranceAnimation": true,
+    "animationFinished": true
+  },
+  {
+    "route": "/news",
+    "entranceAnimation": true,
+    "animationFinished": true
+  },
+  {
+    "route": "/hosting",
+    "entranceAnimation": true,
+    "animationFinished": true
+  },
+  {
+    "route": "/workshop",
+    "entranceAnimation": true,
+    "animationFinished": true
+  },
+  {
+    "route": "/screenshots",
+    "entranceAnimation": true,
+    "animationFinished": true
+  },
+  {
+    "route": "/logs-history",
+    "entranceAnimation": true,
+    "animationFinished": true
+  },
+  {
+    "route": "/logs",
+    "entranceAnimation": true,
+    "animationFinished": true
+  },
+  {
+    "route": "/teamwork-preview",
+    "entranceAnimation": true,
+    "animationFinished": true
+  },
+  {
+    "actualSidebarNavigation": true,
+    "rapidNavigation": true,
+    "noRetainedAnimations": true,
+    "noRetainedRootTransform": true
+  }
+]

@@ -1,0 +1,35 @@
+1
+00:00:00,500 --> 00:00:02,829
+Seu próximo mundo merece esse launcher.
+
+2
+00:00:03,800 --> 00:00:08,160
+No Luxmc 3.6, você
+organiza suas instâncias, encontra
+
+3
+00:00:08,160 --> 00:00:11,039
+modpacks e personaliza tudo do seu jeito.
+
+4
+00:00:11,740 --> 00:00:15,130
+Mods, recursos e shaders
+ficam na instância certa.
+
+5
+00:00:15,599 --> 00:00:19,760
+Suas skins ganham uma prévia em
+três dimensões, e seus amigos
+
+6
+00:00:19,760 --> 00:00:21,279
+veem o perfil que você criou.
+
+7
+00:00:22,029 --> 00:00:22,689
+Quer conhecer?
+
+8
+00:00:23,210 --> 00:00:26,320
+Acesse o site oficial e
+baixe o Lux MC Launcher.

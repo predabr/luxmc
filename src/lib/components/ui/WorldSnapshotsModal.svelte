@@ -96,7 +96,6 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 		try {
 			await instanceWorldSnapshotDelete(profileId, folderName, filename);
 			snapshots = snapshots.filter(s => s.filename !== filename);
-			toast(uiText("ui.3e7512221104485b"), "info");
 		} catch (e) {
 			toast(uiText("ui.56583931a7978e59") + String(e), "error");
 		}

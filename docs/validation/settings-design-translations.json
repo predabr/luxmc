@@ -1,0 +1,68 @@
+{
+  "pt-BR": {
+    "settings": {
+      "refinement": {
+        "instanceTools": "Ferramentas",
+        "settingsTitle": "Seu launcher, do seu jeito",
+        "customResolution": "Personalizada",
+        "resolutionWidth": "Largura da janela (px)",
+        "resolutionHeight": "Altura da janela (px)",
+        "feedbackTitle": "Atualizações, áudio e diagnóstico",
+        "soundEnabled": "Sons do launcher",
+        "soundEnabledDesc": "Feedback ao iniciar, confirmar e receber avisos.",
+        "soundVolume": "Volume dos efeitos",
+        "previewSound": "Testar som",
+        "advancedDiscord": "Discord avançado",
+        "storageCopied": "Resumo copiado sem caminhos pessoais.",
+        "automaticJvm": "Automático (recomendado)",
+        "jvmPresetsDesc": "O modo automático usa parâmetros compatíveis com a versão do Java do jogo. G1GC é uma alternativa conservadora; configurações personalizadas continuam disponíveis acima.",
+        "ramApplied": "RAM recomendada aplicada: {{amount}} GB.",
+        "recommendRam": "Recomendar RAM"
+      }
+    }
+  },
+  "en": {
+    "settings": {
+      "refinement": {
+        "instanceTools": "Tools",
+        "settingsTitle": "Your launcher, your way",
+        "customResolution": "Custom",
+        "resolutionWidth": "Window width (px)",
+        "resolutionHeight": "Window height (px)",
+        "feedbackTitle": "Updates, audio and diagnostics",
+        "soundEnabled": "Launcher sounds",
+        "soundEnabledDesc": "Feedback when launching, confirming and receiving alerts.",
+        "soundVolume": "Sound effect volume",
+        "previewSound": "Preview sound",
+        "advancedDiscord": "Advanced Discord settings",
+        "storageCopied": "Summary copied without personal paths.",
+        "automaticJvm": "Automatic (recommended)",
+        "jvmPresetsDesc": "Automatic mode selects settings compatible with the game's Java version. G1GC is a conservative alternative; custom settings remain available above.",
+        "ramApplied": "Recommended RAM applied: {{amount}} GB.",
+        "recommendRam": "Recommend RAM"
+      }
+    }
+  },
+  "es": {
+    "settings": {
+      "refinement": {
+        "instanceTools": "Herramientas",
+        "settingsTitle": "Tu launcher, a tu manera",
+        "customResolution": "Personalizada",
+        "resolutionWidth": "Ancho de la ventana (px)",
+        "resolutionHeight": "Altura de la ventana (px)",
+        "feedbackTitle": "Actualizaciones, audio y diagnóstico",
+        "soundEnabled": "Sonidos del launcher",
+        "soundEnabledDesc": "Avisos al iniciar, confirmar y recibir notificaciones.",
+        "soundVolume": "Volumen de los efectos",
+        "previewSound": "Probar sonido",
+        "advancedDiscord": "Discord avanzado",
+        "storageCopied": "Resumen copiado sin rutas personales.",
+        "automaticJvm": "Automático (recomendado)",
+        "jvmPresetsDesc": "El modo automático usa parámetros compatibles con la versión de Java del juego. G1GC es una alternativa conservadora; la configuración personalizada sigue disponible arriba.",
+        "ramApplied": "RAM recomendada aplicada: {{amount}} GB.",
+        "recommendRam": "Recomendar RAM"
+      }
+    }
+  }
+}

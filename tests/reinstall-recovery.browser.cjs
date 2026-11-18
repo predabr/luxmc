@@ -15,7 +15,7 @@ const { setupLauncherDemo } = require('../scripts/launcher-video-fixture.cjs');
                 Object.assign(window.launcherDemo.state.settings, { language: 'pt-BR', languageMode: 'manual', blur: false, animations: true, respectReducedMotion: false, performanceMode: false });
             });
             await page.goto('http://127.0.0.1:1420/');
-            await page.getByRole('button', { name: 'Entrar com Microsoft' }).waitFor();
+            await page.getByRole('button', { name: 'Microsoft', exact: true }).waitFor();
             assert.equal(await page.locator('aside.login-story').count(), 0);
             assert.equal(await page.locator('.auth-surface').count(), 1);
             await page.evaluate(() => document.fonts.ready);

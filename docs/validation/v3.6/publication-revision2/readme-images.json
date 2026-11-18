@@ -1,0 +1,32 @@
+[
+  {
+    "alt": "Biblioteca",
+    "width": 1919,
+    "height": 1022,
+    "src": "https://github.com/predabr/luxmc/raw/main/website/assets/captures-3.6/home-window.svg"
+  },
+  {
+    "alt": "Catálogo",
+    "width": 1919,
+    "height": 1022,
+    "src": "https://github.com/predabr/luxmc/raw/main/website/assets/captures-3.6/mods-window.svg"
+  },
+  {
+    "alt": "Instâncias",
+    "width": 1896,
+    "height": 1007,
+    "src": "https://github.com/predabr/luxmc/raw/main/website/assets/captures-3.6/instances-window.svg"
+  },
+  {
+    "alt": "Amigos",
+    "width": 1919,
+    "height": 1022,
+    "src": "https://github.com/predabr/luxmc/raw/main/website/assets/captures-3.6/friends-window.svg"
+  },
+  {
+    "alt": "Personalização",
+    "width": 1919,
+    "height": 1022,
+    "src": "https://github.com/predabr/luxmc/raw/main/website/assets/captures-3.6/personalizer-window.svg"
+  }
+]

@@ -114,7 +114,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			return;
 		}
 		navigator.clipboard.writeText(text)
-			.then(() => toast(t("logs.copied") || uiText("ui.bc02f456cb82194f"), "success"))
 			.catch((e) => toast(uiText("ui.135a395402e6e60f") + String(e), "error"));
 	}
 

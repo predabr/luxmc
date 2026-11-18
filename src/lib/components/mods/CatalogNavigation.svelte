@@ -1,23 +1,15 @@
 <script lang="ts">
-	import { Box, Cpu, Palette, Sparkles, HardDrive, Globe } from "lucide-svelte";
 	import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+	import { catalogTypes } from "$lib/utils/catalogTypes";
 
 	let { selectedType = $bindable("Modpack") }: { selectedType: string } = $props();
-	const types = $derived([
-		{ id: "Modpack", label: uiText("ui.ff74891e9da6c4d7"), icon: Box },
-		{ id: "Mod", label: uiText("ui.2fe83d132e3db243"), icon: Cpu },
-		{ id: "Resource Pack", label: uiText("ui.7ca53deac08c5017"), icon: Palette },
-		{ id: "Shader", label: uiText("ui.c2385aa66c95026c"), icon: Sparkles },
-		{ id: "Data Pack", label: uiText("ui.37db17c75522082f"), icon: HardDrive },
-		{ id: "World", label: uiText("ui.78ae647dc5544d22"), icon: Globe }
-	]);
 </script>
 
 <nav class="catalog-navigation" aria-label={uiText("ui.931d062a37647b8d")}>
-	{#each types as type (type.id)}
+	{#each catalogTypes as type (type.id)}
 		<button type="button" class="catalog-type" aria-pressed={selectedType === type.id} aria-current={selectedType === type.id ? "page" : undefined} onclick={() => selectedType = type.id}>
 			<type.icon class="type-icon h-4 w-4" aria-hidden="true" />
-			<span>{type.label}</span>
+			<span>{uiText(type.labelKey)}</span>
 		</button>
 	{/each}
 </nav>

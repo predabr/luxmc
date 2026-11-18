@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "revision": 4,
+  "version": "3.6.0",
+  "profilesPreserved": 6,
+  "accountsPreserved": 1,
+  "worldsPreserved": 5,
+  "worldHashesUnchanged": true,
+  "installedExecutableMatchesRelease": true,
+  "normalizedExecutableSha256": "b313faa68374bdd948988ce802bbcc592497ccf008a4675b85ed112630823d8a",
+  "registryRevision": 4,
+  "projectPreserved": true,
+  "updatedAt": "2026-10-10T21:31:41.091636+00:00"
+}

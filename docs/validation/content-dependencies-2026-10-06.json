@@ -1,0 +1,17 @@
+[
+  {
+    "provider": "modrinth",
+    "project": "inventory-profiles-next",
+    "requiredDependenciesInstalled": 3,
+    "exactPinsPreserved": true,
+    "wrongVersionRejected": true,
+    "previousFilesPreserved": true
+  },
+  {
+    "provider": "curseforge",
+    "project": "Controlling",
+    "compatibleInstallSucceeded": true,
+    "metadataDependenciesChecked": true,
+    "registeredFiles": 6
+  }
+]

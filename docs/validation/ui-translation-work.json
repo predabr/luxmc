@@ -1,0 +1,662 @@
+[
+  {
+    "source": "Preparando sala…",
+    "key": "ui.8072a1679aaf96f2",
+    "en": "Preparing room",
+    "es": "Sala de preparación"
+  },
+  {
+    "source": "Servidor offline no momento",
+    "key": "ui.4685a6fc5a37f9c5",
+    "en": "Currently offline server",
+    "es": "Actualmente servidor sin conexión"
+  },
+  {
+    "source": "🇧🇷 Maior Servidor Brasileiro",
+    "key": "ui.8fa0c22a3830408d",
+    "en": "? Biggest Brazilian Server",
+    "es": "? Servidor brasileño más grande"
+  },
+  {
+    "source": "Servidor Personalizado",
+    "key": "ui.2170dbb2a4bdf485",
+    "en": "Custom Server",
+    "es": "Servidor personalizado"
+  },
+  {
+    "source": "Servidor favorito definido como {{arg0}}!",
+    "key": "ui.91b9e64467b10a2a",
+    "en": "Favorite server set to {{arg0}}I'm sorry",
+    "es": "Juego de servidor favorito {{arg0}}Lo siento"
+  },
+  {
+    "source": "Falha ao iniciar o jogo: ",
+    "key": "ui.ea9a9c9188e1f662",
+    "en": "Failed to start game: ",
+    "es": "Failed para empezar juego: "
+  },
+  {
+    "source": "Porta UPnP aberta com sucesso no roteador!",
+    "key": "ui.8960ce11b29dc29d",
+    "en": "Open UPnP port successfully on the router!",
+    "es": "Abra el puerto UPnP con éxito en el router!"
+  },
+  {
+    "source": "Novo bioma Pale Garden com madeira Pale Oak, mob Creaking e novos blocos de resina.",
+    "key": "ui.e4e24ba39a1d2b8c",
+    "en": "New Pale Garden biome with Pale Oak wood, Mob Creaking and new resin blocks.",
+    "es": "Nuevo bioma de jardín de pale con madera de roble de pale, crema de mob y nuevos bloques de resina."
+  },
+  {
+    "source": "Desempenho",
+    "key": "ui.ce274629c3f2e125",
+    "en": "Performance",
+    "es": "Desempeño"
+  },
+  {
+    "source": "Erro ao carregar imagem: ",
+    "key": "ui.30db10065a2fd909",
+    "en": "Error loading image: ",
+    "es": "Imagen de carga de error: "
+  },
+  {
+    "source": "Minecraft encerrado com sucesso.",
+    "key": "ui.69429e8fd4528906",
+    "en": "Minecraft successfully closed.",
+    "es": "Minecraft cerró con éxito."
+  },
+  {
+    "source": "Erro ao tentar encerrar o jogo: ",
+    "key": "ui.f635cd0acfe6def9",
+    "en": "Error while trying to close the game: ",
+    "es": "Error al intentar cerrar el juego: "
+  },
+  {
+    "source": "Preparando...",
+    "key": "ui.dc0546b3e22c8f9e",
+    "en": "Preparing",
+    "es": "Preparación"
+  },
+  {
+    "source": "{{arg0}} min (Em jogo)",
+    "key": "ui.d4405a435b2e7242",
+    "en": "{{arg0}} min (Oncoming)",
+    "es": "{{arg0}} min (Vienes)"
+  },
+  {
+    "source": "Log de desempenho MangoHud",
+    "key": "ui.4df84e0733508cbc",
+    "en": "MangoHud Performance Log",
+    "es": "MangoHud Performance Log"
+  },
+  {
+    "source": "Todos",
+    "key": "mods.categoryAll",
+    "en": "All",
+    "es": "Todos"
+  },
+  {
+    "source": "Controles salvos com sucesso!",
+    "key": "ui.3e9b650bc548eabe",
+    "en": "Controls saved successfully!",
+    "es": "Controles guardados con éxito!"
+  },
+  {
+    "source": "Mod conflitante \"{{arg0}}\" desativado com sucesso!",
+    "key": "ui.0a7a8e884d0d0a53",
+    "en": "Conflicting Mod\"{{arg0}}\"Deactivated successfully!",
+    "es": "Mod de conflicto\"{{arg0}}\"Desactivado con éxito!"
+  },
+  {
+    "source": "Falha ao resolver conflitos: ",
+    "key": "ui.507ea47b65b10764",
+    "en": "Failed to resolve conflicts: ",
+    "es": "Failed to resolve conflicts: "
+  },
+  {
+    "source": "Modpack exportado com sucesso! ({{arg0}} MB)",
+    "key": "ui.eedbfeea413bd317",
+    "en": "Modpack successfully exported! ({{arg0}} MB)",
+    "es": "Modpack exportado con éxito! ({{arg0}} MB)"
+  },
+  {
+    "source": "Erro ao escanear launchers: {{arg0}}",
+    "key": "ui.88f8071333396051",
+    "en": "Scanning Launchers Error: {{arg0}}",
+    "es": "Error de lanzamientos de escáner: {{arg0}}"
+  },
+  {
+    "source": "Importando {{arg0}} do {{arg1}}...",
+    "key": "ui.c17c0c7d49498ad3",
+    "en": "Importing {{arg0}} Do not {{arg1}}",
+    "es": "Importación {{arg0}} No {{arg1}}"
+  },
+  {
+    "source": "Falha ao carregar lista de backups: ",
+    "key": "ui.083266c511d0f671",
+    "en": "Failed to load backup list: ",
+    "es": "Failed to load backup list: "
+  },
+  {
+    "source": "Backup de \"{{arg0}}\" criado com sucesso!",
+    "key": "ui.746bb3ad8b64756e",
+    "en": "Backup from \"{{arg0}}\"created successfully!",
+    "es": "Retrocede de \"{{arg0}}\"creado con éxito!"
+  },
+  {
+    "source": "Qualquer Versão",
+    "key": "ui.f3553b3146f80974",
+    "en": "Any Version",
+    "es": "Cualquier versión"
+  },
+  {
+    "source": "Falha no login Microsoft: ",
+    "key": "ui.62406a19962ea989",
+    "en": "Microsoft login failed: ",
+    "es": "El inicio de sesión de Microsoft falló: "
+  },
+  {
+    "source": "TEMPO TOTAL",
+    "key": "ui.7bae9616f3a82389",
+    "en": "TOTAL TIME",
+    "es": "TOTAL TI"
+  },
+  {
+    "source": "Discord Rich Presence conectado com sucesso!",
+    "key": "ui.3bbe0b4ae4fb2b8d",
+    "en": "Discord Rich Presence successfully connected!",
+    "es": "Discord Rich Presence conectado con éxito!"
+  },
+  {
+    "source": "RAM e Flags do GC otimizadas com sucesso para Linux!",
+    "key": "ui.9f0b5c2cf48f2755",
+    "en": "GC RAM and Flags successfully optimized for Linux!",
+    "es": "GC RAM y Flags optimizados con éxito para Linux!"
+  },
+  {
+    "source": "Novo",
+    "key": "ui.2b1d9b4b4ba45903",
+    "en": "New",
+    "es": "Nuevo"
+  },
+  {
+    "source": "Baixando Minecraft (client.jar)",
+    "key": "ui.44abd9d3d37d32fd",
+    "en": "Downloading Minecraft (client.jar)",
+    "es": "Descargar Minecraft (client.jar)"
+  },
+  {
+    "source": "Baixando bibliotecas nativas",
+    "key": "ui.d37dd9864798ec50",
+    "en": "Downloading native libraries",
+    "es": "Descarga de bibliotecas nativas"
+  },
+  {
+    "source": "Baixando recursos e texturas",
+    "key": "ui.da9c8dbc9b5e7f84",
+    "en": "Downloading features and textures",
+    "es": "Descarga de características y texturas"
+  },
+  {
+    "source": "Indexando recursos do jogo",
+    "key": "ui.473b37b2b73ee832",
+    "en": "Indexing Game Features",
+    "es": "Indización de las características del juego"
+  },
+  {
+    "source": "Sistema",
+    "key": "ui.f150afd3c5994d18",
+    "en": "System",
+    "es": "Sistema"
+  },
+  {
+    "source": "Ambiente",
+    "key": "ui.0d2b7ca65666383e",
+    "en": "Environment",
+    "es": "Medio ambiente"
+  },
+  {
+    "source": "Arquivo \"{{arg0}}\" gravado com sucesso!",
+    "key": "ui.e81df41f94aae1ec",
+    "en": "File \"{{arg0}}\" recorded successfully!",
+    "es": "Archivo \"{{arg0}}\" grabado con éxito!"
+  },
+  {
+    "source": "Erro ao verificar runtimes Java",
+    "key": "ui.3cfa105c3ddb5e04",
+    "en": "Error checking Java runtimes",
+    "es": "Comprobación de errores Horas de ejecución Java"
+  },
+  {
+    "source": "Java {{arg0}} instalado com sucesso!",
+    "key": "ui.c8145ea096806f8b",
+    "en": "Java {{arg0}} installed successfully!",
+    "es": "Java {{arg0}} instalado con éxito!"
+  },
+  {
+    "source": "Erro ao iniciar jogo: ",
+    "key": "ui.61910b3c799dce6f",
+    "en": "Error while starting game: ",
+    "es": "Error al iniciar el juego: "
+  },
+  {
+    "source": "Reflexos em Tempo Real",
+    "key": "ui.4c858b727e2279d2",
+    "en": "Real-Time Reflections",
+    "es": "Reflexiones en tiempo real"
+  },
+  {
+    "source": "Reparando modpack e baixando mods faltantes...",
+    "key": "ui.7d50972e0c11f170",
+    "en": "Repairing modpack and downloading missing mods...",
+    "es": "Reparando modpack y descargando mods faltantes..."
+  },
+  {
+    "source": "{{arg0}} mod(s) faltante(s) baixado(s) com sucesso!",
+    "key": "ui.f1a81e409926c472",
+    "en": "{{arg0}} missing mod(s) successfully downloaded!",
+    "es": "{{arg0}} desaparecidos mod(s) con éxito descargado!"
+  },
+  {
+    "source": "Mod \"{{arg0}}\" desativado com sucesso!",
+    "key": "ui.96696ff6138514f7",
+    "en": "Mod \"{{arg0}}\"Deactivated successfully!",
+    "es": "Mod \"{{arg0}}\"Desactivado con éxito!"
+  },
+  {
+    "source": "Luxmc Auto-Reparo: {{arg0}} corrigido automaticamente com sucesso!",
+    "key": "ui.a974c6296b413f19",
+    "en": "Luxmc Self-Repair: {{arg0}} auto-corrected successfully!",
+    "es": "Luxmc Self-Repair: {{arg0}} autocorregido con éxito!"
+  },
+  {
+    "source": "minutos",
+    "key": "ui.aeb6183e322c8d69",
+    "en": "minutes",
+    "es": "minutos"
+  },
+  {
+    "source": "{{arg0}}m (Em jogo)",
+    "key": "ui.3eb96048b97bf86b",
+    "en": "{{arg0}}m (On the line)",
+    "es": "{{arg0}}m (En la línea)"
+  },
+  {
+    "source": "Servidor Favorito & Ping",
+    "key": "ui.1715319ccc22fdd6",
+    "en": "& Ping Bookmark Server",
+    "es": "&quot; Ping Bookmark Server"
+  },
+  {
+    "source": "Tempo de Jogo & Monitor",
+    "key": "ui.efa31af6ebd11b61",
+    "en": "& Monitor Game Time",
+    "es": "&quot; Monitor Game Time &quot;"
+  },
+  {
+    "source": "Tempo limite ao carregar textura",
+    "key": "ui.a5ba2552601d7b97",
+    "en": "Timeout when loading texture",
+    "es": "Timeout cuando la textura de carga"
+  },
+  {
+    "source": "Montando as bibliotecas do jogo...",
+    "key": "ui.4a2bda9086a2b484",
+    "en": "Setting up the game libraries...",
+    "es": "Configurar las bibliotecas del juego..."
+  },
+  {
+    "source": "Extraindo bibliotecas nativas...",
+    "key": "ui.7aaa8c5b3528ffea",
+    "en": "Extracting native libraries...",
+    "es": "Extrayendo bibliotecas nativas..."
+  },
+  {
+    "source": "Falha ao iniciar o jogo",
+    "key": "ui.48a319d9cbd85a5a",
+    "en": "Failed to start game",
+    "es": "Failed para empezar juego"
+  },
+  {
+    "source": "Em Servidor Multiplayer",
+    "key": "ui.b198ae036811b7a7",
+    "en": "Multiplayer Server",
+    "es": "Servidor multijugador"
+  },
+  {
+    "source": "Servidor: {{arg0}}",
+    "key": "ui.ac105870d387335e",
+    "en": "Server: {{arg0}}",
+    "es": "Servidor: {{arg0}}"
+  },
+  {
+    "source": "No Menu do Jogo",
+    "key": "ui.1f871d9c221034f4",
+    "en": "In the Game Menu",
+    "es": "En el menú del juego"
+  },
+  {
+    "source": "Baixando assets",
+    "key": "download.phaseAssets",
+    "en": "Downloading assets",
+    "es": "Baixando assets"
+  },
+  {
+    "source": "Preparando bibliotecas",
+    "key": "ui.6de2d03fd96e5b9b",
+    "en": "Preparing libraries",
+    "es": "Preparación de bibliotecas"
+  },
+  {
+    "source": "Baixando Minecraft",
+    "key": "ui.595883002f54bbf0",
+    "en": "Downloading Minecraft",
+    "es": "Descarga Minecraft"
+  },
+  {
+    "source": "Preparando Java",
+    "key": "ui.6839bd679d968a68",
+    "en": "Preparing Java",
+    "es": "Preparando Java"
+  },
+  {
+    "source": "Azure Client ID salvo com sucesso!",
+    "key": "ui.69958948b529e62f",
+    "en": "Azure Client ID saved successfully!",
+    "es": "Azure Client ID guardado con éxito!"
+  },
+  {
+    "source": "Erro no modo dev: ",
+    "key": "ui.d4d9fa06ecf42be8",
+    "en": "Dev mode error: ",
+    "es": "Error del modo Dev: "
+  },
+  {
+    "source": "Baixando Minecraft {{arg0}}...",
+    "key": "ui.1d9893e36eabb20a",
+    "en": "Downloading Minecraft {{arg0}}",
+    "es": "Descarga Minecraft {{arg0}}"
+  },
+  {
+    "source": "Falha ao iniciar o Minecraft: ",
+    "key": "ui.5a696268f07e8812",
+    "en": "Failed to start Minecraft: ",
+    "es": "Failed to start Minecraft: "
+  },
+  {
+    "source": "8 GB Total",
+    "key": "ui.06984d799243cd84",
+    "en": "8 GB Total",
+    "es": "Total de 8 GB"
+  },
+  {
+    "source": "Falha ao carregar specs do sistema:",
+    "key": "ui.26b05fbe7c7a5150",
+    "en": "Failed to load system specs:",
+    "es": "Failed to load system specs:"
+  },
+  {
+    "source": "Falha ao gerar flags:",
+    "key": "ui.5b5479b36ac80588",
+    "en": "Failed to generate flags:",
+    "es": "Failed to generate flags:"
+  },
+  {
+    "source": "Expulsar {{arg0}}",
+    "key": "ui.8ef3a7fe8939e3bc",
+    "en": "Kick {{arg0}}",
+    "es": "Kick {{arg0}}"
+  },
+  {
+    "source": "Importando...",
+    "key": "ui.eeb8c8bbcaab66e1",
+    "en": "I'm sorry",
+    "es": "Lo siento"
+  },
+  {
+    "source": "Nenhum mod de desempenho compatível",
+    "key": "ui.852b60ba7e0a87d1",
+    "en": "No compatible performance mod",
+    "es": "No mod de rendimiento compatible"
+  },
+  {
+    "source": "O pacote de otimização requer",
+    "key": "ui.096b2a4ded2366b3",
+    "en": "Optimization package requires",
+    "es": "Paquete de optimización requiere"
+  },
+  {
+    "source": "Falha ao iniciar jogo: ",
+    "key": "ui.ca8c81cc4b1149af",
+    "en": "Failed to start game: ",
+    "es": "Failed para empezar juego: "
+  },
+  {
+    "source": "mundos",
+    "key": "ui.980a835c597a18d3",
+    "en": "worlds",
+    "es": "mundos"
+  },
+  {
+    "source": "Importando .jar...",
+    "key": "ui.ce5c1c3f264d0643",
+    "en": "Importing .jar",
+    "es": "Importación .jar"
+  },
+  {
+    "source": "Solte os .jar aqui",
+    "key": "ui.daed1ac225487b5d",
+    "en": "Release the .jar here.",
+    "es": "Libera el .jar aquí."
+  },
+  {
+    "source": "Erro ao reparar tudo: ",
+    "key": "ui.85465570a78c6a06",
+    "en": "Error repairing all: ",
+    "es": "Reparación de errores: "
+  },
+  {
+    "source": "Backup salvo com sucesso em: {{arg0}}",
+    "key": "ui.bd713228121fc570",
+    "en": "Backup successfully saved at: {{arg0}}",
+    "es": "Respaldo guardado con éxito en: {{arg0}}"
+  },
+  {
+    "source": "{{arg0}} mod(s) atualizado(s) com sucesso!",
+    "key": "ui.680c180aa27692cc",
+    "en": "{{arg0}} updated mod(s) successfully!",
+    "es": "{{arg0}} actualizado mod(s) con éxito!"
+  },
+  {
+    "source": "Verificando integridade e baixando mods faltantes...",
+    "key": "ui.aa1e8e9534687c4d",
+    "en": "Checking integrity and downloading missing mods...",
+    "es": "Comprobando integridad y descargando mods desaparecidos..."
+  },
+  {
+    "source": "Erro ao reparar modpack: ",
+    "key": "ui.35c425e04f2b57c8",
+    "en": "Error repairing modpack: ",
+    "es": "Modpack de reparación de errores: "
+  },
+  {
+    "source": "Erro ao gerar link de host: ",
+    "key": "ui.b41df1ca12481eb2",
+    "en": "Error generating host link: ",
+    "es": "Enlace de host generador de error: "
+  },
+  {
+    "source": "Mod sincronizado com sucesso!",
+    "key": "ui.1a7c0fe3efaf18ca",
+    "en": "Mod synchronized successfully!",
+    "es": "Mod sincronizado con éxito!"
+  },
+  {
+    "source": "Erro ao alternar mod: ",
+    "key": "ui.602701edd10dcc87",
+    "en": "Error switching mod: ",
+    "es": "Mod de conmutación de error: "
+  },
+  {
+    "source": "Mod \"{{arg0}}\" removido com sucesso!",
+    "key": "ui.76da1453ec791bf3",
+    "en": "Mod \"{{arg0}}\" successfully removed!",
+    "es": "Mod \"{{arg0}}\"¡Se ha eliminado con éxito!"
+  },
+  {
+    "source": "{{arg0}} mod(s) adicionado(s) com sucesso!",
+    "key": "ui.130c4ba5e16f85ca",
+    "en": "{{arg0}} successfully added mod(s)!",
+    "es": "{{arg0}} añadidos con éxito mod(s)!"
+  },
+  {
+    "source": "Falha ao ler o ficheiro",
+    "key": "ui.4a07e3a9501f9478",
+    "en": "Failed to read file",
+    "es": "Failed to read file"
+  },
+  {
+    "source": "Arquivo grande ({{arg0}} KB). Abra com o gerenciador do sistema para melhor performance.",
+    "key": "ui.21f8ab933ab2229b",
+    "en": "Large file ({{arg0}} KB) Open with the system manager for better performance.",
+    "es": "Archivo grande ({{arg0}} KB) Abra con el administrador del sistema para mejorar el rendimiento."
+  },
+  {
+    "source": "Arquivo \"{{arg0}}\" guardado com sucesso!",
+    "key": "ui.97f3464fc2a2ebe4",
+    "en": "File \"{{arg0}}\"stored successfully!",
+    "es": "Archivo \"{{arg0}}\"¡Se ha restaurado con éxito!"
+  },
+  {
+    "source": "Importando e descompactando mapa...",
+    "key": "ui.dfdec63dbc7386d1",
+    "en": "Importing and unpacking map...",
+    "es": "Importar y desempacar mapa..."
+  },
+  {
+    "source": "Falha ao checar conflitos: ",
+    "key": "ui.3f8f4932b9580466",
+    "en": "Failed to check conflicts: ",
+    "es": "Failed to check conflicts: "
+  },
+  {
+    "source": "Verificando bibliotecas e integridade do jogo...",
+    "key": "ui.8fbc6893bdbc6efd",
+    "en": "Checking libraries and game integrity...",
+    "es": "Comprobando bibliotecas e integridad del juego..."
+  },
+  {
+    "source": "Baixando client.jar do Minecraft ",
+    "key": "ui.4d7cbc3453407632",
+    "en": "Downloading Minecraft client.jar ",
+    "es": "Descargar Minecraft client.jar "
+  },
+  {
+    "source": "🎮 Minecraft {{arg0}} iniciado com sucesso! (PID: {{arg1}})",
+    "key": "ui.f9462c8ca5b0a2ac",
+    "en": "♪ Minecraft ♪ {{arg0}} started successfully! (PID: {{arg1}})",
+    "es": "Minecraft {{arg0}} ¡Empezó con éxito! {{arg1}})"
+  },
+  {
+    "source": "Pacote de Recursos",
+    "key": "ui.963f78de2df74f50",
+    "en": "Resource Package",
+    "es": "Paquete de recursos"
+  },
+  {
+    "source": "{{arg0}} {{arg1}}(s) adicionado(s) com sucesso!",
+    "key": "ui.fd5be19f7f80fe28",
+    "en": "{{arg0}} {{arg1}}(s) successfully added!",
+    "es": "{{arg0}} {{arg1}}(s) añadido con éxito!"
+  },
+  {
+    "source": "Item removido com sucesso!",
+    "key": "ui.f3e43f3065bf2a2b",
+    "en": "Item removed successfully!",
+    "es": "¡El artículo se quitó con éxito!"
+  },
+  {
+    "source": "vídeo",
+    "key": "ui.b11740b53dbb7ab3",
+    "en": "video",
+    "es": "video"
+  },
+  {
+    "source": "Baixando pacote ({{arg0}})...",
+    "key": "ui.18333ba6ce43048e",
+    "en": "Downloading package ({{arg0}})",
+    "es": "Paquete de descarga ({{arg0}})"
+  },
+  {
+    "source": "\"{{arg0}}\" instalado com sucesso!",
+    "key": "ui.8cb332040d3078ab",
+    "en": "\"Oh, my God{{arg0}}\" installed successfully!",
+    "es": "\"Oh, Dios mío{{arg0}}\"¡Instalado con éxito!"
+  },
+  {
+    "source": "Fonte oficial Minecraft · atualizado {{arg0}}",
+    "key": "ui.72ac8ad3be3dd73b",
+    "en": "Official source Minecraft · updated {{arg0}}",
+    "es": "Fuente oficial Minecraft · actualizada {{arg0}}"
+  },
+  {
+    "source": "Visualizador e customizador 3D em tempo real na nuvem",
+    "key": "ui.915ae50070789650",
+    "en": "Real-time 3D Cloud Viewer and Customizer",
+    "es": "Visor de nube 3D en tiempo real y personalizador"
+  },
+  {
+    "source": "Cache limpo com sucesso!",
+    "key": "ui.b1f36d2fc6a6621d",
+    "en": "Clean Cache Successfully!",
+    "es": "Caché limpia con éxito!"
+  },
+  {
+    "source": "Bibliotecas",
+    "key": "settings.catLibraries",
+    "en": "Libraries",
+    "es": "Bibliotecas"
+  },
+  {
+    "source": "Recursos do Minecraft",
+    "key": "ui.beb65d096de336b3",
+    "en": "Minecraft Resources",
+    "es": "Recursos mineros"
+  },
+  {
+    "source": "Aplicativo Luxmc",
+    "key": "ui.4fe101016fd71f92",
+    "en": "Luxmc Application",
+    "es": "Aplicación Luxmc"
+  },
+  {
+    "source": "Logs limpos com sucesso! ({{arg0}} liberados)",
+    "key": "ui.936e9d5fd6166fd7",
+    "en": "Successfully cleaned logs! ({{arg0}} released)",
+    "es": "¡Con éxito los registros limpios!{{arg0}} liberada)"
+  },
+  {
+    "source": "Cache limpo com sucesso! ({{arg0}} liberados)",
+    "key": "ui.1e23968a10a33a9c",
+    "en": "Clean Cache Successfully! ({{arg0}} released)",
+    "es": "Caché limpia con éxito!{{arg0}} liberada)"
+  },
+  {
+    "source": "Erro ao carregar textura: ",
+    "key": "ui.97bfa663aaafe580",
+    "en": "Error loading texture: ",
+    "es": "Textura de carga de errores: "
+  },
+  {
+    "source": "Falha ao gerar host info:",
+    "key": "ui.86631a41a8aa68fb",
+    "en": "Failed to generate host info:",
+    "es": "Failed para generar información de host:"
+  },
+  {
+    "source": "Link de convite copiado com sucesso!",
+    "key": "ui.747cdb9983e94824",
+    "en": "Invitation link successfully copied!",
+    "es": "Enlace de invitación copiado con éxito!"
+  }
+]

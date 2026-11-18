@@ -1,0 +1,293 @@
+{
+  "pages": [
+    {
+      "overflow": 0,
+      "page": "dashboard",
+      "width": 320
+    },
+    {
+      "overflow": 0,
+      "page": "dashboard",
+      "width": 375
+    },
+    {
+      "overflow": 0,
+      "page": "dashboard",
+      "width": 430
+    },
+    {
+      "overflow": 0,
+      "page": "dashboard",
+      "width": 768
+    },
+    {
+      "overflow": 0,
+      "page": "dashboard",
+      "width": 1024
+    },
+    {
+      "overflow": 0,
+      "page": "dashboard",
+      "width": 1440
+    },
+    {
+      "overflow": 0,
+      "page": "dashboard",
+      "width": 1920
+    },
+    {
+      "overflow": 0,
+      "page": "/",
+      "width": 320
+    },
+    {
+      "overflow": 0,
+      "page": "/",
+      "width": 375
+    },
+    {
+      "overflow": 0,
+      "page": "/",
+      "width": 430
+    },
+    {
+      "overflow": 0,
+      "page": "/",
+      "width": 768
+    },
+    {
+      "overflow": 0,
+      "page": "/",
+      "width": 1024
+    },
+    {
+      "overflow": 0,
+      "page": "/",
+      "width": 1440
+    },
+    {
+      "overflow": 0,
+      "page": "/",
+      "width": 1920
+    },
+    {
+      "overflow": 0,
+      "page": "/skins",
+      "width": 320
+    },
+    {
+      "overflow": 0,
+      "page": "/skins",
+      "width": 375
+    },
+    {
+      "overflow": 0,
+      "page": "/skins",
+      "width": 430
+    },
+    {
+      "overflow": 0,
+      "page": "/skins",
+      "width": 768
+    },
+    {
+      "overflow": 0,
+      "page": "/skins",
+      "width": 1024
+    },
+    {
+      "overflow": 0,
+      "page": "/skins",
+      "width": 1440
+    },
+    {
+      "overflow": 0,
+      "page": "/skins",
+      "width": 1920
+    },
+    {
+      "overflow": 0,
+      "page": "/conta",
+      "width": 320
+    },
+    {
+      "overflow": 0,
+      "page": "/conta",
+      "width": 375
+    },
+    {
+      "overflow": 0,
+      "page": "/conta",
+      "width": 430
+    },
+    {
+      "overflow": 0,
+      "page": "/conta",
+      "width": 768
+    },
+    {
+      "overflow": 0,
+      "page": "/conta",
+      "width": 1024
+    },
+    {
+      "overflow": 0,
+      "page": "/conta",
+      "width": 1440
+    },
+    {
+      "overflow": 0,
+      "page": "/conta",
+      "width": 1920
+    },
+    {
+      "overflow": 0,
+      "page": "/privacidade",
+      "width": 320
+    },
+    {
+      "overflow": 0,
+      "page": "/privacidade",
+      "width": 375
+    },
+    {
+      "overflow": 0,
+      "page": "/privacidade",
+      "width": 430
+    },
+    {
+      "overflow": 0,
+      "page": "/privacidade",
+      "width": 768
+    },
+    {
+      "overflow": 0,
+      "page": "/privacidade",
+      "width": 1024
+    },
+    {
+      "overflow": 0,
+      "page": "/privacidade",
+      "width": 1440
+    },
+    {
+      "overflow": 0,
+      "page": "/privacidade",
+      "width": 1920
+    },
+    {
+      "overflow": 0,
+      "page": "/termos",
+      "width": 320
+    },
+    {
+      "overflow": 0,
+      "page": "/termos",
+      "width": 375
+    },
+    {
+      "overflow": 0,
+      "page": "/termos",
+      "width": 430
+    },
+    {
+      "overflow": 0,
+      "page": "/termos",
+      "width": 768
+    },
+    {
+      "overflow": 0,
+      "page": "/termos",
+      "width": 1024
+    },
+    {
+      "overflow": 0,
+      "page": "/termos",
+      "width": 1440
+    },
+    {
+      "overflow": 0,
+      "page": "/termos",
+      "width": 1920
+    },
+    {
+      "overflow": 0,
+      "page": "/404",
+      "width": 320
+    },
+    {
+      "overflow": 0,
+      "page": "/404",
+      "width": 375
+    },
+    {
+      "overflow": 0,
+      "page": "/404",
+      "width": 430
+    },
+    {
+      "overflow": 0,
+      "page": "/404",
+      "width": 768
+    },
+    {
+      "overflow": 0,
+      "page": "/404",
+      "width": 1024
+    },
+    {
+      "overflow": 0,
+      "page": "/404",
+      "width": 1440
+    },
+    {
+      "overflow": 0,
+      "page": "/404",
+      "width": 1920
+    }
+  ],
+  "finalHome": [
+    {
+      "cutControls": [],
+      "heroHeight": 950,
+      "overflow": 0,
+      "width": 320
+    },
+    {
+      "cutControls": [],
+      "heroHeight": 917,
+      "overflow": 0,
+      "width": 375
+    },
+    {
+      "cutControls": [],
+      "heroHeight": 917,
+      "overflow": 0,
+      "width": 430
+    },
+    {
+      "cutControls": [],
+      "heroHeight": 900,
+      "overflow": 0,
+      "width": 768
+    },
+    {
+      "cutControls": [],
+      "heroHeight": 900,
+      "overflow": 0,
+      "width": 1024
+    },
+    {
+      "cutControls": [],
+      "heroHeight": 913,
+      "overflow": 0,
+      "width": 1440
+    },
+    {
+      "cutControls": [],
+      "heroHeight": 998,
+      "overflow": 0,
+      "width": 1920
+    }
+  ]
+}

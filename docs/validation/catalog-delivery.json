@@ -1,0 +1,13 @@
+{
+  "path": "C:\\Users\\preda\\Downloads\\Luxmc-2.0.2-catalogo-skins.exe",
+  "sha256": "C5200C6EBBDB12438F70F135C69E790C3774D9513D890EF85E6E1379303E956C",
+  "bytes": 92684288,
+  "windowsSubsystem": 2,
+  "profile": "dev",
+  "embeddedFrontend": true,
+  "site": "https://luxmc-r92.pages.dev",
+  "deployment": "https://b0ae8a81.luxmc-r92.pages.dev",
+  "nativeMouseTest": "Unavailable: Windows automation helper initialization failed",
+  "nativeLaunch": "Blocked by automatic approval policy",
+  "date": "2026-10-04T10:42:37.6300298-03:00"
+}

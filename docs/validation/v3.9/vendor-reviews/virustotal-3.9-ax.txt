@@ -1,0 +1,288 @@
+Browser tab: 17, Title: "VirusTotal - File - d18dd7c81cfc174982a915b65465e0b9af7bed8cca27ab013db2797845ef0e2d", URL: "https://www.virustotal.com/gui/file/d18dd7c81cfc174982a915b65465e0b9af7bed8cca27ab013db2797845ef0e2d?nocache=1".
+1 AXWebArea VirusTotal - File - d18dd7c81cfc174982a915b65465e0b9af7bed8cca27ab013db2797845ef0e2d, URL: virustotal.com/gui/file/d18dd7c81cfc174982a915b65465e0b9af7bed8cca27ab013db2797845ef0e2d?nocache=1
+	2 container
+		3 button (collapsed) Description: Open Assistant Bot, Secondary Actions: Expand
+			4 image
+			5 image
+	6 container view-container
+		7 container
+			8 link Description: Close message, Value: virustotal.com/gui/#
+			9 container
+				10 link Description: Home, Value: virustotal.com/gui/home
+				11 container
+					12 button Search
+						13 image
+					14 text field (settable) Value: d18dd7c81cfc174982a915b65465e0b9af7bed8cca27ab013db2797845ef0e2d, ID: searchInput
+				15 button Upload file
+					16 image
+				17 container
+					18 button (collapsed) Notifications, Secondary Actions: Expand
+						19 button Notifications
+							20 image
+							21 text Unread notifications
+				22 button Contact support
+					23 image
+				24 link Description: Sign in, Value: virustotal.com/sign-in
+				25 link Description: Sign up, Value: virustotal.com/gui/join-us
+		26 container
+			27 text 3
+			28 container
+				29 text /  70
+			30 image chart
+			31 text Community Score •
+			32 button
+				33 image
+			34 button
+				35 image
+			36 image
+			37 text 3/70 security vendors flagged this file as malicious
+			38 button Reanalyze, ID: reanalize
+				39 image
+				40 text Reanalyze
+			41 container
+				42 button (collapsed) Similar, Secondary Actions: Expand
+					43 button Similar
+						44 image
+						45 text Similar
+			46 container
+				47 button (collapsed) More, Secondary Actions: Expand
+					48 button More
+			49 text d18dd7c81cfc174982a915b65465e0b9af7bed8cca27ab013db2797845ef0e2d
+			50 text Luxmc_3.9.0_x64-setup.exe
+			51 text Size
+			52 text 20.44 MB
+			53 text Last Analysis Date
+			54 container Sun Oct 11 2026 22:36:02 GMT-0300 (Horário Padrão de Brasília)
+				55 text 1 minute ago
+			56 image
+			57 link Description: peexe, Value: virustotal.com/gui/search?query=entity%3Afile%20tag%3Apeexe
+			58 link Description: overlay, Value: virustotal.com/gui/search?query=entity%3Afile%20tag%3Aoverlay
+			59 tab group
+				60 button DETECTION, ID: report-tab-detection
+				61 button DETAILS, ID: report-tab-details
+				62 button BEHAVIOR, ID: report-tab-behavior
+				63 button COMMUNITY, ID: report-tab-community
+			64 link Description: Join our Community, Value: virustotal.com/gui/join-us
+			65 text  and enjoy additional community insights and crowdsourced detections, plus an API key to 
+			66 link Description: automate checks., Value: docs.virustotal.com/reference/overview
+			67 text Popular threat label
+			68 link Description: misc/nsis, Value: virustotal.com/gui/search?query=engines%3Amisc%20AND%20engines%3Ansis
+			69 text Family labels
+			70 link Description: misc, Value: virustotal.com/gui/search?query=engines%3Amisc
+			71 link Description: nsis, Value: virustotal.com/gui/search?query=engines%3Ansis
+			72 container
+				73 text Security vendors' analysis
+				74 link Description: Do you want to automate checks?, Value: docs.virustotal.com/reference/overview
+				75 text Avast
+				76 image malicious
+				77 text NSIS:MalwareX-gen [Misc] AVG
+				78 image malicious
+				79 text NSIS:MalwareX-gen [Misc] Trapmine
+				80 image malicious
+				81 text Suspicious.low.ml.score Acronis (Static ML)
+				82 image undetected
+				83 text Undetected AhnLab-V3
+				84 image undetected
+				85 text Undetected Alibaba
+				86 image undetected
+				87 text Undetected AliCloud
+				88 image undetected
+				89 text Undetected ALYac
+				90 image undetected
+				91 text Undetected Antiy-AVL
+				92 image undetected
+				93 text Undetected Arcabit
+				94 image undetected
+				95 text Undetected Arctic Wolf
+				96 image undetected
+				97 text Undetected Avira (no cloud)
+				98 image undetected
+				99 text Undetected BitDefender
+				100 image undetected
+				101 text Undetected Bkav Pro
+				102 image undetected
+				103 text Undetected CMC
+				104 image undetected
+				105 text Undetected CrowdStrike Falcon
+				106 image undetected
+				107 text Undetected CTX
+				108 image undetected
+				109 text Undetected Cynet
+				110 image undetected
+				111 text Undetected DeepInstinct
+				112 image undetected
+				113 text Undetected DrWeb
+				114 image undetected
+				115 text Undetected Elastic
+				116 image undetected
+				117 text Undetected Emsisoft
+				118 image undetected
+				119 text Undetected eScan
+				120 image undetected
+				121 text Undetected ESET-NOD32
+				122 image undetected
+				123 text Undetected Fortinet
+				124 image undetected
+				125 text Undetected GData
+				126 image undetected
+				127 text Undetected Google
+				128 image undetected
+				129 text Undetected Gridinsoft (no cloud)
+				130 image undetected
+				131 text Undetected Huorong
+				132 image undetected
+				133 text Undetected Ikarus
+				134 image undetected
+				135 text Undetected Jiangmin
+				136 image undetected
+				137 text Undetected K7AntiVirus
+				138 image undetected
+				139 text Undetected K7GW
+				140 image undetected
+				141 text Undetected Kaspersky
+				142 image undetected
+				143 text Undetected Kingsoft
+				144 image undetected
+				145 text Undetected Lionic
+				146 image undetected
+				147 text Undetected Malwarebytes
+				148 image undetected
+				149 text Undetected MaxSecure
+				150 image undetected
+				151 text Undetected McAfee Scanner
+				152 image undetected
+				153 text Undetected Microsoft
+				154 image undetected
+				155 text Undetected NANO-Antivirus
+				156 image undetected
+				157 text Undetected Palo Alto Networks
+				158 image undetected
+				159 text Undetected Panda
+				160 image undetected
+				161 text Undetected QuickHeal
+				162 image undetected
+				163 text Undetected Rising
+				164 image undetected
+				165 text Undetected Sangfor Engine Zero
+				166 image undetected
+				167 text Undetected SecureAge
+				168 image undetected
+				169 text Undetected SentinelOne (Static ML)
+				170 image undetected
+				171 text Undetected Skyhigh (SWG)
+				172 image undetected
+				173 text Undetected Sophos
+				174 image undetected
+				175 text Undetected SUPERAntiSpyware
+				176 image undetected
+				177 text Undetected Symantec
+				178 image undetected
+				179 text Undetected TACHYON
+				180 image undetected
+				181 text Undetected TEHTRIS
+				182 image undetected
+				183 text Undetected Tencent
+				184 image undetected
+				185 text Undetected Trellix ENS
+				186 image undetected
+				187 text Undetected TrendMicro
+				188 image undetected
+				189 text Undetected TrendMicro-HouseCall
+				190 image undetected
+				191 text Undetected Varist
+				192 image undetected
+				193 text Undetected VBA32
+				194 image undetected
+				195 text Undetected VIPRE
+				196 image undetected
+				197 text Undetected VirIT
+				198 image undetected
+				199 text Undetected ViRobot
+				200 image undetected
+				201 text Undetected Webroot
+				202 image undetected
+				203 text Undetected WithSecure
+				204 image undetected
+				205 text Undetected Xcitium
+				206 image undetected
+				207 text Undetected Yandex
+				208 image undetected
+				209 text Undetected Zillya
+				210 image undetected
+				211 text Undetected ZoneAlarm by Check Point
+				212 image undetected
+				213 text Undetected Zoner
+				214 image undetected
+				215 text Undetected ClamAV
+				216 image timeout
+				217 text Timeout Avast-Mobile
+				218 image type-unsupported
+				219 text Unable to process file type BitDefenderFalx
+				220 image type-unsupported
+				221 text Unable to process file type Symantec Mobile Insight
+				222 image type-unsupported
+				223 text Unable to process file type Trustlook
+				224 image type-unsupported
+				225 text Unable to process file type
+		226 container main-footer
+			227 container
+				228 heading Our product, Value: 2
+					229 link Description: Our product, Value: docs.virustotal.com/docs/how-it-works, ID: virustotal-virustotal-footer
+				230 content list
+					231 link Description: VirusTotal AI, Value: ai.virustotal.com/, ID: ai-virustotal-footer
+					232 link Description: Contact Us, Value: virustotal.com/gui/contact-us, ID: contact-us-virustotal-footer
+					233 link Description: Get Support, Value: virustotal.com/gui/contact-us/technical-support, ID: get-support-virustotal-footer
+					234 link Description: How It Works, Value: docs.virustotal.com/docs/how-it-works, ID: how-it-works-virustotal-footer
+					235 container
+						236 link Description: ToS, Value: cloud.google.com/terms, ID: tos-virustotal-footer
+						237 text  | 
+						238 link Description: Privacy Notice, Value: cloud.google.com/terms/secops/privacy-notice, ID: privacy-policy-virustotal-footer
+					239 container
+						240 link Description: Blog, Value: blog.virustotal.com/, ID: blog-virustotal-footer
+						241 text  | 
+						242 link Description: Releases, Value: releases.virustotal.com/, ID: releases-virustotal-footer
+			243 container
+				244 heading Community, Value: 2
+					245 link Description: Community, Value: docs.virustotal.com/docs/community, ID: community-community-footer
+				246 content list
+					247 link Description: Join Community, Value: virustotal.com/gui/join-us, ID: join-community-community-footer
+					248 link Description: Vote and Comment, Value: docs.virustotal.com/docs/comments, ID: vote-and-comment-community-footer
+					249 link Description: Contributors, Value: docs.virustotal.com/docs/contributors, ID: contributors-community-footer
+					250 link Description: Top Users, Value: virustotal.com/gui/top-users, ID: top-users-community-footer
+					251 link Description: Community Buzz, Value: virustotal.com/gui/community-buzz, ID: community-buzz-community-footer
+			252 container
+				253 heading Tools, Value: 2
+					254 link Description: Tools, Value: docs.virustotal.com/docs/tools-overview, ID: tools-tools-footer
+				255 content list
+					256 link Description: API Scripts, Value: docs.virustotal.com/docs/api-scripts-and-client-libraries, ID: api-scripts-tools-footer
+					257 link Description: YARA, Value: docs.virustotal.com/docs/whats-vthunting, ID: yara-tools-footer
+					258 link Description: Desktop Apps, Value: docs.virustotal.com/docs/desktop-apps, ID: desktop-apps-tools-footer
+					259 link Description: Browser Extensions, Value: docs.virustotal.com/docs/browser-extensions, ID: browser-extensions-tools-footer
+					260 link Description: Mobile App, Value: docs.virustotal.com/docs/mobile-apps, ID: mobile-app-tools-footer
+			261 container
+				262 heading Premium Services, Value: 2
+					263 link Description: Premium Services, Value: virustotal.com/gui/services-overview, ID: premium-services-premium-footer
+				264 content list
+					265 link Description: Get a demo, Value: virustotal.com/gui/contact-us/premium-services, ID: get-a-demo-premium-footer
+					266 link Description: Intelligence, Value: virustotal.com/gui/intelligence-overview, ID: intelligence-premium-footer
+					267 link Description: Hunting, Value: virustotal.com/gui/hunting-overview, ID: hunting-premium-footer
+					268 link Description: Graph, Value: virustotal.com/gui/graph-overview, ID: graph-premium-footer
+					269 container
+						270 link Description: API, Value: docs.virustotal.com/reference/overview, ID: api-premium-footer
+						271 link Description: v3, Value: docs.virustotal.com/reference/overview, ID: v3-premium-footer
+						272 text  | 
+						273 link Description: v2, Value: docs.virustotal.com/v2.0/reference/getting-started, ID: v2-premium-footer
+			274 container
+				275 heading Documentation, Value: 2
+					276 link Description: Documentation, Value: docs.virustotal.com/docs/, ID: documentation-documentation-free-footer
+				277 content list
+					278 link Description: Searching, Value: docs.virustotal.com/docs/searching, ID: searching-documentation-free-footer
+					279 link Description: Reports, Value: docs.virustotal.com/docs/results-reports, ID: reports-documentation-free-footer
+					280 container
+						281 link Description: API, Value: docs.virustotal.com/reference/overview, ID: api-documentation-free-footer
+						282 link Description: v3, Value: docs.virustotal.com/reference/overview, ID: v3-documentation-free-footer
+						283 text  | 
+						284 link Description: v2, Value: docs.virustotal.com/v2.0/reference/getting-started, ID: v2-documentation-free-footer
+					285 link Description: Use Cases, Value: virustotal.com/getstarted/, ID: use-cases-documentation-free-footer
+
+The focused UI element is 1 AXWebArea VirusTotal - File - d18dd7c81cfc174982a915b65465e0b9af7bed8cca27ab013db2797845ef0e2d, URL: virustotal.com/gui/file/d18dd7c81cfc174982a915b65465e0b9af7bed8cca27ab013db2797845ef0e2d?nocache=1

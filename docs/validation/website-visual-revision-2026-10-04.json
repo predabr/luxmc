@@ -1,0 +1,70 @@
+{
+  "date": "2026-10-04",
+  "preview": "http://127.0.0.1:8790/",
+  "published": true,
+  "design": "Dark graphite, LuxMC gold, condensed display typography and real launcher screenshots",
+  "removed": [
+    "Decorative voxel portal",
+    "Abstract floating cubes",
+    "Homepage WebGL scenes",
+    "Player connection diagram",
+    "Magnetic download button",
+    "Automatic screenshot changes"
+  ],
+  "pages": [
+    "Home",
+    "Skin Studio",
+    "Account: login, registration, recovery and dashboard",
+    "Privacy",
+    "Terms",
+    "404"
+  ],
+  "verification": {
+    "websiteBuild": "passed",
+    "websiteTests": {
+      "passed": 26,
+      "failed": 0
+    },
+    "responsive": {
+      "widths": [
+        320,
+        375,
+        430,
+        768,
+        1024,
+        1440,
+        1920
+      ],
+      "pageStates": 56,
+      "issues": 0,
+      "languageStates": 21
+    },
+    "browser": [
+      "Product screenshot selection",
+      "Screenshot zoom dialog",
+      "Sodium search with Fabric and Minecraft 1.21.1: 47 live results",
+      "Mobile menu open and Escape close",
+      "Account registration mode",
+      "Skin Studio Alex preset, slim model and rotation"
+    ],
+    "backend": {
+      "unchangedFiles": 17,
+      "changedFiles": []
+    }
+  },
+  "assets": {
+    "homeScriptBytes": 2729,
+    "displayFontBytes": 22444,
+    "displayFontLicense": "website/assets/fonts/BARLOW-OFL.txt"
+  },
+  "proofs": [
+    "docs/visual/2026-10-04-website-revision/home-desktop.jpg",
+    "docs/visual/2026-10-04-website-revision/home-mobile.jpg",
+    "docs/visual/2026-10-04-website-revision/downloads.jpg",
+    "docs/visual/2026-10-04-website-revision/account.jpg",
+    "docs/visual/2026-10-04-website-revision/skin-studio.jpg"
+  ],
+  "productionUrl": "https://luxmc-r92.pages.dev/",
+  "deploymentUrl": "https://400f332e.luxmc-r92.pages.dev/",
+  "publicationVerification": "docs/validation/website-publication-2026-10-04.json"
+}

@@ -1,0 +1,24 @@
+{
+  "source": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\docs\\media\\2026-10-10\\exports\\Lux MC Launcher 3.6 - Shorts Oficial.mp4",
+  "description": "Descript narration and stock music mix; timing preserved. No video from the watermarked preview used.",
+  "measuredInput": {
+    "input_i": "-22.79",
+    "input_tp": "-7.47",
+    "input_lra": "9.80",
+    "input_thresh": "-32.92",
+    "output_i": "-15.46",
+    "output_tp": "-1.50",
+    "output_lra": "6.30",
+    "output_thresh": "-25.60",
+    "normalization_type": "dynamic",
+    "target_offset": "-0.54"
+  },
+  "targetIntegratedLoudness": -16,
+  "targetTruePeak": -1.5,
+  "dimensions": [
+    1080,
+    1920
+  ],
+  "duration": 30.233333,
+  "final": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\docs\\media\\2026-10-10\\exports\\Lux MC Launcher 3.6 - Shorts Final.mp4"
+}

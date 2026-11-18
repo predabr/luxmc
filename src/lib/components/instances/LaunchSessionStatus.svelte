@@ -44,7 +44,7 @@
     async function copy() {
         const error = sanitizeLaunchDiagnostic(appState.lastLaunchError || session?.error || "");
         const diagnostic = session ? { ...session, error } : { error };
-        try { await navigator.clipboard.writeText(JSON.stringify(diagnostic, null, 2)); toast("Diagnóstico copiado.", "success"); }
+        try { await navigator.clipboard.writeText(JSON.stringify(diagnostic, null, 2));  }
         catch { toast("Não foi possível copiar o diagnóstico.", "error"); }
     }
 </script>

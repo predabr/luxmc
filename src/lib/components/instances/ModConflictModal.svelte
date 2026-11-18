@@ -38,7 +38,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		resolving = true;
 		try {
 			await instanceModToggle(profileId, c.fileToDisable, false);
-			toast(uiText("ui.0a7a8e884d0d0a53", {arg0: (c.fileToDisable)}), "success");
 			playSound("click");
 			onResolved();
 		} catch (e) {
@@ -55,7 +54,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			for (const c of conflictsResult.conflicts) {
 				await instanceModToggle(profileId, c.fileToDisable, false);
 			}
-			toast(uiText("ui.1fe2e66643f2b34e"), "success");
 			playSound("click");
 			onResolved();
 		} catch (e) {

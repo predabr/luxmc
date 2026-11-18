@@ -1,0 +1,16 @@
+{
+  "installedBinary": "C:\\Users\\preda\\AppData\\Local\\Luxmc\\luxmc.exe",
+  "systemLocale": "pt-BR",
+  "accountsDecoded": 1,
+  "profilesReturned": 2,
+  "skinsReturned": 0,
+  "appInit": true,
+  "nameMcNativeImport": true,
+  "pngDimensions": [
+    64,
+    64
+  ],
+  "windowsGuiSubsystem": 2,
+  "wallpaperManagedCopySurvivesSourceDeletion": true,
+  "databaseIntegrity": "ok"
+}

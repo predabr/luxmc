@@ -140,7 +140,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			await navigator.clipboard.write([
 				new ClipboardItem({ "image/png": pngBlob })
 			]);
-			toast(t("screenshots.copied"), "success");
 		} catch (e) {
 			toast(t("screenshots.copyFailed", { error: String(e) }), "error");
 		}
@@ -153,7 +152,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		document.body.appendChild(a);
 		a.click();
 		document.body.removeChild(a);
-		toast(t("screenshots.exported"), "success");
 	}
 
 	function promptDelete(screenshot: { name: string; path: string }, e?: Event) {
@@ -171,7 +169,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			if (selectedImage?.path === screenshotToDelete.path) {
 				selectedImage = null;
 			}
-			toast(t("screenshots.deleted"), "success");
 			showDeleteConfirm = false;
 			screenshotToDelete = null;
 		} catch (e) {
@@ -193,7 +190,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			showDeleteConfirm = false;
 			selectedImage = null;
 			await loadScreenshots();
-			toast(t("screenshots.deleteSuccess"), "success");
 		} catch (e) {
 			toast(t("screenshots.deleteFailed", { error: String(e) }), "error");
 		} finally {
@@ -203,7 +199,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	function copyToClipboard(path: string) {
 		navigator.clipboard.writeText(path)
 			.then(() => {
-				toast(uiText("ui.9d7de573333d0b52"), "success");
 			})
 			.catch((e) => {
 				toast(uiText("ui.286d85cb232b3956") + String(e), "error");

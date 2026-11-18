@@ -47,7 +47,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	} from "lucide-svelte";
 	import { clientMods, type ClientModsConfig } from "$lib/stores/clientMods.svelte";
 	import { appState } from "$lib/stores/app.svelte";
-	import { toast } from "$lib/stores/toasts.svelte";
+	
 	import { playSound } from "$lib/utils/sound";
 	import { clientOverlayClose } from "$lib/api";
 	import ClientModuleConfigModal from "./ClientModuleConfigModal.svelte";
@@ -148,7 +148,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	function handleReset() {
 		clientMods.reset();
-		toast(uiText("ui.45ab9100638178eb"), "info");
 	}
 </script>
 

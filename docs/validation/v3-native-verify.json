@@ -1,0 +1,11 @@
+{
+  "version": "3.0.0",
+  "guiSubsystem": true,
+  "profiles": 2,
+  "accountAvailable": true,
+  "databaseIntegrity": "ok",
+  "feedEntries": 100,
+  "officialNewsEntries": 99,
+  "latestNewsDate": "2026-09-28",
+  "officialNewsSource": "https://launchercontent.mojang.com/v2/news.json"
+}

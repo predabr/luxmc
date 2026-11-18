@@ -1,0 +1,657 @@
+{
+  "total_count": 5,
+  "jobs": [
+    {
+      "id": 114021756762,
+      "run_id": 37990098160,
+      "workflow_name": "Release",
+      "head_branch": "v3.6.1-revision.1",
+      "run_url": "https://api.github.com/repos/predabr/luxmc/actions/runs/37990098160",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOUQmo7M8AAAAajDnvWg",
+      "head_sha": "c4050f24e20d3bbc9c0f10b1b6936c63b350b1f0",
+      "url": "https://api.github.com/repos/predabr/luxmc/actions/jobs/114021756762",
+      "html_url": "https://github.com/predabr/luxmc/actions/runs/37990098160/job/114021756762",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-09T20:54:33Z",
+      "started_at": "2026-10-09T20:54:35Z",
+      "completed_at": "2026-10-09T20:54:45Z",
+      "name": "create-release",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-09T20:54:36Z",
+          "completed_at": "2026-10-09T20:54:37Z"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-09T20:54:37Z",
+          "completed_at": "2026-10-09T20:54:40Z"
+        },
+        {
+          "name": "Get tag",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-09T20:54:40Z",
+          "completed_at": "2026-10-09T20:54:40Z"
+        },
+        {
+          "name": "Validate release version",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-10-09T20:54:40Z",
+          "completed_at": "2026-10-09T20:54:42Z"
+        },
+        {
+          "name": "Create or Find GitHub Release",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-10-09T20:54:42Z",
+          "completed_at": "2026-10-09T20:54:43Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-10-09T20:54:43Z",
+          "completed_at": "2026-10-09T20:54:43Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-10-09T20:54:43Z",
+          "completed_at": "2026-10-09T20:54:43Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/predabr/luxmc/check-runs/114021756762",
+      "labels": [
+        "ubuntu-22.04"
+      ],
+      "runner_id": 1000001314,
+      "runner_name": "GitHub Actions 1000001314",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 114021828702,
+      "run_id": 37990098160,
+      "workflow_name": "Release",
+      "head_branch": "v3.6.1-revision.1",
+      "run_url": "https://api.github.com/repos/predabr/luxmc/actions/runs/37990098160",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOUQmo7M8AAAAajDsIXg",
+      "head_sha": "c4050f24e20d3bbc9c0f10b1b6936c63b350b1f0",
+      "url": "https://api.github.com/repos/predabr/luxmc/actions/jobs/114021828702",
+      "html_url": "https://github.com/predabr/luxmc/actions/runs/37990098160/job/114021828702",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-09T20:54:46Z",
+      "started_at": "2026-10-09T20:54:48Z",
+      "completed_at": "2026-10-09T21:35:00Z",
+      "name": "build-windows",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-09T20:54:48Z",
+          "completed_at": "2026-10-09T20:54:50Z"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-09T20:54:50Z",
+          "completed_at": "2026-10-09T20:54:55Z"
+        },
+        {
+          "name": "Setup pnpm",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-09T20:54:55Z",
+          "completed_at": "2026-10-09T20:54:58Z"
+        },
+        {
+          "name": "Setup Node.js",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-10-09T20:54:58Z",
+          "completed_at": "2026-10-09T20:55:04Z"
+        },
+        {
+          "name": "Setup Rust",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-10-09T20:55:04Z",
+          "completed_at": "2026-10-09T20:55:22Z"
+        },
+        {
+          "name": "Cache Rust",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-10-09T20:55:22Z",
+          "completed_at": "2026-10-09T20:55:24Z"
+        },
+        {
+          "name": "Install frontend dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-10-09T20:55:24Z",
+          "completed_at": "2026-10-09T20:55:43Z"
+        },
+        {
+          "name": "Prepare Windows verifier for validation",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-10-09T20:55:43Z",
+          "completed_at": "2026-10-09T20:55:57Z"
+        },
+        {
+          "name": "Validate Windows release",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-10-09T20:55:57Z",
+          "completed_at": "2026-10-09T21:07:00Z"
+        },
+        {
+          "name": "Build Tauri (Windows â€” NSIS)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-10-09T21:07:00Z",
+          "completed_at": "2026-10-09T21:27:55Z"
+        },
+        {
+          "name": "Publish Windows installer with unchanged filename",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-10-09T21:27:55Z",
+          "completed_at": "2026-10-09T21:27:59Z"
+        },
+        {
+          "name": "Verify interrupted update recovery on the Windows VM",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12,
+          "started_at": "2026-10-09T21:27:59Z",
+          "completed_at": "2026-10-09T21:31:43Z"
+        },
+        {
+          "name": "Validate install, reinstall and uninstall on the clean runner",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13,
+          "started_at": "2026-10-09T21:31:43Z",
+          "completed_at": "2026-10-09T21:31:54Z"
+        },
+        {
+          "name": "Upload Windows validation reports",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14,
+          "started_at": "2026-10-09T21:31:54Z",
+          "completed_at": "2026-10-09T21:31:55Z"
+        },
+        {
+          "name": "Post Cache Rust",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 25,
+          "started_at": "2026-10-09T21:31:55Z",
+          "completed_at": "2026-10-09T21:34:31Z"
+        },
+        {
+          "name": "Post Setup Node.js",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 26,
+          "started_at": "2026-10-09T21:34:31Z",
+          "completed_at": "2026-10-09T21:34:56Z"
+        },
+        {
+          "name": "Post Setup pnpm",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 27,
+          "started_at": "2026-10-09T21:34:56Z",
+          "completed_at": "2026-10-09T21:34:57Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 28,
+          "started_at": "2026-10-09T21:34:57Z",
+          "completed_at": "2026-10-09T21:34:59Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 29,
+          "started_at": "2026-10-09T21:34:59Z",
+          "completed_at": "2026-10-09T21:34:59Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/predabr/luxmc/check-runs/114021828702",
+      "labels": [
+        "windows-latest"
+      ],
+      "runner_id": 1000001315,
+      "runner_name": "GitHub Actions 1000001315",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 114021828714,
+      "run_id": 37990098160,
+      "workflow_name": "Release",
+      "head_branch": "v3.6.1-revision.1",
+      "run_url": "https://api.github.com/repos/predabr/luxmc/actions/runs/37990098160",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOUQmo7M8AAAAajDsIag",
+      "head_sha": "c4050f24e20d3bbc9c0f10b1b6936c63b350b1f0",
+      "url": "https://api.github.com/repos/predabr/luxmc/actions/jobs/114021828714",
+      "html_url": "https://github.com/predabr/luxmc/actions/runs/37990098160/job/114021828714",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-09T20:54:46Z",
+      "started_at": "2026-10-09T20:54:48Z",
+      "completed_at": "2026-10-09T21:25:49Z",
+      "name": "build-linux",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-09T20:54:48Z",
+          "completed_at": "2026-10-09T20:54:51Z"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-09T20:54:51Z",
+          "completed_at": "2026-10-09T20:54:53Z"
+        },
+        {
+          "name": "Install Linux system dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-09T20:54:53Z",
+          "completed_at": "2026-10-09T20:55:21Z"
+        },
+        {
+          "name": "Setup pnpm",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-10-09T20:55:21Z",
+          "completed_at": "2026-10-09T20:55:22Z"
+        },
+        {
+          "name": "Setup Node.js",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-10-09T20:55:22Z",
+          "completed_at": "2026-10-09T20:55:23Z"
+        },
+        {
+          "name": "Setup Rust",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-10-09T20:55:23Z",
+          "completed_at": "2026-10-09T20:55:23Z"
+        },
+        {
+          "name": "Cache Rust",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-10-09T20:55:23Z",
+          "completed_at": "2026-10-09T20:55:24Z"
+        },
+        {
+          "name": "Install frontend dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-10-09T20:55:24Z",
+          "completed_at": "2026-10-09T20:55:31Z"
+        },
+        {
+          "name": "Validate Linux release",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-10-09T20:55:31Z",
+          "completed_at": "2026-10-09T21:01:59Z"
+        },
+        {
+          "name": "Build Tauri (Linux â€” DEB + RPM + AppImage)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-10-09T21:01:59Z",
+          "completed_at": "2026-10-09T21:17:12Z"
+        },
+        {
+          "name": "Build and Upload Arch Linux Package (.pkg.tar.zst)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-10-09T21:17:12Z",
+          "completed_at": "2026-10-09T21:24:59Z"
+        },
+        {
+          "name": "Post Cache Rust",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19,
+          "started_at": "2026-10-09T21:24:59Z",
+          "completed_at": "2026-10-09T21:25:36Z"
+        },
+        {
+          "name": "Post Setup Node.js",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 20,
+          "started_at": "2026-10-09T21:25:36Z",
+          "completed_at": "2026-10-09T21:25:47Z"
+        },
+        {
+          "name": "Post Setup pnpm",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 21,
+          "started_at": "2026-10-09T21:25:47Z",
+          "completed_at": "2026-10-09T21:25:47Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 22,
+          "started_at": "2026-10-09T21:25:47Z",
+          "completed_at": "2026-10-09T21:25:47Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 23,
+          "started_at": "2026-10-09T21:25:47Z",
+          "completed_at": "2026-10-09T21:25:47Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/predabr/luxmc/check-runs/114021828714",
+      "labels": [
+        "ubuntu-22.04"
+      ],
+      "runner_id": 1000001316,
+      "runner_name": "GitHub Actions 1000001316",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 114021828791,
+      "run_id": 37990098160,
+      "workflow_name": "Release",
+      "head_branch": "v3.6.1-revision.1",
+      "run_url": "https://api.github.com/repos/predabr/luxmc/actions/runs/37990098160",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOUQmo7M8AAAAajDsItw",
+      "head_sha": "c4050f24e20d3bbc9c0f10b1b6936c63b350b1f0",
+      "url": "https://api.github.com/repos/predabr/luxmc/actions/jobs/114021828791",
+      "html_url": "https://github.com/predabr/luxmc/actions/runs/37990098160/job/114021828791",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-09T20:54:46Z",
+      "started_at": "2026-10-09T20:54:54Z",
+      "completed_at": "2026-10-09T21:26:46Z",
+      "name": "build-macos",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-09T20:54:55Z",
+          "completed_at": "2026-10-09T20:54:58Z"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-09T20:54:58Z",
+          "completed_at": "2026-10-09T20:55:02Z"
+        },
+        {
+          "name": "Setup pnpm",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-09T20:55:02Z",
+          "completed_at": "2026-10-09T20:55:04Z"
+        },
+        {
+          "name": "Setup Node.js",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-10-09T20:55:04Z",
+          "completed_at": "2026-10-09T20:55:06Z"
+        },
+        {
+          "name": "Setup Rust (universal)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-10-09T20:55:06Z",
+          "completed_at": "2026-10-09T20:55:17Z"
+        },
+        {
+          "name": "Cache Rust",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-10-09T20:55:17Z",
+          "completed_at": "2026-10-09T20:55:18Z"
+        },
+        {
+          "name": "Install frontend dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-10-09T20:55:18Z",
+          "completed_at": "2026-10-09T20:55:41Z"
+        },
+        {
+          "name": "Build Tauri (macOS â€” DMG universal)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-10-09T20:55:41Z",
+          "completed_at": "2026-10-09T21:25:34Z"
+        },
+        {
+          "name": "Post Cache Rust",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13,
+          "started_at": "2026-10-09T21:25:34Z",
+          "completed_at": "2026-10-09T21:26:19Z"
+        },
+        {
+          "name": "Post Setup Node.js",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14,
+          "started_at": "2026-10-09T21:26:19Z",
+          "completed_at": "2026-10-09T21:26:40Z"
+        },
+        {
+          "name": "Post Setup pnpm",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 15,
+          "started_at": "2026-10-09T21:26:40Z",
+          "completed_at": "2026-10-09T21:26:40Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 16,
+          "started_at": "2026-10-09T21:26:40Z",
+          "completed_at": "2026-10-09T21:26:41Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 17,
+          "started_at": "2026-10-09T21:26:41Z",
+          "completed_at": "2026-10-09T21:26:44Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/predabr/luxmc/check-runs/114021828791",
+      "labels": [
+        "macos-latest"
+      ],
+      "runner_id": 1000001317,
+      "runner_name": "GitHub Actions 1000001317",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 114036309186,
+      "run_id": 37990098160,
+      "workflow_name": "Release",
+      "head_branch": "v3.6.1-revision.1",
+      "run_url": "https://api.github.com/repos/predabr/luxmc/actions/runs/37990098160",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOUQmo7M8AAAAajRf8wg",
+      "head_sha": "c4050f24e20d3bbc9c0f10b1b6936c63b350b1f0",
+      "url": "https://api.github.com/repos/predabr/luxmc/actions/jobs/114036309186",
+      "html_url": "https://github.com/predabr/luxmc/actions/runs/37990098160/job/114036309186",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-09T21:35:01Z",
+      "started_at": "2026-10-09T21:35:03Z",
+      "completed_at": "2026-10-09T21:35:14Z",
+      "name": "verify-release-assets",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-09T21:35:03Z",
+          "completed_at": "2026-10-09T21:35:04Z"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-09T21:35:04Z",
+          "completed_at": "2026-10-09T21:35:06Z"
+        },
+        {
+          "name": "Run actions/setup-node@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-09T21:35:06Z",
+          "completed_at": "2026-10-09T21:35:06Z"
+        },
+        {
+          "name": "Download and verify every published installer",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-10-09T21:35:06Z",
+          "completed_at": "2026-10-09T21:35:10Z"
+        },
+        {
+          "name": "Sign verified release manifests",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-10-09T21:35:10Z",
+          "completed_at": "2026-10-09T21:35:10Z"
+        },
+        {
+          "name": "Publish signed release",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-10-09T21:35:10Z",
+          "completed_at": "2026-10-09T21:35:12Z"
+        },
+        {
+          "name": "Post Run actions/setup-node@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-10-09T21:35:12Z",
+          "completed_at": "2026-10-09T21:35:12Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12,
+          "started_at": "2026-10-09T21:35:12Z",
+          "completed_at": "2026-10-09T21:35:12Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13,
+          "started_at": "2026-10-09T21:35:12Z",
+          "completed_at": "2026-10-09T21:35:12Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/predabr/luxmc/check-runs/114036309186",
+      "labels": [
+        "ubuntu-22.04"
+      ],
+      "runner_id": 1000001322,
+      "runner_name": "GitHub Actions 1000001322",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    }
+  ]
+}

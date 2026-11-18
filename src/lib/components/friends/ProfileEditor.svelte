@@ -78,6 +78,12 @@
         if (!image.src.endsWith('/grass_block.png')) image.src = '/grass_block.png';
     }
     function closeCrop() { crop?.image.close(); crop = null; pendingImage = false; }
+    function withWatchdog<T>(promise: Promise<T>, ms = 15000): Promise<T> {
+        return new Promise<T>((resolve, reject) => {
+            const timer = setTimeout(() => reject(new Error('image-decode-timeout')), ms);
+            promise.then(value => { clearTimeout(timer); resolve(value); }, reason => { clearTimeout(timer); reject(reason); });
+        });
+    }
     onDestroy(() => { generation++; closeCrop(); });
     async function upload(event: Event, kind: 'portrait' | 'banner') {
         const input = event.currentTarget as HTMLInputElement, file = input.files?.[0];
@@ -97,11 +103,11 @@
                 const limit = kind === 'banner' ? 4096 : 2048;
                 const largest = dimensions ? Math.max(dimensions.width, dimensions.height) : 0;
                 const ratio = largest > limit ? limit / largest : 0;
-                let bitmap = await createImageBitmap(file, dimensions && ratio ? { resizeWidth: Math.max(1, Math.round(dimensions.width * ratio)), resizeHeight: Math.max(1, Math.round(dimensions.height * ratio)), resizeQuality: 'high' } : undefined);
+                let bitmap = await withWatchdog(createImageBitmap(file, dimensions && ratio ? { resizeWidth: Math.max(1, Math.round(dimensions.width * ratio)), resizeHeight: Math.max(1, Math.round(dimensions.height * ratio)), resizeQuality: 'high' } : undefined));
                 if (run !== generation) { bitmap.close(); return; }
                 if (Math.max(bitmap.width, bitmap.height) > 4096) {
                     const original = bitmap, fallback = 4096 / Math.max(original.width, original.height);
-                    try { bitmap = await createImageBitmap(original, {resizeWidth:Math.max(1,Math.round(original.width * fallback)),resizeHeight:Math.max(1,Math.round(original.height * fallback)),resizeQuality:'high'}); }
+                    try { bitmap = await withWatchdog(createImageBitmap(original, {resizeWidth:Math.max(1,Math.round(original.width * fallback)),resizeHeight:Math.max(1,Math.round(original.height * fallback)),resizeQuality:'high'})); }
                     finally { original.close(); }
                     if (run !== generation) { bitmap.close(); return; }
                 }

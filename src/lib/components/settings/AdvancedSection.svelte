@@ -34,10 +34,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			if (ok) {
 				toast(uiText("ui.3bbe0b4ae4fb2b8d"), "success");
 			} else {
-				toast(uiText("ui.72db757d4478c417"), "info");
 			}
 		} else {
-			toast("Discord Rich Presence desativado.", "info");
 		}
 	}
 </script>

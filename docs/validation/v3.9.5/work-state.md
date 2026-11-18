@@ -1,0 +1,31 @@
+# Publicação Luxmc 3.9.5 — concluída
+
+Release pública: `https://github.com/predabr/luxmc/releases/tag/v3.9.5`. Workflow 38553346641 concluído com sucesso em todas as seis etapas/jobs. Publicação do site: `https://19a8ee52.luxmc-r92.pages.dev`; domínio de produção `https://luxmc-r92.pages.dev`.
+
+Conferência final concluída com `scripts/verify-public-release.mjs`: onze assets públicos disponíveis, assinaturas oficiais de `latest.json` e `SHA256SUMS` válidas, versão 3.9.5 no site/API e downloads por plataforma corretos. O GET completo do instalador do site tem o mesmo hash do GitHub: `2f0f3ee180360f66cf01c3cf140adeaeb62c8fa7c6b98124278aadc02f431a8b`, 21.531.251 bytes. Executável extraído: ProductVersion 3.9.5, SHA256 `eab88f0654f891a333c66d965f4452d7dde4647c236cce606052192e4fa8cbd6`, sem Lux Repair.
+
+Relatório: `docs/validation/v3.9.5/publication-verified.json`. Pacote privado conferido: `C:/Users/preda/AppData/Local/Luxmc-build/candidates/release-3.9.5`. Backup do instalador anterior do site: `C:/Users/preda/AppData/Local/Luxmc-build/backups/release-3.9.5-publication/previous-site-installer.exe`.
+
+Nenhuma instalação da 3.9.5 foi feita no PC do usuário durante este pedido, nem houve fechamento de seu launcher/jogo. O escopo autorizado era publicar a versão no site e GitHub. O pacote 3.9.2 anteriormente instalado continua disponível até o usuário atualizar. Não restam builds ou watchers desta publicação em andamento. O histórico abaixo registra a preparação e não deve ser interpretado como tarefa pendente.
+
+O usuário autorizou novamente publicação no site e GitHub em 14/10/2026: “atualiza pra versao 3.9.5 e lança no site e github”. Não encerrar o launcher que ele está testando, PID 34560, nem seus jogos.
+
+Branch local: `codex/release-3.9.5`, criada sobre `f78a19f`, com histórico de resgate ainda não presente em main. Commit `772931fed5c7a7f5ae9d7e893620a66f29464dbb`: noventa arquivos de produto/testes, excluindo documentos privados, screenshots antigos e alterações não relacionadas em vendor/sqlx. Branch e tag anotada `v3.9.5` enviadas ao origin por push atômico. Versão alinhada em package, Cargo/lock, Tauri, traduções, NSIS, Arch, site e workflows. Notas: `docs/releases/v3.9.5.md`.
+
+Verificações concluídas: pnpm check sem erros/avisos, 205 testes frontend, 90 site, 15 manifestos/assinaturas, build website e frontend, cargo check com cinco avisos existentes; 252 testes nativos aprovados, sete ignorados; todos os 35 casos de navegador passaram (execuções sequenciais, retomando no caso afetado pelas fixtures antigas).
+
+As sessões de teste 89740, 37798, 22585 e 95224 terminaram. Não resta Vite de teste. O workflow Release está em execução: `https://github.com/predabr/luxmc/actions/runs/38553346641`. Watcher privado: `C:/Users/preda/AppData/Local/Luxmc-build/requests/watch-release-395.mjs`, sessão 61499. Relatório atualizado: `C:/Users/preda/AppData/Local/Luxmc-build/requests/release-395-progress.json`. Ele verifica a cada trinta segundos e imprime somente mudanças. Não iniciar outro workflow nem criar outra tag enquanto esse roda.
+
+A validação `verify-source` e a criação do rascunho `create-release` concluíram com sucesso. Builds em execução: Linux job 115820378263, Windows job 115820378368, macOS job 115820378436. A release ainda é rascunho; não declarar publicação concluída.
+
+Conferência final preparada em scripts privados: `C:/Users/preda/AppData/Local/Luxmc-build/requests/download-release-395.mjs` e `inspect-release-395.ps1`. O primeiro exige release pública 3.9.5, verifica Ed25519 do manifesto e hash/tamanho do instalador, salvando em `candidates/release-3.9.5`. O segundo extrai, verifica ProductVersion 3.9.5 e ausência de Lux Repair, sem executar ou instalar o pacote. Após isso: backup do instalador anterior, cópia ao site, deploy fixo e `scripts/verify-public-release.mjs` para verificar pacote público e site.
+
+Foi identificada a falha do CI anterior: `tests/skin-import.browser.cjs` esperava que a prévia principal congelasse durante o jogo, comportamento substituído para preservar a animação interativa. O teste agora confirma movimento real e limita os frames renderizados durante o jogo; a proteção não foi removida. Outras duas fixtures foram atualizadas: `v3.6-upgrades` informa Plus ativo para seu GIF; `workshop` usa o rótulo atual do Shield. Ambos passaram. Não houve alteração de produção para mascarar falhas.
+
+Acompanhar o workflow até a publicação dos instaladores e manifestos assinados. Não forçar tags nem main. Se falhar, recuperar logs específicos, corrigir a causa e preservar a identidade da release ainda não publicada. Baixar o instalador oficial 3.9.5 e validar sua versão/hash, publicar esse mesmo arquivo em website/releases, executar o deploy com `scripts/deploy-website.mjs` a partir da raiz (o script fixa cwd website), confirmar o GET completo de /download/windows e número no site. O script `scripts/verify-public-release.mjs` confere todos os assets públicos, assinaturas oficiais e o instalador servido pelo site. Não instalar 3.9.5 nem fechar o launcher do usuário sem necessidade.
+
+GitHub autenticado disponível pelo módulo `scripts/github-authenticated.mjs`; nunca imprimir o token. CLI: `C:/Users/preda/AppData/Local/Temp/luxmc-github-cli/bin/gh.exe`. Chave privada de manifestos existente em `C:/Users/preda/.codex/luxmc-release/signing-key.pem`, nunca publicar ou imprimir. A chave é Ed25519 de manifestos; não constitui Authenticode.
+
+Node: `C:/Users/preda/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe`; pnpm: `C:/Users/preda/AppData/Local/Luxmc-build/tools/pnpm-10.30.3/package/bin/pnpm.cjs`; CARGO_TARGET_DIR: `C:/Users/preda/AppData/Local/Luxmc-build/target`; Wrangler: `C:/Users/preda/AppData/Local/Luxmc-build/tools/wrangler-4.135.0/node_modules/wrangler/bin/wrangler.js`.
+
+O site e computador atualmente servem/executam a base 3.9.2 já validada, programa SHA d4efdd78d217ad541f40407b0cf96009e47c115cd53be15ae74de1bd0fa79b30 e instalador SHA 3f84a3397d744a6e7fd3cf13257e4cc73dcf3ac583fa91843b904af7f528d297. A 3.9.5 ainda não foi publicada. Não apresentar como resolvida a grande demora de todos os modpacks; Zombie Invade levou 169,59 s até recursos no teste real anterior desta base.

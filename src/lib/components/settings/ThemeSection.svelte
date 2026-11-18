@@ -98,7 +98,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			const managedPath = await importWallpaper(selected);
             themeStore.setCustomWallpaper(managedPath, isVideo ? "video" : "image", selected);
             await persistNow({ throwOnError: true });
-			toast(t("settings.appearanceOptions.wallpaperImported"), "success");
 			onSave?.();
 		} catch (e) {
 			toast(String(e), "error");
@@ -111,25 +110,21 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			theme: tId === "light" ? "default-light" : "default-dark"
 		});
 		schedulePersist();
-		toast(`${t("settings.appearanceTitle")}: ${getThemeName(tId)}`, "success");
 		onSave?.();
 	}
 
 	function selectBackground(bgId: string) {
 		themeStore.setBackground(bgId);
-		toast(`${t("settings.appearanceOptions.launcherBg")}: ${getBgName(bgId)}`, "success");
 		onSave?.();
 	}
 
 	function selectWallpaper(url: string) {
 		if (!themeStore.selectWallpaper(url)) return;
-		toast(t("settings.appearanceOptions.wallpaperActivated"), "success");
 		onSave?.();
 	}
 
 	function removeWallpaper(url: string) {
 		themeStore.removeWallpaper(url);
-		toast(t("settings.appearanceOptions.wallpaperRemoved"), "info");
 		onSave?.();
 	}
 
@@ -139,7 +134,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			accentTheme: aId as import("$lib/stores/settings.svelte").AccentTheme
 		});
 		schedulePersist();
-		toast(`${t("settings.appearanceOptions.accentColor")}: ${getAccentName(aId)}`, "success");
 		onSave?.();
 	}
 
@@ -189,7 +183,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		});
 		appState.performanceMode = performanceMode;
 		schedulePersist();
-		toast(performanceMode ? t("settings.perfModeTitle") : t("settings.appearanceOptions.blur"), "info");
 	}
 </script>
 

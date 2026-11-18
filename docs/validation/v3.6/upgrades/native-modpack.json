@@ -1,0 +1,29 @@
+{
+  "originalInstancesPreserved": false,
+  "runs": [
+    {
+      "run": 1,
+      "preparationSeconds": 3.68,
+      "resourcesSeconds": 82.83,
+      "rendererReady": true,
+      "remainedOpen": true
+    },
+    {
+      "run": 2,
+      "preparationSeconds": 5.28,
+      "resourcesSeconds": 5.28,
+      "rendererReady": true,
+      "remainedOpen": true
+    }
+  ],
+  "version": "6.5.0",
+  "minecraft": "1.21.1",
+  "installSeconds": 22.2,
+  "filesVerifiedByHash": 50,
+  "blockers": [],
+  "warnings": [
+    "\"dynamic-fps-3.11.4+minecraft-1.21.0-fabric.jar\" parece ser para o Minecraft 1.21.0, mas esta instância roda 1.21.1.",
+    "\"reeses-sodium-options-fabric-1.8.3+mc1.21.4.jar\" parece ser para o Minecraft 1.21.4, mas esta instância roda 1.21.1."
+  ],
+  "cleanupError": "invalid state: Feche o Minecraft desta instância antes de excluir seus arquivos."
+}

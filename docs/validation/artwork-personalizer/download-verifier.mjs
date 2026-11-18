@@ -1,0 +1,17 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {githubRequest,githubToken} from '../../../scripts/github-authenticated.mjs';
+const receipt=JSON.parse(readFileSync('docs/validation/artwork-personalizer/remote-verifier.json','utf8'));
+const run=await githubRequest('repos/predabr/luxmc/actions/runs/38254636622');
+if(run.conclusion!=='success'||run.head_sha!==receipt.workflowCommit) throw Error('Unverified source run');
+const list=await githubRequest('repos/predabr/luxmc/actions/runs/38254636622/artifacts');
+const artifact=list.artifacts.find(item=>item.name==='luxmc-local-verifier'&&!item.expired);
+if(!artifact||new URL(artifact.archive_download_url).hostname!=='api.github.com') throw Error('Artifact unavailable');
+const response=await fetch(artifact.archive_download_url,{headers:{Authorization:'Bearer '+githubToken(),Accept:'application/vnd.github+json'},signal:AbortSignal.timeout(60000)});
+if(!response.ok)throw Error('Artifact download failed: '+response.status);
+const bytes=Buffer.from(await response.arrayBuffer());
+const digest=createHash('sha256').update(bytes).digest('hex');
+if(artifact.digest&&artifact.digest!=='sha256:'+digest)throw Error('Artifact digest mismatch');
+writeFileSync('docs/validation/artwork-personalizer/verifier.zip',bytes);
+writeFileSync('docs/validation/artwork-personalizer/remote-verifier-artifact.json',JSON.stringify({artifactId:artifact.id,runId:run.id,workflowCommit:run.head_sha,archiveSha256:digest,digestVerified:!!artifact.digest},null,2));
+console.log(JSON.stringify({downloaded:true,artifactId:artifact.id,digestVerified:!!artifact.digest}));

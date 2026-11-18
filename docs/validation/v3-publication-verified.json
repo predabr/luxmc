@@ -1,0 +1,94 @@
+{
+  "version": "3.0.0",
+  "releaseUrl": "https://github.com/predabr/luxmc/releases/tag/v3.0.0",
+  "publishedAt": "2026-10-05T22:38:13Z",
+  "downloadChecks": [
+    {
+      "name": "Lux.MC.Launcher.exe",
+      "size": 20106603,
+      "status": 200,
+      "digest": "sha256:7eb274e6a0b62f63900a20e37072e1718b9888369a4dba32e513ca330c84839c"
+    },
+    {
+      "name": "Luxmc_3.0.0_x64-setup.exe",
+      "size": 20106603,
+      "status": 200,
+      "digest": "sha256:7eb274e6a0b62f63900a20e37072e1718b9888369a4dba32e513ca330c84839c"
+    },
+    {
+      "name": "Luxmc_3.0.0_amd64.AppImage",
+      "size": 113416696,
+      "status": 200,
+      "digest": "sha256:16daf68abfaf3035991f072363e8d19f287b4d3dac72aa6e979340ada74b6222"
+    },
+    {
+      "name": "Luxmc_3.0.0_amd64.deb",
+      "size": 25581774,
+      "status": 200,
+      "digest": "sha256:bc8e3f5a3fc80e6a7e542dac65ce096ff8c85e2545f4c6222add38930213376d"
+    },
+    {
+      "name": "Luxmc-3.0.0-1.x86_64.rpm",
+      "size": 25582329,
+      "status": 200,
+      "digest": "sha256:375cad70fecae1b2b848102d30b85b558ca1bcda665a78307a88f58b61ae52ec"
+    },
+    {
+      "name": "luxmc-3.0.0-1-x86_64.pkg.tar.zst",
+      "size": 21290131,
+      "status": 200,
+      "digest": "sha256:17a1baac5139f6dd24ff7c6ea5b3d5909d05b8ae82ced3cf50d9a8fccf31a686"
+    },
+    {
+      "name": "Luxmc_3.0.0_universal.dmg",
+      "size": 45159207,
+      "status": 200,
+      "digest": "sha256:f4d4a4fe7ce987257e465c76272ee825ade6b23b1ca68fbd78b51cc16cb8b4dc"
+    },
+    {
+      "name": "latest.json",
+      "size": 3102,
+      "status": 200,
+      "digest": "sha256:c41f0b8f2a8b3c7e7e337f3882abd8e3ba8a35f71479bad7ec56c8e700cf2dff"
+    },
+    {
+      "name": "SHA256SUMS",
+      "size": 641,
+      "status": 200,
+      "digest": "sha256:de3d2881622c4eb275f28002cf8ac43263f1a4ccd543c09b6cc29485bc3955ea"
+    }
+  ],
+  "siteChecks": [
+    {
+      "platform": "windows",
+      "filename": "Lux.MC.Launcher.exe",
+      "status": 200
+    },
+    {
+      "platform": "linux",
+      "filename": "Luxmc_3.0.0_amd64.AppImage",
+      "status": 302
+    },
+    {
+      "platform": "deb",
+      "filename": "Luxmc_3.0.0_amd64.deb",
+      "status": 302
+    },
+    {
+      "platform": "rpm",
+      "filename": "Luxmc-3.0.0-1.x86_64.rpm",
+      "status": 302
+    },
+    {
+      "platform": "arch",
+      "filename": "luxmc-3.0.0-1-x86_64.pkg.tar.zst",
+      "status": 302
+    },
+    {
+      "platform": "macos",
+      "filename": "Luxmc_3.0.0_universal.dmg",
+      "status": 302
+    }
+  ],
+  "manifestVerified": true
+}

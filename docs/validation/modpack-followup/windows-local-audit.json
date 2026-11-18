@@ -1,0 +1,43 @@
+{
+  "version": "3.9.1",
+  "timestamp": "2026-10-12T14:47:34.0369371Z",
+  "commit": null,
+  "run": null,
+  "components": [
+    {
+      "component": "installer",
+      "filename": "Lux MC Launcher - Modpacks em Dia.exe",
+      "bytes": 21426840,
+      "sha256": "a03c6dc9a6f29c2274c77af5fbe8d5a6afd0d0c67376f2b8ad0676e064bbf0e6",
+      "authenticode": "NotSigned",
+      "publisher": null
+    },
+    {
+      "component": "program",
+      "filename": "luxmc.exe",
+      "bytes": 43235840,
+      "sha256": "b30b467d95d8f46bfa096d71178287ce405b732c41843378c41b73da3b5fb98b",
+      "authenticode": "NotSigned",
+      "publisher": null
+    },
+    {
+      "component": "recovery-helper",
+      "filename": "luxmc-repair.exe",
+      "bytes": 391168,
+      "sha256": "e4ff1ffc8f06755c8fe74fbb887c1692cd210c2ae537f4a56668ba5dc4574f87",
+      "authenticode": "NotSigned",
+      "publisher": null
+    }
+  ],
+  "defender": {
+    "signatureVersion": "1.459.684.0",
+    "scanExitCode": 0,
+    "output": [
+      "Scan starting...\r\nScan finished.\r\nScanning C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\release-windows\\Lux MC Launcher - Modpacks em Dia.exe found no threats.\r\n",
+      "Scan starting...\r\nScan finished.\r\nScanning C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\docs\\validation\\modpack-followup\\audit-components\\luxmc.exe found no threats.\r\n",
+      "Scan starting...\r\nScan finished.\r\nScanning C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\docs\\validation\\modpack-followup\\audit-components\\luxmc-repair.exe found no threats.\r\n"
+    ]
+  },
+  "windowsTrustConfirmed": false,
+  "independentVendorApprovalConfirmed": false
+}

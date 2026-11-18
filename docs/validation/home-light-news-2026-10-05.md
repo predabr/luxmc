@@ -1,0 +1,13 @@
+# Início, notícias e tema claro
+
+Os cartões do início usam largura mínima de 260 px, altura mínima de 280 px, ícones de 144 px e ação de jogar de 48 px. O bloco Vanilla ocupa 112 px na biblioteca do início, 40 px no acesso rápido, 32 px na barra lateral e 96 px no cabeçalho da instância. Os nomes mantêm a cor do tema.
+
+As notícias continuam vindo do feed oficial `https://launchercontent.mojang.com/v2/news.json`, que inclui Java, Bedrock, Realms e Dungeons. O layout inicia a atualização automática: o cache dura 30 minutos, a verificação periódica ocorre com a janela visível, foco e reconexão também verificam a lista. Chamadas simultâneas compartilham a mesma promessa. Falhas preservam a última lista e respeitam intervalo de cinco minutos entre tentativas automáticas. Os listeners e o timer são removidos ao desmontar o layout.
+
+No tema claro, textos secundários e estados de sucesso/erro têm cores próprias; ações e versões selecionadas nos diálogos usam uma cor calculada para contraste mínimo de 4,5:1 com texto branco. A transparência do wallpaper continua na interface, enquanto os formulários mantêm legibilidade. O wallpaper recebe uma camada clara no tema claro. A criação de instâncias agora prende o foco do teclado, tem nome acessível e fecha com Esc.
+
+Verificação: `home-light-news.browser.cjs` testa os quatro cenários claro/escuro com/sem wallpaper, seleção legível, dimensões, criação Vanilla em 960 px, atualização de notícias com relógio avançado, cache sem chamadas extras, manutenção offline e recuperação ao reconectar. `create-instance.browser.cjs` cobre criação Vanilla e NeoForge com versões estáveis e beta. Os relatórios e screenshots ficam nesta pasta. `pnpm check` terminou sem erros ou avisos.
+
+Entrega: o build final de Windows concluiu com sucesso e o instalador `C:\Users\preda\Downloads\Lux MC Launcher.exe` foi atualizado e instalado, com saída zero. SHA-256: `345C3EB629D1F0BCD2B7CDD198BFF55E082F00A4E6CC1F0292D5D5B835ED2890`. O recibo `home-light-news-delivery.json` confirma que os arquivos protegidos de dados foram preservados.
+
+A verificação nativa do binário instalado confirmou subsistema GUI, conta disponível, duas instâncias, integridade SQLite `ok` e leitura do feed oficial com 100 entradas, das quais 99 têm links aceitos pelo filtro oficial. Na conferência visual do aplicativo instalado em Windows, o início apresentou os cartões maiores e os ícones corretos; no tema claro, a criação exibiu a versão selecionada, filtros e ação principal com contraste legível. A janela foi fechada sem criar uma instância adicional e o launcher ficou aberto no início.

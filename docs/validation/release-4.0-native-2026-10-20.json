@@ -1,0 +1,42 @@
+{
+  "version": "4.0.0",
+  "runs": [
+    {
+      "profile": "Vanilla 26.3",
+      "mcVersion": "26.3",
+      "loader": "vanilla",
+      "completed": true,
+      "preparationSeconds": 17.3,
+      "resourcesSeconds": 19.4
+    },
+    {
+      "profile": "Fabulously Optimized",
+      "mcVersion": "26.3",
+      "loader": "fabric",
+      "completed": true,
+      "preparationSeconds": 27.6,
+      "resourcesSeconds": 30.6
+    },
+    {
+      "profile": "RLCraft",
+      "mcVersion": "1.12.2",
+      "loader": "forge",
+      "completed": true,
+      "preparationSeconds": 23.3,
+      "resourcesSeconds": 120.6
+    },
+    {
+      "profile": "All the Mods 10 - ATM10",
+      "mcVersion": "1.21.1",
+      "loader": "neoforge",
+      "completed": true,
+      "preparationSeconds": 122.7,
+      "resourcesSeconds": 344.3
+    }
+  ],
+  "criterion": "New Minecraft logs report audio engine or block atlas initialization; process remains alive another 8 seconds. Does not certify every menu or modpack.",
+  "dataPreserved": {
+    "profilesPreserved": 8,
+    "worldFilesHashMatched": 182
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "installerVersion": "3.8.0",
+  "sha256": "e7c1ed8b3ec9971bb32c9068d66a7db9cee1d793c1e6b6a27f7c9c2cac19f017",
+  "avast": "receipt confirmed; analysis pending",
+  "avg": "receipt confirmed; analysis pending",
+  "microsoft": "receipt confirmed; analysis pending",
+  "trapmine": "3.9 review email sent; Gmail confirmation observed; analyst response pending",
+  "authenticode": "NotSigned",
+  "windowsTrustConfirmed": false,
+  "virusTotal39": {
+    "sha256": "d18dd7c81cfc174982a915b65465e0b9af7bed8cca27ab013db2797845ef0e2d",
+    "scannedAt": "2026-10-12T01:36:02Z",
+    "reportUrl": "https://www.virustotal.com/gui/file/d18dd7c81cfc174982a915b65465e0b9af7bed8cca27ab013db2797845ef0e2d/detection",
+    "flagged": 3,
+    "total": 70,
+    "detections": [
+      {
+        "vendor": "Avast",
+        "label": "NSIS:MalwareX-gen [Misc]"
+      },
+      {
+        "vendor": "AVG",
+        "label": "NSIS:MalwareX-gen [Misc]"
+      },
+      {
+        "vendor": "Trapmine",
+        "label": "Suspicious.low.ml.score"
+      }
+    ],
+    "timeout": [
+      "ClamAV"
+    ],
+    "unsupported": [
+      "Avast-Mobile",
+      "BitDefenderFalx",
+      "Symantec Mobile Insight",
+      "Trustlook"
+    ],
+    "independentApprovalConfirmed": false
+  },
+  "reviews39": {
+    "sha256": "d18dd7c81cfc174982a915b65465e0b9af7bed8cca27ab013db2797845ef0e2d",
+    "avast": "receipt confirmed; analyst response pending",
+    "avg": "receipt confirmed; analyst response pending",
+    "microsoft": "receipt confirmed; status Submitted; analyst response pending",
+    "microsoftSubmissionId": "45c08f68-4a30-4384-b857-3c8784fb1a5e",
+    "trapmine": "email sent to official contact; analyst response pending"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "binary": "C:\\Users\\preda\\AppData\\Local\\Luxmc-build\\candidates\\studio-shield-20261014\\luxmc.exe",
+  "runs": [
+    {
+      "name": "Vanilla 26.3",
+      "minecraft": "26.3",
+      "loader": "vanilla",
+      "runs": [
+        {
+          "run": 1,
+          "windowSeconds": 21.17,
+          "windowConfirmed": true,
+          "modInitializationConfirmed": false,
+          "resourcesSeconds": 23.2,
+          "remainedOpenSeconds": 60,
+          "resourceIndexConfirmed": false
+        }
+      ],
+      "readinessSeconds": 0.76,
+      "blockers": []
+    },
+    {
+      "name": "Zombie Invade 100 Days",
+      "minecraft": "1.20.1",
+      "loader": "forge",
+      "runs": [
+        {
+          "run": 1,
+          "windowSeconds": 50.4,
+          "windowConfirmed": true,
+          "modInitializationConfirmed": true,
+          "resourcesSeconds": 169.59,
+          "remainedOpenSeconds": 60,
+          "resourceIndexConfirmed": false,
+          "loaderReportedStartupSeconds": 172.512
+        }
+      ],
+      "readinessSeconds": 0.45,
+      "blockers": []
+    }
+  ],
+  "originalInstancesPreserved": true
+}

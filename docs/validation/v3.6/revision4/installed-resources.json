@@ -1,0 +1,35 @@
+{
+  "passed": true,
+  "instances": [
+    {
+      "name": "Vanilla 26.3",
+      "essentialsPresent": true,
+      "otherOptionsPreserved": true
+    },
+    {
+      "name": "Fabulously Optimized",
+      "essentialsPresent": true,
+      "otherOptionsPreserved": true
+    },
+    {
+      "name": "Cobblemon Official Modpack [Fabric]",
+      "essentialsPresent": true,
+      "otherOptionsPreserved": true
+    },
+    {
+      "name": "Zeefski Jujutsu Kaisen Craft",
+      "essentialsPresent": true,
+      "otherOptionsPreserved": true
+    },
+    {
+      "name": "All the Mods 10 - ATM10",
+      "essentialsPresent": true,
+      "otherOptionsPreserved": true
+    },
+    {
+      "name": "Vanilla 1.8.9",
+      "essentialsPresent": true,
+      "otherOptionsPreserved": true
+    }
+  ]
+}

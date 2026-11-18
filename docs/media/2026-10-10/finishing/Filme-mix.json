@@ -1,0 +1,24 @@
+{
+  "source": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\docs\\media\\2026-10-10\\exports\\Lux MC Launcher 3.6 - Filme Oficial.mp4",
+  "description": "Descript narration and stock music mix; timing preserved. No video from the watermarked preview used.",
+  "measuredInput": {
+    "input_i": "-24.30",
+    "input_tp": "-6.55",
+    "input_lra": "8.90",
+    "input_thresh": "-34.36",
+    "output_i": "-16.05",
+    "output_tp": "-1.50",
+    "output_lra": "3.90",
+    "output_thresh": "-26.12",
+    "normalization_type": "dynamic",
+    "target_offset": "0.05"
+  },
+  "targetIntegratedLoudness": -16,
+  "targetTruePeak": -1.5,
+  "dimensions": [
+    1920,
+    1080
+  ],
+  "duration": 72.166667,
+  "final": "C:\\Users\\preda\\OneDrive\\Documenti\\Luxmc\\docs\\media\\2026-10-10\\exports\\Lux MC Launcher 3.6 - Filme Final.mp4"
+}

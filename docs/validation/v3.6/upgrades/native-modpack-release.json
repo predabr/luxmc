@@ -1,0 +1,19 @@
+{
+  "originalInstancesPreserved": true,
+  "runs": [],
+  "buildVariant": "release-installed",
+  "fixtureId": "639d81a1-950d-4419-bdac-be0b3c8f25cb",
+  "initialIds": [
+    "38f6b575-2a33-4a6d-b0db-04b55ff302b0",
+    "b478be1a-406f-4be1-9475-cd3fe4008464",
+    "c15b63d2-53dc-496e-abb2-2297b8b59b44"
+  ],
+  "version": "6.5.0",
+  "minecraft": "1.21.1",
+  "installSeconds": 14.63,
+  "filesVerifiedByHash": 50,
+  "blockers": [],
+  "warnings": [],
+  "deletionSeconds": 1.75,
+  "realFilesRemoved": true
+}

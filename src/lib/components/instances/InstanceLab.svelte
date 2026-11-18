@@ -66,7 +66,6 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
         busy = true;
         try {
             isolation = await instanceIsolationStart(profileId);
-            toast(uiText("ui.0fc152fc56cd6792"), "info");
         } catch (error) {
             toast(uiText("ui.7eaed94a7d05193a", {arg0: (String(error))}), "error");
         } finally { busy = false; }
@@ -77,8 +76,6 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
         busy = true;
         try {
             isolation = await instanceIsolationReport(profileId, crashed);
-            if (isolation.phase === "found") toast(uiText("ui.73295b7980c8df2a", {arg0: (isolation.suspects[0])}), "success");
-            else toast(uiText("ui.0d9c9ed023479f26", {arg0: (automatic ? "Crash detectado. " : "")}), "info");
         } catch (error) {
             toast(uiText("ui.6fa1dbdcdf5cc032", {arg0: (String(error))}), "error");
         } finally { busy = false; }
@@ -89,7 +86,6 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
         try {
             await instanceIsolationRestore(profileId);
             isolation = null;
-            toast(uiText("ui.3ea2274b1f1f0e58"), "success");
         } catch (error) {
             toast(uiText("ui.63c8bc3070176d47", {arg0: (String(error))}), "error");
         } finally { busy = false; }
@@ -128,7 +124,6 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
             const result = await instanceBenchmarkImport(profileId, benchmarkLabel, selected);
             benchmarks = [result, ...benchmarks];
             benchmarkLabel = "";
-            toast(uiText("ui.c0557781e56b0c8e"), "success");
         } catch (error) {
             toast(uiText("ui.9182cb93125f5cf6", {arg0: (String(error))}), "error");
         } finally { busy = false; }

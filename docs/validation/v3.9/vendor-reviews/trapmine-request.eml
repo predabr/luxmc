@@ -1,0 +1,15 @@
+To: fp@trapmine.com
+Subject: Review request - Luxmc installer - Suspicious.low.ml.score
+Content-Type: text/plain; charset=UTF-8
+
+Hello,
+
+Please independently review a suspected false positive affecting the original Luxmc 3.8.0 Windows installer. VirusTotal showed Trapmine Suspicious.low.ml.score.
+
+SHA-256: e7c1ed8b3ec9971bb32c9068d66a7db9cee1d793c1e6b6a27f7c9c2cac19f017
+Size: 21371759 bytes
+Public source and installer: https://github.com/predabr/luxmc/releases/tag/v3.8.0
+
+Luxmc is a Tauri/Rust Minecraft launcher packaged with NSIS. The installer currently has no Authenticode certificate. A custom Microsoft Defender scan with definitions 1.459.670.0 on 2026-10-11 returned no threats. That result is supporting evidence and does not establish that your detection is false. Please review the public original file and provide your findings.
+
+Thank you.

@@ -1,0 +1,17 @@
+{
+  "grant": "manual",
+  "revision": 1,
+  "checkErrors": 0,
+  "expiresAt": 1794336161,
+  "installer": "still blocked by Windows App Control; no build attempt during this fix",
+  "checkWarnings": 0,
+  "friendCode": "Spect3rBW#43d26fda",
+  "paidOrders": 0,
+  "websiteTests": 65,
+  "browserWorkflow": "passed",
+  "publishedAt": "2026-10-11T15:43:42.1667287-03:00",
+  "socialId": "43d26fda-6fbd-4727-8680-f96aca47dcf3",
+  "plan": "pro",
+  "deployment": "https://ecb022fa.luxmc-r92.pages.dev",
+  "checkoutEnabled": false
+}

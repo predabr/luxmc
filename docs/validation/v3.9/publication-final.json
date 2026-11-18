@@ -1,0 +1,22 @@
+{
+  "release": "https://github.com/predabr/luxmc/releases/tag/v3.9.0",
+  "name": "Luxmc 3.9 — Sua Marca, Seu Mundo",
+  "website": "https://luxmc-r92.pages.dev/",
+  "plans": "https://luxmc-r92.pages.dev/planos",
+  "windowsInstallerSha256": "d18dd7c81cfc174982a915b65465e0b9af7bed8cca27ab013db2797845ef0e2d",
+  "websiteClientSha256": "d8c4f08b3f51afb11a785108644b70baef34b4520940441b053f1ab1bd385a05",
+  "reviewRequests39": {
+    "avast": "received",
+    "avg": "received",
+    "microsoft": "received",
+    "trapmine": "sent"
+  },
+  "vendorVerdictsPending": true,
+  "authenticode": "NotSigned",
+  "virusTotal": {
+    "flagged": 3,
+    "total": 70
+  },
+  "windowsUnblockConfirmed": false,
+  "checkoutEnabledByThisTask": false
+}

@@ -1,0 +1,7 @@
+{
+  "compiledSha256": "04cf92512bd30fb7fad99ce00c9f8c2fc23528e47b8c694fd84a39e0154d2d95",
+  "packagedSha256": "b13bbf8087b92091035edf421ba74e3c584b2e67a1af38c3efa112a71845cdcb",
+  "onlyDifference": "Tauri bundle marker UNK -> NSS",
+  "compiledProgramVerified": true,
+  "helperBundled": false
+}

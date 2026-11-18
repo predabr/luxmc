@@ -64,13 +64,13 @@
     }
     async function copyWorldAddress(address: string | null) {
         if (!address || !/^127\.0\.0\.1:\d{1,5}$/.test(address)) return;
-        try { await navigator.clipboard.writeText(address); toast(uiText('roomConnection.copied'), 'success'); }
+        try { await navigator.clipboard.writeText(address);  }
         catch (cause) { toast(String(cause), 'error'); }
     }
     async function copy() {
         const value = status?.invitation || status?.roomCode;
         if (!value) return;
-        try { await navigator.clipboard.writeText(value); toast('Convite copiado. Seu amigo cola em Entrar na sala.', 'success'); }
+        try { await navigator.clipboard.writeText(value);  }
         catch (failure) { error = String(failure); }
     }
 </script>
@@ -115,7 +115,7 @@
                         {#if status.localAddress && status.worldReady}<button type="button" class={button({variant:'secondary'})} onclick={() => copyWorldAddress(status!.localAddress)}><Copy class="h-4 w-4" />{status.localAddress}</button>{/if}
                         {#if status.mode === 'client'}
                             <label class="block space-y-2 text-sm"><span class="block text-fg-muted">{uiText('localServer.minecraftInstance')}</span><select aria-label={uiText('localServer.minecraftInstance')} class="w-full rounded-xl border border-border bg-bg-subtle px-3 py-3 text-fg" bind:value={targetProfile}><option value="">{uiText('localServer.selectInstance')}</option>{#each profiles.list as profile}<option value={profile.id}>{profile.name} · {profile.mcVersion} · {profile.loader}</option>{/each}</select></label>
-                            <button type="button" class={button({variant:'secondary'})} disabled={busy || !targetProfile || !status.worldReady} onclick={() => run(async () => { await saveTunnelServer(targetProfile); toast(uiText('localServer.addedToMinecraft'),'success'); })}>{uiText('localServer.addToMinecraft')}</button>
+                            <button type="button" class={button({variant:'secondary'})} disabled={busy || !targetProfile || !status.worldReady} onclick={() => run(async () => { await saveTunnelServer(targetProfile);  })}>{uiText('localServer.addToMinecraft')}</button>
                         {:else}<p class="text-xs leading-6 text-fg-muted">{uiText('dedicatedP2P.leaveHelp')}</p><a class={button({variant:'ghost',size:'sm'})} href="/hosting/server">{uiText('localServer.manage')}</a>{/if}
                     </section>
                 {:else}

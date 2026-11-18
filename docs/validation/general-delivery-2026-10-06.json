@@ -1,0 +1,12 @@
+{
+  "version": "3.0.2",
+  "status": 200,
+  "bytes": 20329717,
+  "sha256": "8c11f5866c9dbc78713e356482b7243f1bb5f90e6cde0114d1775979c6efea60",
+  "filename": "attachment; filename=\"Lux MC Launcher.exe\"",
+  "url": "https://luxmc-r92.pages.dev/download/windows",
+  "headPassed": true,
+  "rangePassed": true,
+  "deployment": "https://15fe745b.luxmc-r92.pages.dev",
+  "githubPublished": false
+}

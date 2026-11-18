@@ -1,0 +1,30 @@
+{
+  "startedAt": "2026-10-09T17:25:45.833Z",
+  "checks": [
+    {
+      "name": "build",
+      "version": "3.6.0"
+    },
+    {
+      "name": "live-catalog",
+      "versions": 229,
+      "latestStable": "1.26.52.3",
+      "packageTypes": [
+        "GDK",
+        "UWP"
+      ]
+    },
+    {
+      "name": "installation-started",
+      "version": "1.26.52.3",
+      "packageType": "GDK"
+    },
+    {
+      "name": "native-package-installed",
+      "version": "1.26.52.3",
+      "seconds": 5.7,
+      "managed": true
+    }
+  ],
+  "failure": "AssertionError [ERR_ASSERTION]: O pacote foi instalado, mas o processo Bedrock não permaneceu aberto"
+}

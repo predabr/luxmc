@@ -1,0 +1,36 @@
+{
+  "passed": true,
+  "origin": "https://luxmc-r92.pages.dev",
+  "captures": [
+    {
+      "name": "assets/captures-3.6/instances-window.svg",
+      "source": "assets/captures-3.6/instances-window.svg",
+      "width": 1896,
+      "height": 1007
+    },
+    {
+      "name": "assets/captures-3.6/mods-window.svg",
+      "source": "assets/captures-3.6/mods-window.svg",
+      "width": 1919,
+      "height": 1022
+    },
+    {
+      "name": "assets/captures-3.6/personalizer-window.svg",
+      "source": "assets/captures-3.6/personalizer-window.svg",
+      "width": 1919,
+      "height": 1022
+    },
+    {
+      "name": "assets/captures-3.6/friends-window.svg",
+      "source": "assets/captures-3.6/friends-window.svg",
+      "width": 1919,
+      "height": 1022
+    },
+    {
+      "name": "assets/captures-3.6/home-window.svg",
+      "source": "assets/captures-3.6/home-window.svg",
+      "width": 1919,
+      "height": 1022
+    }
+  ]
+}

@@ -174,7 +174,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
             await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
             copied = true;
             playSound("click");
-            toast(uiText("ui.3c6f6a5224cdab05"), "success");
             setTimeout(() => copied = false, 2500);
         } catch {
             toast(uiText("ui.6f18281b59f3d6ce"), "warning");

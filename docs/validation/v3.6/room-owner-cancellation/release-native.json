@@ -1,0 +1,40 @@
+{
+  "passed": true,
+  "actualReleaseExecutable": true,
+  "app": {
+    "name": "Luxmc",
+    "version": "3.6.0"
+  },
+  "java": [
+    {
+      "major": 8,
+      "installed": true
+    },
+    {
+      "major": 16,
+      "installed": false
+    },
+    {
+      "major": 17,
+      "installed": true
+    },
+    {
+      "major": 21,
+      "installed": true
+    },
+    {
+      "major": 25,
+      "installed": true
+    }
+  ],
+  "existingJava25Verified": true,
+  "invalidUninstallRejected": true,
+  "shield": {
+    "mods": 491,
+    "findings": 0,
+    "firstMs": 2407,
+    "cachedMs": 677
+  },
+  "userModsExecuted": false,
+  "timestamp": "2026-10-10T19:59:59.994Z"
+}

@@ -1,0 +1,36 @@
+[
+  {
+    "name": "flight-flightreacts.gif",
+    "inputBytes": 2686742,
+    "outputBytes": 147168,
+    "inputWidth": 476,
+    "inputHeight": 413,
+    "frames": 25,
+    "width": 320,
+    "height": 278,
+    "duration": 2170,
+    "type": "image/webp",
+    "originalFrames": 25,
+    "originalDuration": 2170,
+    "seconds": 0.8887000000029802,
+    "animated": true,
+    "loopsForever": true
+  },
+  {
+    "name": "scuba-scuba-cat.gif",
+    "inputBytes": 6764271,
+    "outputBytes": 668634,
+    "inputWidth": 344,
+    "inputHeight": 374,
+    "frames": 150,
+    "width": 177,
+    "height": 192,
+    "duration": 5010,
+    "type": "image/webp",
+    "originalFrames": 150,
+    "originalDuration": 5010,
+    "seconds": 5.923400000005961,
+    "animated": true,
+    "loopsForever": true
+  }
+]

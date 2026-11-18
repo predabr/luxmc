@@ -1,0 +1,15 @@
+{
+  "url": "https://luxmc-r92.pages.dev/planos",
+  "headline": "Seu mundo.Com a sua cara.",
+  "mainStyle": "rgb(242, 247, 255)",
+  "plansStylesheet": true,
+  "navLinks": [
+    "/",
+    "/#recursos",
+    "/planos",
+    "/#mods",
+    "/conta",
+    "/#download"
+  ],
+  "errors": []
+}

@@ -1,0 +1,31 @@
+{
+  "kind": "Python reference comparison of archive I/O strategies; not a Rust or Minecraft launch benchmark",
+  "readOnly": true,
+  "metadataEquivalent": true,
+  "measurements": [
+    {
+      "iteration": 0,
+      "archives": 48,
+      "wholeFileSeconds": 0.5375470999861136,
+      "wholeFileBytesRead": 85096866,
+      "sparseSeconds": 0.08772299997508526,
+      "sparseBytesRead": 4838794
+    },
+    {
+      "iteration": 1,
+      "archives": 48,
+      "wholeFileSeconds": 0.21301450004102662,
+      "wholeFileBytesRead": 85096866,
+      "sparseSeconds": 0.0751274999929592,
+      "sparseBytesRead": 4838794
+    },
+    {
+      "iteration": 2,
+      "archives": 48,
+      "wholeFileSeconds": 0.2127053000149317,
+      "wholeFileBytesRead": 85096866,
+      "sparseSeconds": 0.08370649995049462,
+      "sparseBytesRead": 4838794
+    }
+  ]
+}

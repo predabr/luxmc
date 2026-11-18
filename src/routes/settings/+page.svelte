@@ -122,7 +122,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
             maxRamGb = memory.maxRamMb / 1024;
             settings.patch(memory);
             schedulePersist();
-            toast(uiText("settings.refinement.ramApplied", { amount: maxRamGb }), "success");
         } catch (error) { toast(String(error), "error"); }
         finally { recommendingRam = false; }
     }
@@ -144,7 +143,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         const profile = profiles.active;
         if (!profile || savingCommands || appState.isGameRunning) return;
         savingCommands = true;
-        try { await profilesUpdate({ id: profile.id, preLaunchHook: preLaunchCmd.trim() || null, postExitHook: postExitCmd.trim() || null, useGamemode: runtimePlatform.isLinux && gameWrapper === "gamemoderun" }); profiles.update(profile.id, { preLaunchHook: preLaunchCmd.trim() || null, postExitHook: postExitCmd.trim() || null, useGamemode: runtimePlatform.isLinux && gameWrapper === "gamemoderun" }); toast(uiText("ui.c0050c10a8091f36") + profile.name, "success"); } catch(error) { toast(String(error), "error"); } finally { savingCommands = false; }
+        try { await profilesUpdate({ id: profile.id, preLaunchHook: preLaunchCmd.trim() || null, postExitHook: postExitCmd.trim() || null, useGamemode: runtimePlatform.isLinux && gameWrapper === "gamemoderun" }); profiles.update(profile.id, { preLaunchHook: preLaunchCmd.trim() || null, postExitHook: postExitCmd.trim() || null, useGamemode: runtimePlatform.isLinux && gameWrapper === "gamemoderun" });  } catch(error) { toast(String(error), "error"); } finally { savingCommands = false; }
     }
 	let postExitCmd = $state("");
 	let gameWrapper = $state(settings.value.gamemode ? "gamemoderun" : "");
@@ -351,7 +350,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		setLocale(lang);
 		settings.patch({ language: lang });
 		schedulePersist();
-		toast(t("settings.langChangedSuccess"), "info");
 	}
 
 	function handleThemeChange(tName: AppSettings["theme"]) {
@@ -382,7 +380,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			waylandNative: waylandNative
 		});
 		schedulePersist();
-		toast(uiText("ui.847c046302f1f7c7"), "success");
 	}
 
 	async function browseJavaPath() {
@@ -405,7 +402,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			const keys = ["luxmc_cache_mods", "luxmc_cache_search", "luxmc_temp_skins"];
 			for (const k of keys) localStorage.removeItem(k);
 		} catch {}
-		if (notify) toast(t("settings.cacheCleared") || uiText("ui.b1f36d2fc6a6621d"), "success");
 	}
 
 	const storageReport = $derived(storageActivity.report);
@@ -455,7 +451,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         storageActivity.cleanup='logs';
 		try {
 			const freed = await storageClearLogs();
-			toast(uiText("ui.936e9d5fd6166fd7", {arg0: (formatBytes(freed))}), "success");
 			await loadStorageReport(true);
 			if (storageReport?.logsBytes) toast(uiText('refinement.cleanupPartial'),'warning');
 		} catch (e) {
@@ -469,7 +464,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		try {
 			const freed = await storageClearCache();
 			await handleClearCache(false);
-			toast(uiText("ui.1e23968a10a33a9c", {arg0: (formatBytes(freed))}), "success");
 			await loadStorageReport(true);
 			if (storageReport?.cacheBytes) toast(uiText('refinement.cleanupPartial'),'warning');
 		} catch (e) {
@@ -483,7 +477,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			await storageDeleteInstance(inst.id);
 			profiles.remove(inst.id);
 			if (inst.loader === "bedrock") await bedrock.refresh();
-			toast(inst.loader === "bedrock" ? "Vínculo removido. Os arquivos permanecem no BedrockLauncher." : uiText("ui.bea8996b09fea4ce", {arg0: (inst.name)}), "success");
 			confirmingDeleteInstance = null;
 			await loadStorageReport(true);
 		} catch (e) {

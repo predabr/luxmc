@@ -1,0 +1,51 @@
+{
+  "runId": 38553346641,
+  "url": "https://github.com/predabr/luxmc/actions/runs/38553346641",
+  "status": "completed",
+  "conclusion": "success",
+  "commit": "772931fed5c7a7f5ae9d7e893620a66f29464dbb",
+  "jobs": [
+    {
+      "id": 115816367486,
+      "name": "verify-source",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 115820291649,
+      "name": "create-release",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 115820378263,
+      "name": "build-linux",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 115820378368,
+      "name": "build-windows",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 115820378436,
+      "name": "build-macos",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 115837440016,
+      "name": "verify-release-assets",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    }
+  ]
+}

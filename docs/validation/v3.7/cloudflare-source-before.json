@@ -1,0 +1,32 @@
+{
+  "source": {
+    "type": "github",
+    "config": {
+      "owner": "predabr",
+      "owner_id": "218385324",
+      "repo_name": "luxmc",
+      "repo_id": "1359587564",
+      "production_branch": "main",
+      "pr_comments_enabled": true,
+      "deployments_enabled": true,
+      "production_deployments_enabled": true,
+      "preview_deployment_setting": "all",
+      "preview_branch_includes": [
+        "*"
+      ],
+      "preview_branch_excludes": [],
+      "path_includes": [
+        "*"
+      ],
+      "path_excludes": []
+    }
+  },
+  "buildConfig": {
+    "build_command": "",
+    "destination_dir": "",
+    "build_caching": false,
+    "root_dir": "website",
+    "web_analytics_tag": null,
+    "web_analytics_token": null
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "version": "3.9.1",
+  "commit": "8c3e7344ffaaad5be24e30dace3c5206fc5b4bbd",
+  "catalog": "Results first; provider, version, loader and category controls on the right; no spotlight",
+  "frontendCheck": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "frontendUnitTests": 161,
+  "websiteTests": 85,
+  "browserChecks": [
+    "Right-side filter geometry",
+    "Modrinth and CurseForge requests",
+    "Fabric, Forge, Quilt and NeoForge requests",
+    "Minecraft version and category filtering",
+    "Filter reset and cached results",
+    "Keyboard project details",
+    "Original artwork and fallback",
+    "Visible install actions",
+    "Search and stale response rejection",
+    "Pagination and scrolling",
+    "Dark and light themes",
+    "Responsive 1080, 800 and 640px layouts",
+    "24-result compact option",
+    "Reduced motion",
+    "Room preserved when navigating",
+    "Discord player count"
+  ],
+  "frontendBuild": "passed",
+  "releaseRun": "https://github.com/predabr/luxmc/actions/runs/38201476978",
+  "launcherStarted": false
+}

@@ -1,0 +1,37 @@
+{
+  "timestamp": "2026-10-12T15:03:42.7931512Z",
+  "version": "3.9.1",
+  "helperSha256": "e4ff1ffc8f06755c8fe74fbb887c1692cd210c2ae537f4a56668ba5dc4574f87",
+  "programSha256": "b30b467d95d8f46bfa096d71178287ce405b732c41843378c41b73da3b5fb98b",
+  "helperAuthenticode": "NotSigned",
+  "programAuthenticode": "NotSigned",
+  "helperMatchesBuildArtifact": true,
+  "buildRun": "https://github.com/predabr/luxmc/actions/runs/38264425892",
+  "codeIntegrityEvents": [
+    {
+      "TimeCreated": "2026-10-12T11:57:26.7332259-03:00",
+      "Id": 3077,
+      "Message": "Code Integrity determined that a process (\\Device\\HarddiskVolume3\\Program Files\\WindowsApps\\Raycast.Raycast_2.7.3.0_x64__qypenmj9wpt2a\\Raycast\\Raycast.exe) attempted to load \\Device\\HarddiskVolume3\\Users\\preda\\AppData\\Local\\Luxmc\\luxmc-repair.exe that did not meet the Enterprise signing level requirements or violated code integrity policy (Policy ID:{0283ac0f-fff1-49ae-ada1-8a933130cad6})."
+    },
+    {
+      "TimeCreated": "2026-10-12T11:57:26.7314379-03:00",
+      "Id": 3033,
+      "Message": "Code Integrity determined that a process (\\Device\\HarddiskVolume3\\Program Files\\WindowsApps\\Raycast.Raycast_2.7.3.0_x64__qypenmj9wpt2a\\Raycast\\Raycast.exe) attempted to load \\Device\\HarddiskVolume3\\Users\\preda\\AppData\\Local\\Luxmc\\luxmc-repair.exe that did not meet the Enterprise signing level requirements."
+    },
+    {
+      "TimeCreated": "2026-10-12T11:57:10.7915999-03:00",
+      "Id": 3077,
+      "Message": "Code Integrity determined that a process (\\Device\\HarddiskVolume3\\Program Files\\WindowsApps\\Raycast.Raycast_2.7.3.0_x64__qypenmj9wpt2a\\Raycast\\Raycast.exe) attempted to load \\Device\\HarddiskVolume3\\Users\\preda\\AppData\\Local\\Luxmc\\luxmc-repair.exe that did not meet the Enterprise signing level requirements or violated code integrity policy (Policy ID:{0283ac0f-fff1-49ae-ada1-8a933130cad6})."
+    },
+    {
+      "TimeCreated": "2026-10-12T11:57:10.7899778-03:00",
+      "Id": 3033,
+      "Message": "Code Integrity determined that a process (\\Device\\HarddiskVolume3\\Program Files\\WindowsApps\\Raycast.Raycast_2.7.3.0_x64__qypenmj9wpt2a\\Raycast\\Raycast.exe) attempted to load \\Device\\HarddiskVolume3\\Users\\preda\\AppData\\Local\\Luxmc\\luxmc-repair.exe that did not meet the Enterprise signing level requirements."
+    }
+  ],
+  "launcherStarted": false,
+  "shortcutsChanged": false,
+  "securitySettingsChanged": false,
+  "submitted": false,
+  "windowsTrustConfirmed": false
+}

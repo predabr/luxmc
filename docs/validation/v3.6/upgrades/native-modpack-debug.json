@@ -1,0 +1,34 @@
+{
+  "originalInstancesPreserved": false,
+  "runs": [
+    {
+      "run": 1,
+      "preparationSeconds": 5.75,
+      "resourcesSeconds": 86.1,
+      "rendererReady": true,
+      "remainedOpen": true
+    },
+    {
+      "run": 2,
+      "preparationSeconds": 3.68,
+      "resourcesSeconds": 31.94,
+      "rendererReady": true,
+      "remainedOpen": true
+    }
+  ],
+  "buildVariant": "debug",
+  "fixtureId": "639d81a1-950d-4419-bdac-be0b3c8f25cb",
+  "initialIds": [
+    "38f6b575-2a33-4a6d-b0db-04b55ff302b0",
+    "b478be1a-406f-4be1-9475-cd3fe4008464",
+    "c15b63d2-53dc-496e-abb2-2297b8b59b44"
+  ],
+  "version": "6.5.0",
+  "minecraft": "1.21.1",
+  "installSeconds": 24.97,
+  "filesVerifiedByHash": 50,
+  "blockers": [],
+  "warnings": [],
+  "lastGamePid": 32484,
+  "cleanupError": "invalid state: Não foi possível apagar os arquivos da instância: O arquivo já está sendo usado por outro processo. (os error 32). Feche o jogo e tente novamente."
+}

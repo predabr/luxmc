@@ -68,26 +68,7 @@
 <div class="workspace">
 	<header class="topbar">
 		<div class="brand">
-			<svg class="emblem" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-				<defs>
-					<linearGradient id="luxmc-cube-top" x1="16" y1="2" x2="16" y2="15" gradientUnits="userSpaceOnUse">
-						<stop offset="0" style="stop-color: rgb(var(--brass-300))" />
-						<stop offset="1" style="stop-color: rgb(var(--brass-400))" />
-					</linearGradient>
-					<linearGradient id="luxmc-cube-left" x1="4" y1="8.5" x2="16" y2="28" gradientUnits="userSpaceOnUse">
-						<stop offset="0" style="stop-color: rgb(var(--brass-500))" />
-						<stop offset="1" style="stop-color: rgb(var(--brass-700))" />
-					</linearGradient>
-					<linearGradient id="luxmc-cube-right" x1="28" y1="8.5" x2="16" y2="28" gradientUnits="userSpaceOnUse">
-						<stop offset="0" style="stop-color: rgb(var(--brass-400))" />
-						<stop offset="1" style="stop-color: rgb(var(--brass-600))" />
-					</linearGradient>
-				</defs>
-				<path d="M16 2 L28 8.5 L16 15 L4 8.5 Z" fill="url(#luxmc-cube-top)" />
-				<path d="M4 8.5 L16 15 L16 28 L4 21.5 Z" fill="url(#luxmc-cube-left)" />
-				<path d="M28 8.5 L16 15 L16 28 L28 21.5 Z" fill="url(#luxmc-cube-right)" />
-				<path class="emblem-edges" d="M16 2 L28 8.5 L28 21.5 L16 28 L4 21.5 L4 8.5 Z M4 8.5 L16 15 L28 8.5 M16 15 L16 28" />
-			</svg>
+			<img src="/branding/luxmc-emblem-128.png" alt="LUXMC" class="emblem" />
 			<div class="brand-text">
 				<span class="brand-name">LUXMC</span>
 				<span class="brand-sub">Servidores dedicados</span>
@@ -198,8 +179,7 @@
 			rgb(var(--amethyst-500) / 0) 86%);
 	}
 	.brand { display: flex; align-items: center; gap: 12px; flex: none; }
-	.emblem { width: 34px; height: 34px; flex: none; filter: drop-shadow(0 2px 8px rgb(var(--brass-700) / 0.5)); }
-	.emblem-edges { fill: none; stroke: rgb(var(--brass-300) / 0.55); stroke-width: 0.75; stroke-linejoin: round; }
+	.emblem { width: 34px; height: 34px; object-fit: contain; flex: none; filter: drop-shadow(0 2px 8px rgb(var(--brass-700) / 0.5)); }
 	.brand-text { display: flex; flex-direction: column; line-height: 1.15; }
 	.brand-name { font-family: Georgia, 'Times New Roman', serif; font-size: 16px; font-weight: 700; letter-spacing: 0.22em; color: rgb(var(--brass-300)); }
 	.brand-sub { font-size: 9.5px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: rgb(var(--fg-subtle)); }

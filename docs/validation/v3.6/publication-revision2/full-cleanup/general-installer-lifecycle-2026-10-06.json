@@ -1,0 +1,12 @@
+{
+  "Version": "3.6.0",
+  "InstallExitCode": 0,
+  "SameVersionReinstallExitCode": 0,
+  "UninstallExitCode": 0,
+  "ApplicationRemoved": true,
+  "RegistryRemoved": true,
+  "ProtectedFiles": 4,
+  "ProtectedDataPreserved": true,
+  "CompleteCleanupVerified": true,
+  "InstallerSha256": "9586027DA0D24287CC46EA55382385B8FD7B1CFF8138DC6B4D53FF5A1A82D8FC"
+}

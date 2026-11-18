@@ -1,0 +1,16 @@
+Product: Luxmc 3.9.1 local build "Modpacks em Dia"
+Component: Luxmc recovery helper (luxmc-repair.exe, display name Lux Repair)
+SHA-256: e4ff1ffc8f06755c8fe74fbb887c1692cd210c2ae537f4a56668ba5dc4574f87
+Size: 391168 bytes
+Source repository: https://github.com/predabr/luxmc
+Source commit: f8d59bca774fac702269f0e7e4bb44481b0bf204
+Build workflow commit: 7997fe4eccb7bc57e84b03aef66db1ca7fee2e15
+Build run: https://github.com/predabr/luxmc/actions/runs/38264425892
+
+The installer shortcuts start this helper before the launcher. The helper validates the main executable against an embedded SHA-256 and manages local recovery snapshots, then starts luxmc.exe. It also supports explicit verification, initialization, repair and user-requested uninstall cleanup modes.
+
+Smart App Control blocked this unsigned executable on Windows. Code Integrity events 3033 and 3077 were recorded on 2026-10-12 at 11:57 (America/Sao_Paulo). The application was not allowed to run. The installed helper matches the verified CI build artifact.
+
+Microsoft Defender's custom scan of these exact bytes found no threats on 2026-10-12 using signature version 1.459.684.0. This is a scan result, not a malware-free certification or a publisher signature. No false-positive conclusion is asserted. Please review this component's classification and advise whether further publisher verification is required.
+
+The review package contains only the executable and build metadata. It contains no accounts, access tokens, worlds, game instances or user documents. Submission has not yet been performed for this exact helper build.

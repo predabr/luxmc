@@ -1,0 +1,29 @@
+{
+  "root": "C:\\Users\\preda\\AppData\\Local\\Temp\\luxmc-3.2-game-uEkD9m",
+  "results": [
+    {
+      "version": "1.20.1",
+      "loader": "forge",
+      "process": {
+        "Id": 16668,
+        "MainWindowTitle": "Minecraft* 1.20.1",
+        "Responding": true
+      },
+      "logExists": true,
+      "rendererInitialized": false,
+      "fatal": false
+    },
+    {
+      "version": "1.21.1",
+      "loader": "neoforge",
+      "process": {
+        "Id": 30976,
+        "MainWindowTitle": "Minecraft: NeoForge Loading...",
+        "Responding": true
+      },
+      "logExists": true,
+      "rendererInitialized": false,
+      "fatal": false
+    }
+  ]
+}

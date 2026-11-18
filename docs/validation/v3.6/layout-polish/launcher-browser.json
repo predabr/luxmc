@@ -1,0 +1,412 @@
+{
+  "passed": true,
+  "contrasts": [
+    {
+      "theme": "default-light",
+      "accent": "gold",
+      "label": "Releases",
+      "ratio": 5.017982992033196
+    },
+    {
+      "theme": "default-light",
+      "accent": "gold",
+      "label": "Todas",
+      "ratio": 5.017982992033196
+    },
+    {
+      "theme": "default-light",
+      "accent": "gold",
+      "label": "Snapshots",
+      "ratio": 5.017982992033196
+    },
+    {
+      "theme": "default-light",
+      "accent": "gold",
+      "label": "Betas",
+      "ratio": 5.017982992033196
+    },
+    {
+      "theme": "default-light",
+      "accent": "cyan",
+      "label": "Releases",
+      "ratio": 4.969776345178902
+    },
+    {
+      "theme": "default-light",
+      "accent": "cyan",
+      "label": "Todas",
+      "ratio": 4.969776345178902
+    },
+    {
+      "theme": "default-light",
+      "accent": "cyan",
+      "label": "Snapshots",
+      "ratio": 4.969776345178902
+    },
+    {
+      "theme": "default-light",
+      "accent": "cyan",
+      "label": "Betas",
+      "ratio": 4.969776345178902
+    },
+    {
+      "theme": "default-light",
+      "accent": "emerald",
+      "label": "Releases",
+      "ratio": 5.085817466323554
+    },
+    {
+      "theme": "default-light",
+      "accent": "emerald",
+      "label": "Todas",
+      "ratio": 5.085817466323554
+    },
+    {
+      "theme": "default-light",
+      "accent": "emerald",
+      "label": "Snapshots",
+      "ratio": 5.085817466323554
+    },
+    {
+      "theme": "default-light",
+      "accent": "emerald",
+      "label": "Betas",
+      "ratio": 5.085817466323554
+    },
+    {
+      "theme": "default-light",
+      "accent": "rose",
+      "label": "Releases",
+      "ratio": 4.697112144822063
+    },
+    {
+      "theme": "default-light",
+      "accent": "rose",
+      "label": "Todas",
+      "ratio": 4.697112144822063
+    },
+    {
+      "theme": "default-light",
+      "accent": "rose",
+      "label": "Snapshots",
+      "ratio": 4.697112144822063
+    },
+    {
+      "theme": "default-light",
+      "accent": "rose",
+      "label": "Betas",
+      "ratio": 4.697112144822063
+    },
+    {
+      "theme": "default-light",
+      "accent": "violet",
+      "label": "Releases",
+      "ratio": 5.698586217871195
+    },
+    {
+      "theme": "default-light",
+      "accent": "violet",
+      "label": "Todas",
+      "ratio": 5.698586217871195
+    },
+    {
+      "theme": "default-light",
+      "accent": "violet",
+      "label": "Snapshots",
+      "ratio": 5.698586217871195
+    },
+    {
+      "theme": "default-light",
+      "accent": "violet",
+      "label": "Betas",
+      "ratio": 5.698586217871195
+    },
+    {
+      "theme": "default-light",
+      "accent": "orange",
+      "label": "Releases",
+      "ratio": 4.848245648522235
+    },
+    {
+      "theme": "default-light",
+      "accent": "orange",
+      "label": "Todas",
+      "ratio": 4.848245648522235
+    },
+    {
+      "theme": "default-light",
+      "accent": "orange",
+      "label": "Snapshots",
+      "ratio": 4.848245648522235
+    },
+    {
+      "theme": "default-light",
+      "accent": "orange",
+      "label": "Betas",
+      "ratio": 4.848245648522235
+    },
+    {
+      "theme": "default-light",
+      "accent": "blue",
+      "label": "Releases",
+      "ratio": 5.168555560022562
+    },
+    {
+      "theme": "default-light",
+      "accent": "blue",
+      "label": "Todas",
+      "ratio": 5.168555560022562
+    },
+    {
+      "theme": "default-light",
+      "accent": "blue",
+      "label": "Snapshots",
+      "ratio": 5.168555560022562
+    },
+    {
+      "theme": "default-light",
+      "accent": "blue",
+      "label": "Betas",
+      "ratio": 5.168555560022562
+    },
+    {
+      "theme": "default-dark",
+      "accent": "gold",
+      "label": "Releases",
+      "ratio": 5.017982992033196
+    },
+    {
+      "theme": "default-dark",
+      "accent": "gold",
+      "label": "Todas",
+      "ratio": 5.017982992033196
+    },
+    {
+      "theme": "default-dark",
+      "accent": "gold",
+      "label": "Snapshots",
+      "ratio": 5.017982992033196
+    },
+    {
+      "theme": "default-dark",
+      "accent": "gold",
+      "label": "Betas",
+      "ratio": 5.017982992033196
+    },
+    {
+      "theme": "default-dark",
+      "accent": "cyan",
+      "label": "Releases",
+      "ratio": 4.969776345178902
+    },
+    {
+      "theme": "default-dark",
+      "accent": "cyan",
+      "label": "Todas",
+      "ratio": 4.969776345178902
+    },
+    {
+      "theme": "default-dark",
+      "accent": "cyan",
+      "label": "Snapshots",
+      "ratio": 4.969776345178902
+    },
+    {
+      "theme": "default-dark",
+      "accent": "cyan",
+      "label": "Betas",
+      "ratio": 4.969776345178902
+    },
+    {
+      "theme": "default-dark",
+      "accent": "emerald",
+      "label": "Releases",
+      "ratio": 5.085817466323554
+    },
+    {
+      "theme": "default-dark",
+      "accent": "emerald",
+      "label": "Todas",
+      "ratio": 5.085817466323554
+    },
+    {
+      "theme": "default-dark",
+      "accent": "emerald",
+      "label": "Snapshots",
+      "ratio": 5.085817466323554
+    },
+    {
+      "theme": "default-dark",
+      "accent": "emerald",
+      "label": "Betas",
+      "ratio": 5.085817466323554
+    },
+    {
+      "theme": "default-dark",
+      "accent": "rose",
+      "label": "Releases",
+      "ratio": 4.697112144822063
+    },
+    {
+      "theme": "default-dark",
+      "accent": "rose",
+      "label": "Todas",
+      "ratio": 4.697112144822063
+    },
+    {
+      "theme": "default-dark",
+      "accent": "rose",
+      "label": "Snapshots",
+      "ratio": 4.697112144822063
+    },
+    {
+      "theme": "default-dark",
+      "accent": "rose",
+      "label": "Betas",
+      "ratio": 4.697112144822063
+    },
+    {
+      "theme": "default-dark",
+      "accent": "violet",
+      "label": "Releases",
+      "ratio": 5.698586217871195
+    },
+    {
+      "theme": "default-dark",
+      "accent": "violet",
+      "label": "Todas",
+      "ratio": 5.698586217871195
+    },
+    {
+      "theme": "default-dark",
+      "accent": "violet",
+      "label": "Snapshots",
+      "ratio": 5.698586217871195
+    },
+    {
+      "theme": "default-dark",
+      "accent": "violet",
+      "label": "Betas",
+      "ratio": 5.698586217871195
+    },
+    {
+      "theme": "default-dark",
+      "accent": "orange",
+      "label": "Releases",
+      "ratio": 4.848245648522235
+    },
+    {
+      "theme": "default-dark",
+      "accent": "orange",
+      "label": "Todas",
+      "ratio": 4.848245648522235
+    },
+    {
+      "theme": "default-dark",
+      "accent": "orange",
+      "label": "Snapshots",
+      "ratio": 4.848245648522235
+    },
+    {
+      "theme": "default-dark",
+      "accent": "orange",
+      "label": "Betas",
+      "ratio": 4.848245648522235
+    },
+    {
+      "theme": "default-dark",
+      "accent": "blue",
+      "label": "Releases",
+      "ratio": 5.168555560022562
+    },
+    {
+      "theme": "default-dark",
+      "accent": "blue",
+      "label": "Todas",
+      "ratio": 5.168555560022562
+    },
+    {
+      "theme": "default-dark",
+      "accent": "blue",
+      "label": "Snapshots",
+      "ratio": 5.168555560022562
+    },
+    {
+      "theme": "default-dark",
+      "accent": "blue",
+      "label": "Betas",
+      "ratio": 5.168555560022562
+    }
+  ],
+  "measurements": [
+    {
+      "width": 622,
+      "scrollWidth": 622,
+      "separateRows": true,
+      "longLabelFits": true,
+      "cardHeight": 78.59375
+    },
+    {
+      "width": 622,
+      "scrollWidth": 622,
+      "separateRows": true,
+      "longLabelFits": true,
+      "cardHeight": 78.59375
+    },
+    {
+      "width": 558,
+      "scrollWidth": 558,
+      "separateRows": true,
+      "longLabelFits": true,
+      "cardHeight": 95.390625
+    },
+    {
+      "width": 308,
+      "scrollWidth": 308,
+      "separateRows": true,
+      "longLabelFits": true,
+      "cardHeight": 95.390625
+    }
+  ],
+  "friends": [
+    {
+      "viewport": 1668,
+      "width": 1370,
+      "header": 1370,
+      "workspace": 1370,
+      "scrollWidth": 1370,
+      "clientWidth": 1370
+    },
+    {
+      "viewport": 1440,
+      "width": 1142,
+      "header": 1142,
+      "workspace": 1142,
+      "scrollWidth": 1142,
+      "clientWidth": 1142
+    },
+    {
+      "viewport": 960,
+      "width": 662,
+      "header": 662,
+      "workspace": 662,
+      "scrollWidth": 662,
+      "clientWidth": 662
+    },
+    {
+      "viewport": 640,
+      "width": 516,
+      "header": 516,
+      "workspace": 516,
+      "scrollWidth": 516,
+      "clientWidth": 516
+    }
+  ],
+  "editionChoice": true,
+  "editionEntrance": true,
+  "reducedMotion": true,
+  "friendHover": true,
+  "modalClose": true,
+  "friendsSearch": true,
+  "lanEntry": true
+}

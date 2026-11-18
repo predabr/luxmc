@@ -10,10 +10,12 @@
     const previewWidth = $derived(kind === 'portrait' ? 640 : 2560), previewHeight = $derived(kind === 'portrait' ? 640 : 768);
     const source = $derived.by(() => {
         if (image.width <= previewWidth && image.height <= previewHeight) return { bitmap: image as CanvasImageSource, width: image.width, height: image.height };
-        const scale = Math.max(previewWidth / image.width, previewHeight / image.height);
-        const scaled = new OffscreenCanvas(Math.max(1, Math.round(image.width * scale)), Math.max(1, Math.round(image.height * scale)));
-        scaled.getContext('2d')?.drawImage(image, 0, 0, scaled.width, scaled.height);
-        return { bitmap: scaled as CanvasImageSource, width: scaled.width, height: scaled.height };
+        const scale = Math.min(1, Math.max(previewWidth / image.width, previewHeight / image.height));
+        const width = Math.max(1, Math.round(image.width * scale)), height = Math.max(1, Math.round(image.height * scale));
+        if (width * height > 33554432) return { bitmap: image as CanvasImageSource, width: image.width, height: image.height };
+        const scaled = new OffscreenCanvas(width, height);
+        scaled.getContext('2d')?.drawImage(image, 0, 0, width, height);
+        return { bitmap: scaled as CanvasImageSource, width, height };
     });
     $effect(() => {
         if (!canvas) return;

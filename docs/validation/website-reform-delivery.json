@@ -1,0 +1,138 @@
+{
+  "date": "2026-10-04",
+  "preview": "http://127.0.0.1:8790",
+  "changed": [
+    "account.js",
+    "app.js",
+    "cinematic.js",
+    "conta.html",
+    "i18n.js",
+    "index.html",
+    "privacidade.html",
+    "sitemap.xml",
+    "skins.html",
+    "termos.html",
+    "visuals\\skinScene.js",
+    "_headers"
+  ],
+  "removed": [
+    "account.css",
+    "ads.txt",
+    "assets\\cinema\\skinScene-E7EKDQZD.js",
+    "assets\\cinema\\skinScene-NP2ICFFE.js",
+    "cinematic.css",
+    "discovery.css",
+    "editorial.css",
+    "experience.css",
+    "experience.js",
+    "luxury.css",
+    "style.css",
+    "visuals\\cinematic.js",
+    "visuals\\world.js"
+  ],
+  "added": [
+    "404.html",
+    "assets\\avatar-steve.png",
+    "assets\\fonts\\IBMPlexMono-LICENSE.txt",
+    "assets\\fonts\\plex-mono-latin.woff2",
+    "assets\\fonts\\space-grotesk-latin.woff2",
+    "assets\\fonts\\SpaceGrotesk-LICENSE.txt",
+    "assets\\launcher-home.webp",
+    "assets\\launcher-instances.webp",
+    "assets\\launcher-mods.webp",
+    "assets\\launcher-personalizer.webp",
+    "assets\\visuals\\chunk-NH5OSSRX.js",
+    "assets\\visuals\\chunk-ZFZBJEYL.js",
+    "assets\\visuals\\heroWorld-FGATW63Y.js",
+    "assets\\visuals\\skinEngine-2DKUC2XC.js",
+    "assets\\visuals\\skinScene-PPT6W4D6.js",
+    "design.css",
+    "manifest.webmanifest",
+    "studio.js",
+    "visuals\\capes.js",
+    "visuals\\heroWorld.js",
+    "visuals\\motion.js",
+    "visuals\\skinEngine.js",
+    "visuals\\studio.js"
+  ],
+  "unchangedBackend": true,
+  "metrics": [
+    {
+      "file": "cinematic.js",
+      "bytes": 5304,
+      "gzipBytes": 2034
+    },
+    {
+      "file": "studio.js",
+      "bytes": 10847,
+      "gzipBytes": 3464
+    },
+    {
+      "file": "assets/visuals/chunk-NH5OSSRX.js",
+      "bytes": 59973,
+      "gzipBytes": 15057
+    },
+    {
+      "file": "assets/visuals/chunk-ZFZBJEYL.js",
+      "bytes": 480784,
+      "gzipBytes": 122171
+    },
+    {
+      "file": "assets/visuals/heroWorld-FGATW63Y.js",
+      "bytes": 5150,
+      "gzipBytes": 2440
+    },
+    {
+      "file": "assets/visuals/skinEngine-2DKUC2XC.js",
+      "bytes": 2063,
+      "gzipBytes": 925
+    },
+    {
+      "file": "assets/visuals/skinScene-PPT6W4D6.js",
+      "bytes": 1397,
+      "gzipBytes": 693
+    }
+  ],
+  "releaseChecks": [
+    {
+      "platform": "windows",
+      "routeStatus": 302,
+      "assetStatus": 200,
+      "target": "https://github.com/predabr/luxmc/releases/download/v2.0.2/Luxmc_2.0.2_x64-setup.exe"
+    },
+    {
+      "platform": "linux",
+      "routeStatus": 302,
+      "assetStatus": 200,
+      "target": "https://github.com/predabr/luxmc/releases/download/v2.0.2/Luxmc_2.0.2_amd64.AppImage"
+    },
+    {
+      "platform": "deb",
+      "routeStatus": 302,
+      "assetStatus": 200,
+      "target": "https://github.com/predabr/luxmc/releases/download/v2.0.2/Luxmc_2.0.2_amd64.deb"
+    },
+    {
+      "platform": "rpm",
+      "routeStatus": 302,
+      "assetStatus": 200,
+      "target": "https://github.com/predabr/luxmc/releases/download/v2.0.2/Luxmc-2.0.2-1.x86_64.rpm"
+    },
+    {
+      "platform": "arch",
+      "routeStatus": 302,
+      "assetStatus": 200,
+      "target": "https://github.com/predabr/luxmc/releases/download/v2.0.2/luxmc-2.0.2-1-x86_64.pkg.tar.zst"
+    },
+    {
+      "platform": "macos",
+      "routeStatus": 302,
+      "assetStatus": 200,
+      "target": "https://github.com/predabr/luxmc/releases/download/v2.0.2/Luxmc_2.0.2_universal.dmg"
+    }
+  ],
+  "websiteTests": 26,
+  "launcherTests": 119,
+  "published": false,
+  "supersededBy": "website-visual-revision-2026-10-04.json"
+}

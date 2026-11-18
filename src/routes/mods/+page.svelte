@@ -38,8 +38,8 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	import InstallGuideModal from "$lib/components/mods/InstallGuideModal.svelte";
 	import LightboxModal from "$lib/components/mods/LightboxModal.svelte";
     import { goto } from '$app/navigation';
-    import CatalogNavigation from '$lib/components/mods/CatalogNavigation.svelte';
 	import { favorites } from '$lib/stores/favorites.svelte';
+import { catalogTypeState, setCatalogType } from '$lib/stores/catalogType.svelte';
 	import { fade } from 'svelte/transition';
     import { pageMotion } from '$lib/actions/pageMotion';
 
@@ -70,6 +70,14 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	let searchQuery = $state("");
 	let selectedSource = $state<"all" | "modrinth" | "curseforge" | "ftb">("all");
 	let selectedType = $state("Modpack");
+	$effect(() => {
+		const next = catalogTypeState.value;
+		if (next !== untrack(() => selectedType)) untrack(() => { selectedType = next; });
+	});
+	$effect(() => {
+		const current = selectedType;
+		if (current !== untrack(() => catalogTypeState.value)) untrack(() => { setCatalogType(current); });
+	});
     $effect(() => { if (selectedType === "World") untrack(() => { selectedSource = "curseforge"; }); if (selectedType !== "Modpack" && selectedSource === "ftb") untrack(() => { selectedSource = "all"; }); });
 	let selectedLoader = $state<string | null>(null);
 	let selectedCategory = $state<string | null>(null);
@@ -638,7 +646,6 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
         </header>
         <div class="catalog-layout">
         <div class="catalog-content">
-            <CatalogNavigation bind:selectedType />
         <div class="catalog-main flex flex-col min-w-0" class:catalog-compact={viewMode === "compact" || settings.value.catalogCompactCards === true}>
             <div class="catalog-search-row">
             <div class="catalog-search relative w-full mb-4">
@@ -656,14 +663,6 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 			</div>
             </div>
                 <button type="button" class="catalog-filter-toggle" aria-expanded={filtersOpen} aria-controls="catalog-filter-panel" onclick={() => (filtersOpen = !filtersOpen)}><SlidersHorizontal class="h-4 w-4" />{uiText('ui.57ac13ce3d5bedff')}{#if activeFilters.length}<span>{activeFilters.length}</span>{/if}</button>
-			<div class="catalog-drawer-anchor">
-				<aside class="catalog-drawer" class:open={filtersOpen} aria-label={uiText('ui.57ac13ce3d5bedff')}>
-					<details open={filtersOpen}>
-						<summary class="sr-only">{uiText('ui.57ac13ce3d5bedff')}</summary>
-						<ModSearchBar bind:selectedSource bind:selectedVersion bind:selectedLoader bind:selectedCategory contentType={selectedType} />
-					</details>
-				</aside>
-			</div>
 			{#if activeFilters.length > 0 || searchQuery}
 				<div class="mb-4 flex flex-wrap items-center gap-2" aria-label={uiText("ui.505d23a2b73a2c49")}>
 					{#each activeFilters as filter}
@@ -818,6 +817,9 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 			{/if}
 		</div>
 		</div>
+		<aside class="catalog-rail" class:open={filtersOpen} aria-label={uiText('ui.57ac13ce3d5bedff')}>
+			<ModSearchBar bind:selectedType bind:selectedSource bind:selectedVersion bind:selectedLoader bind:selectedCategory />
+		</aside>
 		</div>
 	{/if}
 </div>
@@ -836,13 +838,13 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 <style>
     .catalog-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; min-width: 0; }
     .catalog-content { position: relative; min-width: 0; }
-    .catalog-drawer-anchor { position: relative; height: 0; }
-    .catalog-drawer { position: absolute; top: 10px; right: 0; z-index: 40; width: min(360px, calc(100vw - 48px)); }
-    .catalog-drawer:not(.open) { display: none; }
-    .catalog-drawer details { margin: 0; }
-    .catalog-drawer > details > summary { display: none; }
-    .catalog-drawer > details > :global(*) { border: 1px solid rgb(var(--border-strong)); border-radius: 12px; background: rgb(var(--bg-elevated)); box-shadow: 0 24px 64px rgb(0 0 0 / .5); overflow: hidden; }
+    .catalog-layout { position: relative; }
     .catalog-rail { min-width: 0; }
+    @media (min-width: 1101px) { .catalog-layout { grid-template-columns: minmax(0, 1fr) 300px; } }
+    @media (max-width: 1100px) {
+        .catalog-rail { position: absolute; top: 10px; right: 0; z-index: 40; width: min(340px, calc(100vw - 48px)); display: none; border-radius: 18px; box-shadow: 0 24px 64px rgb(0 0 0 / .5); }
+        .catalog-rail.open { display: block; }
+    }
     .catalog-main { margin-top: 22px; }
     :global(.catalog-item-dragging) { opacity: .42; }
     .catalog-compact :global(.catalog-card:not(.catalog-card--row) .catalog-cover) { height:156px; }
@@ -853,6 +855,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
     .catalog-filter-toggle[aria-expanded="true"] { color: rgb(var(--brand-action)); border-color: rgb(var(--brand-400) / .45); background: rgb(var(--brand-500) / .1); }
     .catalog-filter-toggle:focus-visible { outline: 2px solid rgb(var(--brand-action)); outline-offset: 2px; }
     .catalog-filter-toggle span { padding: 1px 6px; border-radius: 8px; background: rgb(var(--brand-500) / .16); color: rgb(var(--brand-action)); font-size: 10px; font-weight: 700; }
+    @media (min-width: 1101px) { .catalog-filter-toggle { display: none; } }
     .catalog-search-clear:hover { color: rgb(var(--fg)); border-color: rgb(var(--brand-400) / .4); }
     .catalog-search-clear:focus-visible { outline: 2px solid rgb(var(--brand-action)); outline-offset: 2px; }
     .catalog-search-spinner { pointer-events: none; }

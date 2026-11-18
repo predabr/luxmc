@@ -1,0 +1,9 @@
+{
+  "Version": "3.0.0",
+  "InstallExitCode": 0,
+  "UninstallExitCode": 0,
+  "ApplicationRemoved": true,
+  "RegistryRemoved": true,
+  "ProtectedDataPreserved": true,
+  "UserAppStillUninstalled": true
+}

@@ -47,7 +47,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     async function copy() {
         if (!room.localAddress) return;
         await navigator.clipboard.writeText(room.localAddress);
-        toast(uiText("ui.070b794ecd3daf56"), "success");
     }
 </script>
 
