@@ -240,3 +240,63 @@ fn update_source_replaces_and_rescans() {
     assert!(!listed[0].enabled);
     assert!(!listed[0].scan.clean);
 }
+
+#[test]
+fn cover_requires_premium_and_valid_image() {
+    let root = temp_root("cover");
+    create_at(&root, "com-capa", "Com Capa", "", "", &[], "export {}").unwrap();
+    let png = root.join("capa.png");
+    std::fs::write(&png, [0x89u8, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).unwrap();
+    assert!(set_cover_at(&root, "com-capa", &png, false).is_err());
+    let record = set_cover_at(&root, "com-capa", &png, true).unwrap();
+    assert_eq!(record.cover.as_deref(), Some("cover.png"));
+    let url = cover_data_url_at(&root, "com-capa").unwrap().unwrap();
+    assert!(url.starts_with("data:image/png;base64,"));
+    let cleared = clear_cover_at(&root, "com-capa").unwrap();
+    assert!(cleared.cover.is_none());
+    assert!(cover_data_url_at(&root, "com-capa").unwrap().is_none());
+}
+
+#[test]
+fn cover_rejects_bad_extension() {
+    let root = temp_root("cover-ext");
+    create_at(&root, "sem-capa", "Sem Capa", "", "", &[], "export {}").unwrap();
+    let exe = root.join("capa.exe");
+    std::fs::write(&exe, b"MZ").unwrap();
+    assert!(set_cover_at(&root, "sem-capa", &exe, true).is_err());
+}
+
+#[test]
+fn cover_accepts_gif() {
+    let root = temp_root("cover-gif");
+    create_at(&root, "gif-plugin", "Gif Plugin", "", "", &[], "export {}").unwrap();
+    let gif = root.join("anim.gif");
+    std::fs::write(&gif, b"GIF89a").unwrap();
+    let record = set_cover_at(&root, "gif-plugin", &gif, true).unwrap();
+    assert_eq!(record.cover.as_deref(), Some("cover.gif"));
+    assert!(cover_data_url_at(&root, "gif-plugin").unwrap().unwrap().starts_with("data:image/gif;base64,"));
+}
+
+#[test]
+fn publish_exports_zip_and_registry_entry() {
+    let root = temp_root("publish");
+    create_at(&root, "publicavel", "Publicavel", "Pedro", "Plugin de teste", &["storage".to_string()], "window.Luxmc.ui.toast('oi');").unwrap();
+    let published = publish_at(&root, "publicavel", "https://luxmc-r92.pages.dev/plugins").unwrap();
+    assert!(Path::new(&published.zip_path).exists());
+    assert_eq!(published.sha256.len(), 64);
+    let entry: serde_json::Value = serde_json::from_str(&published.entry_json).unwrap();
+    assert_eq!(entry["id"], "publicavel");
+    assert_eq!(entry["downloadUrl"], "https://luxmc-r92.pages.dev/plugins/publicavel-0.1.0.zip");
+    assert_eq!(entry["sha256"], published.sha256);
+    let zip = std::fs::read(&published.zip_path).unwrap();
+    assert_eq!(find_zip_start(&zip), Some(0));
+}
+
+#[test]
+fn publish_blocks_unscanned_plugin() {
+    let root = temp_root("publish-blocked");
+    create_at(&root, "sujo", "Sujo", "", "", &[], "export {}").unwrap();
+    std::fs::write(root.join("sujo/main.js"), b"require('child_process').exec('calc')").unwrap();
+    rescan_at(&root, "sujo").unwrap();
+    assert!(publish_at(&root, "sujo", "https://x.dev/plugins").is_err());
+}

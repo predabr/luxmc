@@ -37,6 +37,58 @@ let notifiedVersion = "";
 
 let lastChecked = $state<string | null>(null);
 
+
+type ReleaseEntry = {
+	tag_name?: string;
+	name?: string;
+	body?: string;
+	html_url?: string;
+	draft?: boolean;
+	prerelease?: boolean;
+	published_at?: string;
+	assets?: UpdateAsset[];
+};
+
+function versionWeight(tag: string) {
+	const identity = releaseIdentity(tag);
+	const parts = String(identity.version).split(/[^0-9]+/).filter(Boolean).map((value) => Number(value));
+	const revision = Number(identity.revision) || 0;
+	return { major: parts[0] || 0, minor: parts[1] || 0, patch: parts[2] || 0, build: parts[3] || 0, revision };
+}
+
+function isNewer(candidate: string, current: string) {
+	const first = versionWeight(candidate);
+	const second = versionWeight(current);
+	const order: (keyof typeof first)[] = ["major", "minor", "patch", "build", "revision"];
+	for (const key of order) {
+		if (first[key] !== second[key]) return first[key] > second[key];
+	}
+	return false;
+}
+
+async function fetchReleases(): Promise<ReleaseEntry[]> {
+	const endpoints = [
+		"https://api.github.com/repos/predabr/luxmc/releases?per_page=100",
+		"https://api.github.com/repos/predabr/luxmc/releases/latest"
+	];
+	for (const endpoint of endpoints) {
+		try {
+			const res = await fetch(endpoint, { cache: "no-store", signal: AbortSignal.timeout(12000) });
+			if (!res.ok) continue;
+			const data = await res.json();
+			const list: ReleaseEntry[] = Array.isArray(data) ? data : [data];
+			if (list.length) return list;
+		} catch { /* tenta o proximo endpoint */ }
+	}
+	return [];
+}
+
+async function newestRelease(channel: "stable" | "beta"): Promise<ReleaseEntry | null> {
+	const list = (await fetchReleases()).filter((entry) => entry && !entry.draft && (channel === "beta" || !entry.prerelease) && entry.tag_name);
+	if (!list.length) return null;
+	return list.reduce((best, entry) => (isNewer(entry.tag_name!, best.tag_name!) ? entry : best), list[0]);
+}
+
 export const updaterStore = {
 	get showModal() { return showModal; },
 	set showModal(v: boolean) { showModal = v; },
@@ -85,32 +137,15 @@ export const updaterStore = {
 			lastChecked = new Date().toISOString();
 
 			const channel = settings.value.releaseChannel === "beta" ? "beta" : "stable";
-			let foundUpdate = false;
+			const release = await newestRelease(channel);
+			if (!release) throw new Error(uiText("ui.d3184c6678fe9d2d"));
+			const identity = releaseIdentity(release.tag_name || "");
+			latestVersion = identity.version;
+			latestRevision = identity.revision;
+			releaseUrl = release.html_url || "https://github.com/predabr/luxmc/releases";
+			releaseNotes = (release.body || "").trim();
+			downloadUrl = resolveUpdateAssetUrl((release.assets || []) as UpdateAsset[], environment);
 
-			if (!foundUpdate || !downloadUrl) {
-				const endpoint = channel === "stable"
-					? "https://api.github.com/repos/predabr/luxmc/releases/latest"
-					: "https://api.github.com/repos/predabr/luxmc/releases?per_page=20";
-				const res = await fetch(endpoint, { cache: "no-store", signal: AbortSignal.timeout(10000) });
-				if (res.ok) {
-					const data = await res.json();
-					const release = Array.isArray(data)
-						? data.find((entry: { draft?: boolean }) => !entry.draft)
-						: data;
-					if (release && release.tag_name !== undefined) {
-						const tag: string = release.tag_name || "";
-						const identity = releaseIdentity(tag);
-						latestVersion = identity.version;
-						latestRevision = identity.revision;
-						releaseUrl = release.html_url || "https://github.com/predabr/luxmc/releases";
-						releaseNotes = release.body || uiText("ui.4343565e98d68e00");
-						downloadUrl = resolveUpdateAssetUrl((release.assets || []) as UpdateAsset[], environment);
-						foundUpdate = true;
-					}
-				}
-			}
-
-			if (!foundUpdate) throw new Error(uiText("ui.d3184c6678fe9d2d"));
 			const newer = isReleaseUpdate(currentVersion, currentRevision, latestVersion, latestRevision);
 			verificationStatus = newer ? "available" : "current";
 			if (newer && (interactive || notifiedVersion !== `${latestVersion}:${latestRevision}`)) {

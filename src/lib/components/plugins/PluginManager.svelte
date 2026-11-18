@@ -7,10 +7,12 @@
 		FolderOpen,
 		Link2,
 		Loader2,
+		Image as ImageIcon,
 		Pencil,
 		Plus,
 		Puzzle,
 		RefreshCw,
+		Rocket,
 		ShieldCheck,
 		ShieldX,
 		Trash2,
@@ -20,7 +22,9 @@
 	} from "lucide-svelte";
 	import { goto } from "$app/navigation";
 	import { button as launcherButton } from "$lib/components/ui/button";
-	import { plugins } from "$lib/stores/plugins.svelte";
+	import { plugins, covers } from "$lib/stores/plugins.svelte";
+	import { membershipState } from "$lib/stores/membership.svelte";
+	import { open as openDialog } from "@tauri-apps/plugin-dialog";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 
@@ -36,6 +40,16 @@
 	});
 
 	const busy = $derived(plugins.busyId);
+	const premium = $derived(membershipState.owner || membershipState.paid || membershipState.current?.plan === "plus" || membershipState.current?.plan === "pro");
+
+	async function pickCover(id: string) {
+		if (!premium) {
+			toast("Capa personalizada (imagem ou GIF) é exclusiva do Luxmc Plus e Pro.", "info");
+			return;
+		}
+		const path = await openDialog({ multiple: false, filters: [{ name: "Capa do plugin", extensions: ["png", "jpg", "jpeg", "gif", "webp"] }] }).catch(() => null);
+		if (typeof path === "string") await plugins.setCover(id, path, premium);
+	}
 
 	function bytes(value: number) {
 		if (value > 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`;
@@ -74,6 +88,21 @@
 		</header>
 	{/if}
 
+	{#if !showHeader}
+		<div class="plugin-actionbar">
+			<button type="button" class={launcherButton({ variant: "primary", size: "sm", class: "gap-2" })} onclick={() => goto("/plugins/editor")}>
+				<Plus class="h-3.5 w-3.5" /> {t("plugins.create")}
+			</button>
+			<button type="button" class={launcherButton({ variant: "secondary", size: "sm", class: "gap-2" })} onclick={() => plugins.openFolder()}>
+				<FolderOpen class="h-3.5 w-3.5" /> {t("plugins.openFolder")}
+			</button>
+			<button type="button" class={launcherButton({ variant: "tinted", size: "sm", class: "gap-2" })} disabled={plugins.scanning} onclick={() => plugins.scanAll()}>
+				{#if plugins.scanning}<Loader2 class="h-3.5 w-3.5 animate-spin" />{:else}<RefreshCw class="h-3.5 w-3.5" />{/if}
+				{t("plugins.rescanAll")}
+			</button>
+		</div>
+	{/if}
+
 	<div class="plugin-shield-band">
 		<ShieldCheck class="h-4 w-4 shrink-0 text-brand-400" />
 		<p>{t("plugins.providerNote")}</p>
@@ -87,15 +116,22 @@
 			</div>
 
 			{#if plugins.records.length === 0}
-				<p class="plugin-empty">{t("plugins.empty")}</p>
+				<div class="plugin-empty-state">
+					<p class="plugin-empty">{t("plugins.empty")}</p>
+					<button type="button" class={launcherButton({ variant: "primary", size: "sm", class: "gap-2" })} onclick={() => goto("/plugins/editor")}>
+						<Plus class="h-3.5 w-3.5" /> {t("plugins.create")}
+					</button>
+				</div>
 			{:else}
 				<ul class="plugin-list">
 					{#each plugins.records as record (record.manifest.id)}
 						{@const blocked = !record.scan.clean}
 						<li class="plugin-row" class:is-blocked={blocked}>
-							<span class="plugin-icon" class:is-blocked={blocked}>
-								{#if blocked}<ShieldX class="h-4 w-4" />{:else}<Puzzle class="h-4 w-4" />{/if}
-							</span>
+							<button type="button" class="plugin-icon plugin-icon-cover" class:is-blocked={blocked} title={premium ? "Trocar capa" : "Capa do plugin (Plus/Pro)"} aria-label="Capa do plugin" onclick={() => pickCover(record.manifest.id)}>
+								{#if covers[record.manifest.id]}
+									<img src={covers[record.manifest.id]} alt="" />
+								{:else if blocked}<ShieldX class="h-4 w-4" />{:else}<Puzzle class="h-4 w-4" />{/if}
+							</button>
 							<div class="plugin-info">
 								<p class="plugin-name">
 									{record.manifest.name}
@@ -131,6 +167,12 @@
 										<ExternalLink class="h-3.5 w-3.5" />
 									</button>
 								{/if}
+								<button type="button" class={launcherButton({ variant: "ghost", size: "iconSm" })} title={t("plugins.cover")} aria-label={t("plugins.cover")} onclick={() => pickCover(record.manifest.id)}>
+									<ImageIcon class="h-3.5 w-3.5" />
+								</button>
+								<button type="button" class={launcherButton({ variant: "ghost", size: "iconSm" })} title={t("plugins.publish")} aria-label={t("plugins.publish")} disabled={busy === record.manifest.id} onclick={() => plugins.publish(record.manifest.id)}>
+									<Rocket class="h-3.5 w-3.5" />
+								</button>
 								<button type="button" class={launcherButton({ variant: "ghost", size: "iconSm" })} title={t("plugins.edit")} aria-label={t("plugins.edit")} onclick={() => goto(`/plugins/editor?id=${record.manifest.id}`)}>
 									<Pencil class="h-3.5 w-3.5" />
 								</button>
@@ -173,6 +215,7 @@
 								<p class="plugin-meta"><span>{t("plugins.author")} {plugin.author || "—"}</span></p>
 							</div>
 						</div>
+						{#if covers[plugin.id]}<img class="plugin-card-cover" src={covers[plugin.id]} alt="" />{/if}
 						<p class="plugin-description">{plugin.description}</p>
 						<div class="plugin-card-tags">
 							{#each plugin.tags.slice(0, 3) as tag}<span class="plugin-tag">{tag}</span>{/each}
@@ -213,6 +256,16 @@
 
 <style>
 	.plugins-manager { container-type: inline-size; }
+
+	.plugin-actionbar { display: flex; flex-wrap: wrap; gap: 8px; }
+
+	.plugin-icon-cover { padding: 0; overflow: hidden; cursor: pointer; background: rgb(var(--fg) / 0.05); }
+	.plugin-icon-cover img { width: 100%; height: 100%; object-fit: cover; }
+	.plugin-icon-cover:hover { border-color: rgb(var(--brand-500) / 0.55); }
+
+	.plugin-empty-state { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 10px 2px; }
+
+	.plugin-card-cover { width: 100%; height: 96px; object-fit: cover; border-radius: 10px; border: 1px solid rgb(var(--fg) / 0.08); }
 
 	.plugin-shield-band {
 		display: flex;

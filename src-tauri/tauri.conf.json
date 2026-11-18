@@ -116,7 +116,6 @@
         "languages": [
           "PortugueseBR"
         ],
-        "sidebarImage": "../packaging/windows/sidebar.bmp",
         "installerIcon": "icons/icon.ico",
         "uninstallerIcon": "icons/icon.ico",
         "installerHooks": "../packaging/windows/hooks.nsh",

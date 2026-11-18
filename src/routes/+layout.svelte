@@ -226,6 +226,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		setToastInstance(toastsInstance);
 		return () => setToastInstance(null);
 	});
+    const LUXMC_PRESENCE_IMAGE = "https://raw.githubusercontent.com/predabr/luxmc/main/static/branding/luxmc-emblem.png";
+
     let latestDiscordActivity: Exclude<Parameters<typeof discordSetActivity>[0], string | undefined> | null = null;
     function updateDiscordActivity(activity: Exclude<Parameters<typeof discordSetActivity>[0], string | undefined>) {
         latestDiscordActivity = activity;
@@ -621,14 +623,15 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                 state += ` · ${uiText(event.playerCount === 1 ? 'presenceDesign.player' : 'presenceDesign.players', { count: event.playerCount })}`;
             }
 
+			const cover = profile?.icon && safeFavouriteIcon(profile.icon) ? profile.icon : null;
 			updateDiscordActivity({
 				inGame: true,
 				details,
 				state,
-				largeText: `${pName} (${verId})`,
-				largeImage: profile?.icon && safeFavouriteIcon(profile.icon) ? profile.icon : "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
-				smallImage: "grass",
-				smallText: `Luxmc · ${loader}`,
+				largeText: `${pName} · ${verId}`,
+				largeImage: LUXMC_PRESENCE_IMAGE,
+				smallImage: cover ?? "grass",
+				smallText: cover ? `${pName} · ${loader}` : `Luxmc · ${loader}`,
 				startTime: gameStartTime || launcherStartTime,
 				buttons: [
 					{ label: uiText("ui.4c8757fab2a21345"), url: "https://luxmc-r92.pages.dev" },

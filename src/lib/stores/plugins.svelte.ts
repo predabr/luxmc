@@ -1,6 +1,10 @@
 import { pluginsApi, type PluginPermission, type PluginRecord, type PluginRegistry, type RegistryPlugin } from "$lib/api/plugins";
 
+const COMMUNITY_REGISTRIES = ["https://raw.githubusercontent.com/predabr/luxmc-community-plugins/main/registry.json"];
+
 type PluginToast = (message: string, kind?: "success" | "error" | "info") => void;
+
+export const covers = $state<Record<string, string>>({});
 
 class PluginsStore {
 	records = $state<PluginRecord[]>([]);
@@ -21,6 +25,7 @@ class PluginsStore {
 		try {
 			this.records = await pluginsApi.list();
 			this.error = null;
+			await this.loadCovers();
 		} catch (error) {
 			this.error = String(error);
 		} finally {
@@ -31,7 +36,17 @@ class PluginsStore {
 	async loadRegistry(url?: string | null) {
 		this.registryLoading = true;
 		try {
-			this.registry = await pluginsApi.registry(url ?? this.catalogUrl);
+			const base = await pluginsApi.registry(url ?? this.catalogUrl);
+			const merged = [...base.plugins];
+			for (const source of COMMUNITY_REGISTRIES) {
+				try {
+					const extra = await pluginsApi.registry(source);
+					for (const plugin of extra.plugins) {
+						if (!merged.some((entry) => entry.id === plugin.id)) merged.push({ ...plugin, tags: [...(plugin.tags || []), 'comunidade'] });
+					}
+				} catch { /* catalogo da comunidade opcional */ }
+			}
+			this.registry = { ...base, plugins: merged };
 			this.error = null;
 		} catch (error) {
 			this.error = String(error);
@@ -134,6 +149,49 @@ class PluginsStore {
 		} finally {
 			this.busyId = null;
 		}
+	}
+
+	async setCover(id: string, path: string, premium: boolean) {
+		try {
+			await pluginsApi.setCover(id, path, premium);
+			await this.loadCovers();
+			await this.refresh();
+			this.notify("Capa atualizada.", "success");
+		} catch (error) {
+			this.notify(String(error), "error");
+		}
+	}
+
+	async clearCover(id: string) {
+		try {
+			await pluginsApi.clearCover(id);
+			delete covers[id];
+			await this.refresh();
+		} catch (error) {
+			this.notify(String(error), "error");
+		}
+	}
+
+	async publish(id: string) {
+		try {
+			const published = await pluginsApi.publish(id);
+			await navigator.clipboard.writeText(published.entryJson).catch(() => {});
+			this.notify("Pacote gerado e entrada do catalogo copiada.", "success");
+			return published;
+		} catch (error) {
+			this.notify(String(error), "error");
+			return null;
+		}
+	}
+
+	async loadCovers() {
+		await Promise.all(this.records.map(async (record) => {
+			if (!record.cover) { delete covers[record.manifest.id]; return; }
+			try {
+				const url = await pluginsApi.cover(record.manifest.id);
+				if (url) covers[record.manifest.id] = url; else delete covers[record.manifest.id];
+			} catch { delete covers[record.manifest.id]; }
+		}));
 	}
 
 	async scanAll() {

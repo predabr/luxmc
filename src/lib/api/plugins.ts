@@ -35,6 +35,8 @@ export type PluginRecord = {
 	sha256: string;
 	sizeBytes: number;
 	scan: PluginScan;
+	cover?: string | null;
+	community?: boolean;
 };
 
 export type RegistryPlugin = {
@@ -54,6 +56,14 @@ export type PluginRegistry = {
 	plugins: RegistryPlugin[];
 	source: string;
 	fetchedAt: string;
+};
+
+export type PublishedPlugin = {
+	zipPath: string;
+	entryJson: string;
+	sha256: string;
+	sizeBytes: number;
+	coverDataUrl?: string | null;
 };
 
 export type PluginScript = {
@@ -76,4 +86,8 @@ export const pluginsApi = {
 	updateSource: (id: string, source: string) => invoke<PluginRecord>("plugins_update_source", { id, source }),
 	source: (id: string) => invoke<string>("plugins_source", { id }),
 	openFolder: () => invoke<string>("plugins_open_folder"),
+	setCover: (id: string, path: string, premium: boolean) => invoke<PluginRecord>("plugins_set_cover", { id, path, premium }),
+	clearCover: (id: string) => invoke<PluginRecord>("plugins_clear_cover", { id }),
+	cover: (id: string) => invoke<string | null>("plugins_cover", { id }),
+	publish: (id: string, publicBase?: string | null) => invoke<PublishedPlugin>("plugins_publish", { id, publicBase: publicBase ?? null }),
 };

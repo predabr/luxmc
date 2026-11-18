@@ -68,6 +68,10 @@ pub struct PluginRecord {
     pub sha256: String,
     pub size_bytes: u64,
     pub scan: PluginScan,
+    #[serde(default)]
+    pub cover: Option<String>,
+    #[serde(default)]
+    pub community: bool,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -383,6 +387,8 @@ pub(crate) fn register_files(root: &Path, files: &BTreeMap<String, Vec<u8>>, dig
         sha256: digest.to_string(),
         size_bytes: scan.bytes,
         scan,
+        cover: None,
+        community: false,
     };
     let mut state = read_state(root);
     state.records.insert(record.manifest.id.clone(), record.clone());
@@ -594,6 +600,185 @@ pub fn bundle_at(root: &Path, id: &str) -> AppResult<(PluginManifest, String)> {
 mod tests;
 
 
+
+const COVER_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp"];
+const MAX_COVER_BYTES: usize = 4 * 1024 * 1024;
+
+fn cover_mime(path: &str) -> &'static str {
+    match path.rsplit('.').next().unwrap_or("").to_ascii_lowercase().as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        _ => "application/octet-stream",
+    }
+}
+
+pub fn set_cover_at(root: &Path, plugin_id: &str, source: &Path, premium: bool) -> AppResult<PluginRecord> {
+    if !premium {
+        return Err(AppError::InvalidState("Capa personalizada e um recurso do Luxmc Plus e Pro.".into()));
+    }
+    let extension = source.extension().and_then(|value| value.to_str()).unwrap_or("").to_ascii_lowercase();
+    if !COVER_EXTENSIONS.contains(&extension.as_str()) {
+        return Err(AppError::InvalidState("Use uma imagem PNG, JPG, WEBP ou um GIF.".into()));
+    }
+    let metadata = std::fs::metadata(source).map_err(|error| AppError::InvalidState(format!("Nao consegui ler a imagem: {error}")))?;
+    if metadata.len() as usize > MAX_COVER_BYTES {
+        return Err(AppError::InvalidState("A capa precisa ter no maximo 4 MB.".into()));
+    }
+    let bytes = std::fs::read(source).map_err(|error| AppError::InvalidState(error.to_string()))?;
+    let mut state = read_state(root);
+    let record = state.records.get(plugin_id).cloned().ok_or_else(|| AppError::NotFound(format!("Plugin {plugin_id} nao instalado.")))?;
+    let directory = root.join(plugin_id);
+    std::fs::create_dir_all(&directory).map_err(|error| AppError::Internal(error.to_string()))?;
+    for existing in COVER_EXTENSIONS {
+        let _ = std::fs::remove_file(directory.join(format!("cover.{existing}")));
+    }
+    let file_name = format!("cover.{extension}");
+    std::fs::write(directory.join(&file_name), &bytes).map_err(|error| AppError::Internal(error.to_string()))?;
+    let mut updated = record;
+    updated.cover = Some(file_name);
+    state.records.insert(plugin_id.to_string(), updated.clone());
+    write_state(root, &state)?;
+    Ok(updated)
+}
+
+pub fn clear_cover_at(root: &Path, plugin_id: &str) -> AppResult<PluginRecord> {
+    let mut state = read_state(root);
+    let record = state.records.get(plugin_id).cloned().ok_or_else(|| AppError::NotFound(format!("Plugin {plugin_id} nao instalado.")))?;
+    let directory = root.join(plugin_id);
+    for existing in COVER_EXTENSIONS {
+        let _ = std::fs::remove_file(directory.join(format!("cover.{existing}")));
+    }
+    let mut updated = record;
+    updated.cover = None;
+    state.records.insert(plugin_id.to_string(), updated.clone());
+    write_state(root, &state)?;
+    Ok(updated)
+}
+
+pub fn cover_data_url_at(root: &Path, plugin_id: &str) -> AppResult<Option<String>> {
+    let state = read_state(root);
+    let Some(record) = state.records.get(plugin_id) else { return Ok(None) };
+    let Some(name) = record.cover.clone() else { return Ok(None) };
+    if sanitize_entry(&name).map(|value| value == name).unwrap_or(false) == false {
+        return Ok(None);
+    }
+    let path = root.join(plugin_id).join(&name);
+    let bytes = match std::fs::read(&path) { Ok(bytes) => bytes, Err(_) => return Ok(None) };
+    if bytes.len() > MAX_COVER_BYTES { return Ok(None); }
+    let encoded = base64_encode(&bytes);
+    Ok(Some(format!("data:{};base64,{encoded}", cover_mime(&name))))
+}
+
+fn base64_encode(bytes: &[u8]) -> String {
+    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity((bytes.len() + 2) / 3 * 4);
+    for chunk in bytes.chunks(3) {
+        let first = chunk[0] as u32;
+        let second = *chunk.get(1).unwrap_or(&0) as u32;
+        let third = *chunk.get(2).unwrap_or(&0) as u32;
+        let value = (first << 16) | (second << 8) | third;
+        out.push(TABLE[((value >> 18) & 0x3f) as usize] as char);
+        out.push(TABLE[((value >> 12) & 0x3f) as usize] as char);
+        out.push(if chunk.len() > 1 { TABLE[((value >> 6) & 0x3f) as usize] as char } else { '=' });
+        out.push(if chunk.len() > 2 { TABLE[(value & 0x3f) as usize] as char } else { '=' });
+    }
+    out
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct PublishedPlugin {
+    pub zip_path: String,
+    pub entry_json: String,
+    pub sha256: String,
+    pub size_bytes: u64,
+    pub cover_data_url: Option<String>,
+}
+
+pub fn publish_at(root: &Path, plugin_id: &str, public_base: &str) -> AppResult<PublishedPlugin> {
+    let state = read_state(root);
+    let record = state.records.get(plugin_id).cloned().ok_or_else(|| AppError::NotFound(format!("Plugin {plugin_id} nao instalado.")))?;
+    if !record.scan.clean {
+        return Err(AppError::InvalidState("Luxmc Shield bloqueou este plugin; ele nao pode ser publicado.".into()));
+    }
+    let files = read_plugin_files(root, plugin_id)?;
+    archive_plugin(root, &record, &files, public_base)
+}
+
+fn archive_plugin(root: &Path, record: &PluginRecord, files: &BTreeMap<String, Vec<u8>>, public_base: &str) -> AppResult<PublishedPlugin> {
+    use std::io::Write as _;
+    use zip::write::FileOptions;
+    let exports = root.join("exports");
+    std::fs::create_dir_all(&exports).map_err(|error| AppError::Internal(error.to_string()))?;
+    let file_name = format!("{}-{}.zip", record.manifest.id, record.manifest.version);
+    let zip_path = exports.join(&file_name);
+    let mut buffer = Vec::new();
+    {
+        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(&mut buffer));
+        let options = FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+        for (name, content) in files {
+            if !ALLOWED_EXTENSIONS.iter().any(|extension| name.to_ascii_lowercase().ends_with(&format!(".{extension}"))) {
+                continue;
+            }
+            writer.start_file(name.clone(), options).map_err(|error| AppError::Internal(error.to_string()))?;
+            writer.write_all(content).map_err(|error| AppError::Internal(error.to_string()))?;
+        }
+        writer.finish().map_err(|error| AppError::Internal(error.to_string()))?;
+    }
+    std::fs::write(&zip_path, &buffer).map_err(|error| AppError::Internal(error.to_string()))?;
+    let digest = format!("{:x}", Sha256::digest(&buffer));
+    let base = public_base.trim_end_matches('/');
+    let entry = RegistryPlugin {
+        id: record.manifest.id.clone(),
+        name: record.manifest.name.clone(),
+        version: record.manifest.version.clone(),
+        author: record.manifest.author.clone(),
+        description: record.manifest.description.clone(),
+        homepage: record.manifest.homepage.clone(),
+        download_url: Some(format!("{base}/{}", file_name)),
+        sha256: Some(digest.clone()),
+        icon_url: None,
+        tags: Vec::new(),
+    };
+    let entry_json = serde_json::to_string_pretty(&entry).map_err(|error| AppError::Internal(error.to_string()))?;
+    Ok(PublishedPlugin {
+        zip_path: zip_path.to_string_lossy().into_owned(),
+        entry_json,
+        sha256: digest,
+        size_bytes: buffer.len() as u64,
+        cover_data_url: cover_data_url_at(root, &record.manifest.id)?,
+    })
+}
+
+#[tauri::command]
+pub fn plugins_set_cover(id: String, path: String, premium: bool) -> AppResult<PluginRecord> {
+    let root = plugins_root()?;
+    set_cover_at(&root, &id, Path::new(&path), premium)
+}
+
+#[tauri::command]
+pub fn plugins_clear_cover(id: String) -> AppResult<PluginRecord> {
+    let root = plugins_root()?;
+    clear_cover_at(&root, &id)
+}
+
+#[tauri::command]
+pub fn plugins_cover(id: String) -> AppResult<Option<String>> {
+    let root = plugins_root()?;
+    cover_data_url_at(&root, &id)
+}
+
+#[tauri::command]
+pub fn plugins_publish(id: String, publicBase: Option<String>) -> AppResult<PublishedPlugin> {
+    let root = plugins_root()?;
+    let base = publicBase
+        .filter(|value| value.starts_with("https://"))
+        .unwrap_or_else(|| "https://luxmc-r92.pages.dev/plugins".to_string());
+    publish_at(&root, &id, &base)
+}
+
 #[tauri::command]
 pub fn plugins_create(id: String, name: String, author: String, description: String, permissions: Vec<String>, source: String) -> AppResult<PluginRecord> {
     let root = plugins_root()?;
@@ -627,7 +812,8 @@ pub fn plugins_set_enabled(id: String, enabled: bool) -> AppResult<PluginRecord>
     set_enabled(&id, enabled)
 }
 
-pub const DEFAULT_REGISTRY_URL: &str = "https://luxmc-r92.pages.dev/plugins.json";
+pub const DEFAULT_REGISTRY_URL: &str =
+    "https://raw.githubusercontent.com/predabr/luxmc/main/plugins-registry.json";
 
 const BUNDLED_REGISTRY: &[u8] = include_bytes!("../../../assets/plugins/registry.json");
 

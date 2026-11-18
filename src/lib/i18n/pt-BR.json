@@ -3383,10 +3383,11 @@
   },
   "updateDesign": {
     "label": "Atualização do launcher",
-    "title": "Uma nova versão está pronta",
+    "title": "Atualização disponível",
     "subtitle": "Veja as novidades e escolha quando atualizar.",
     "preserve": "Suas instâncias, mundos e configurações são preservados.",
-    "install": "Atualizar agora"
+    "install": "Atualizar agora",
+    "installing": "Instalando atualização"
   },
   "downloadsDesign": {
     "title": "Instalando modpack",
@@ -4311,6 +4312,8 @@
     "shieldNote": "A prévia roda isolada. Ao salvar, o código passa pelo Luxmc Shield.",
     "permHint": "Permissões são informativas: plugins nunca tocam nos arquivos do Minecraft nem na sua conta.",
     "badId": "Use letras, números, ponto, hífen ou underline.",
-    "required": "Preencha o nome e o código."
+    "required": "Preencha o nome e o código.",
+    "cover": "Capa",
+    "publish": "Publicar na comunidade"
   }
 }
