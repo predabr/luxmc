@@ -46,7 +46,6 @@
 	let tipIndex = $state(0);
 
 	const tips = $derived([uiText("introMotion.tip1"), uiText("introMotion.tip2"), uiText("introMotion.tip3")]);
-	const circumference = 2 * Math.PI * 118;
 	const instanceLabel = $derived(
 		instanceCount === 0
 			? ""
@@ -245,20 +244,12 @@
 		<div class="flex flex-col items-center transition-opacity duration-700 ease-smooth" class:opacity-0={logoOut}>
 			<div class="flex flex-col items-center transition-all duration-[900ms] ease-smooth" class:opacity-0={!revealed} class:translate-y-2={!revealed} class:scale-[.985]={!revealed}>
 				<div class="cutscene-mark">
-					<svg class="cutscene-arc" viewBox="0 0 240 240" aria-hidden="true">
-						<circle cx="120" cy="120" r="118" class="cutscene-arc-track" />
-						<circle
-							cx="120"
-							cy="120"
-							r="118"
-							class="cutscene-arc-fill"
-							class:cutscene-arc-fill--done={ready && minElapsed}
-							stroke-dasharray={circumference}
-							stroke-dashoffset={circumference * (1 - progress)}
-						/>
-					</svg>
 					<img src="/logo-mark.png" alt="" fetchpriority="high" class="cutscene-logo" />
 					<span class="cutscene-shine" aria-hidden="true"></span>
+				</div>
+
+				<div class="cutscene-progress" aria-hidden="true">
+					<span class="cutscene-progress-fill" class:cutscene-progress-fill--done={ready && minElapsed} style="transform: scaleX({progress})"></span>
 				</div>
 
 				<p class="cutscene-caption">{uiText("introMotion.caption")}</p>
@@ -313,33 +304,6 @@
 		isolation: isolate;
 	}
 
-	.cutscene-arc {
-		position: absolute;
-		inset: -10%;
-		width: 120%;
-		height: 120%;
-		transform: rotate(-90deg);
-		overflow: visible;
-	}
-
-	.cutscene-arc-track {
-		fill: none;
-		stroke: rgb(150 200 255 / 0.1);
-		stroke-width: 1;
-	}
-
-	.cutscene-arc-fill {
-		fill: none;
-		stroke: rgb(172 216 255 / 0.55);
-		stroke-width: 1.2;
-		stroke-linecap: round;
-		transition: stroke-dashoffset 0.35s linear, stroke 0.5s ease;
-	}
-
-	.cutscene-arc-fill--done {
-		stroke: rgb(110 231 183 / 0.9);
-	}
-
 	.cutscene-logo {
 		width: 20rem;
 		max-width: 64vw;
@@ -366,8 +330,31 @@
 		animation: cutscene-shine 5.5s cubic-bezier(0.45, 0, 0.2, 1) 1.1s infinite;
 	}
 
-	.cutscene-caption {
+	.cutscene-progress {
+		position: relative;
 		margin-top: 2rem;
+		height: 1px;
+		width: 11rem;
+		max-width: 56vw;
+		overflow: hidden;
+		background: rgb(150 200 255 / 0.12);
+	}
+
+	.cutscene-progress-fill {
+		position: absolute;
+		inset: 0;
+		display: block;
+		transform-origin: left center;
+		background: linear-gradient(90deg, transparent, rgb(186 226 255 / 0.75) 60%, rgb(236 248 255));
+		transition: transform 0.12s linear, background 0.5s ease;
+	}
+
+	.cutscene-progress-fill--done {
+		background: linear-gradient(90deg, transparent, rgb(120 240 196 / 0.8) 60%, rgb(214 255 238));
+	}
+
+	.cutscene-caption {
+		margin-top: 1.1rem;
 		font-size: 0.8125rem;
 		letter-spacing: 0.01em;
 		color: rgb(214 232 255 / 0.72);
