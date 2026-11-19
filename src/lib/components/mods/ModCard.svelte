@@ -60,6 +60,44 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	let nearViewport = $state(false);
 	const artworkKey = $derived(`${item.source}:${item.sourceId}:${item.bannerUrl}:${item.iconUrl}`);
 
+	type CoverHandlers = { onLoad: (image: HTMLImageElement) => void; onError: () => void };
+
+	function coverEvents(node: HTMLImageElement, handlers: CoverHandlers) {
+		let current = handlers;
+		const handleLoad = () => current.onLoad(node);
+		const handleError = () => current.onError();
+		node.addEventListener('load', handleLoad);
+		node.addEventListener('error', handleError);
+		return {
+			update(next: CoverHandlers) { current = next; },
+			destroy() {
+				node.removeEventListener('load', handleLoad);
+				node.removeEventListener('error', handleError);
+			}
+		};
+	}
+
+	function handleCoverLoad(image: HTMLImageElement) {
+		bannerAspect = image.naturalWidth / Math.max(1, image.naturalHeight);
+		const isIcon = image.getAttribute('src') === item.iconUrl;
+		const needsBetterBanner = isModpack && !isIcon && (image.naturalWidth < 480 || bannerAspect <= 1.2 || bannerAspect >= 4);
+		if (needsBetterBanner) {
+			requestGallery(true);
+			if (bannerAttempt + 1 < bannerCandidates.length) {
+				bannerLoaded = false;
+				bannerAttempt += 1;
+				return;
+			}
+		}
+		bannerLoaded = true;
+		if (!isIcon && image.naturalWidth < image.clientWidth) requestGallery(true);
+	}
+
+	function handleCoverError() {
+		bannerAttempt += 1;
+		requestGallery(true);
+	}
+
 
 	$effect(() => {
 		artworkKey;
@@ -134,6 +172,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			{#key effectiveBanner}
 			{@const artworkUrl = effectiveBanner}
 			<img
+				use:coverEvents={{ onLoad: handleCoverLoad, onError: handleCoverError }}
 				src={artworkUrl}
 				alt=""
 				loading={nearViewport ? "eager" : "lazy"}
@@ -144,24 +183,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				class:catalog-cover-contained={bannerAspect <= 1.2}
                 style:object-position="50% 50%"
                 style:opacity={bannerLoaded ? 1 : 0}
-                onload={(event) => {
-					if (artworkUrl !== effectiveBanner) return;
-					const image = event.currentTarget as HTMLImageElement;
-					bannerAspect = image.naturalWidth / Math.max(1, image.naturalHeight);
-					const isIcon = artworkUrl === item.iconUrl;
-                	const needsBetterBanner = isModpack && !isIcon && (image.naturalWidth < 480 || bannerAspect <= 1.2 || bannerAspect >= 4);
-					if (needsBetterBanner) {
-						requestGallery(true);
-						if (bannerAttempt + 1 < bannerCandidates.length) {
-							bannerLoaded = false;
-							bannerAttempt += 1;
-							return;
-						}
-					}
-                	bannerLoaded = true;
-                	if (!isIcon && image.naturalWidth < image.clientWidth) requestGallery(true);
-                }}
-                onerror={() => { if (artworkUrl === effectiveBanner) { bannerAttempt += 1; requestGallery(true); } }}
 			/>
 			{/key}
 		{:else}

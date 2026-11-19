@@ -1927,6 +1927,7 @@ pub async fn instance_file_tree(
     Ok(entries)
 }
 
+#[cfg(test)]
 async fn record_override_jars(root: &std::path::Path, paths: &std::collections::HashSet<String>) -> AppResult<()> { record_override_jars_cancellable(root, paths, None).await }
 
 async fn record_override_jars_cancellable(root: &std::path::Path, paths: &std::collections::HashSet<String>, cancel: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>) -> AppResult<()> {
@@ -2553,6 +2554,7 @@ pub(crate) fn heal_modpack<'a>(state: &'a AppState, profile: &'a ProfileRow) -> 
     })
 }
 
+#[allow(dead_code)]
 pub(crate) async fn ensure_modpack_shaders(http: &reqwest::Client, root: &std::path::Path) -> AppResult<()> {
     let mods_dir = root.join("mods");
     let mut has_shader_mod = false;

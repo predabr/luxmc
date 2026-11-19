@@ -93,6 +93,7 @@
 			/>
 		</div>
 		<select
+			aria-label={t("logs.minimumLevel")}
 			class="h-8 rounded-md px-2 text-xs outline-none"
 			style="border: 1px solid rgb(var(--border)); background: rgb(var(--bg)); color: rgb(var(--fg));"
 			bind:value={minLevel}

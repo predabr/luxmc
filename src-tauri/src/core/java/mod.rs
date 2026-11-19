@@ -41,6 +41,7 @@ struct ComponentFile {
     file_type: Option<String>,
     downloads: Option<ComponentFileDownloads>,
     executable: Option<bool>,
+    #[cfg_attr(not(unix), allow(dead_code))]
     target: Option<String>,
 }
 

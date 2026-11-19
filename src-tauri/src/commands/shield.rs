@@ -57,13 +57,13 @@ pub(crate) fn mark_result_purged(result: &mut ShieldScanResult, profile: &Profil
     result.instance_name = Some(profile.name.clone());
 }
 
-pub async fn instance_shield_scan_core(app: Option<tauri::AppHandle>, profileId: String) -> AppResult<ShieldScanResult> {
+pub async fn instance_shield_scan_core(app: Option<tauri::AppHandle>, profile_id: String) -> AppResult<ShieldScanResult> {
     let db = crate::db::shared_db().await?;
     let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
-        .bind(&profileId)
+        .bind(&profile_id)
         .fetch_optional(db.pool())
         .await?
-        .ok_or_else(|| AppError::NotFound(format!("profile {profileId} not found")))?;
+        .ok_or_else(|| AppError::NotFound(format!("profile {profile_id} not found")))?;
 
     let mods_dir = PathBuf::from(&row.game_dir).join("mods");
     let mut result = tokio::task::spawn_blocking(move || scan_mods_directory(&mods_dir))

@@ -192,6 +192,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					<input
 						type="number"
 						bind:value={hostPort}
+						aria-label={uiText("ui.9e9ef900bf86a821")}
 						class="w-20 bg-bg-subtle border border-fg/10 rounded-xl px-2.5 py-1 text-xs text-fg font-mono text-center outline-none focus:border-brand-500"
 						onchange={refreshHost}
 					/>

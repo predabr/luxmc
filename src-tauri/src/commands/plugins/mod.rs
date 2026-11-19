@@ -406,7 +406,7 @@ pub fn create_at(root: &Path, plugin_id: &str, name: &str, author: &str, descrip
     if source.len() > MAX_SCRIPT_BYTES as usize {
         return Err(AppError::InvalidState("O codigo do plugin e grande demais.".into()));
     }
-    let mut state = read_state(root);
+    let state = read_state(root);
     if state.records.contains_key(plugin_id) {
         return Err(AppError::InvalidState(format!("Ja existe um plugin chamado {plugin_id}.")));
     }
@@ -562,6 +562,7 @@ pub fn set_enabled_at(root: &Path, id: &str, enabled: bool) -> AppResult<PluginR
     Ok(updated)
 }
 
+#[allow(dead_code)]
 pub fn read_plugin_script(id: &str) -> AppResult<PluginManifest> {
     Ok(plugin_bundle(id)?.0)
 }
@@ -597,6 +598,7 @@ pub fn bundle_at(root: &Path, id: &str) -> AppResult<(PluginManifest, String)> {
 }
 
 
+#[cfg(test)]
 mod tests;
 
 
@@ -771,6 +773,7 @@ pub fn plugins_cover(id: String) -> AppResult<Option<String>> {
 }
 
 #[tauri::command]
+#[allow(non_snake_case)]
 pub fn plugins_publish(id: String, publicBase: Option<String>) -> AppResult<PublishedPlugin> {
     let root = plugins_root()?;
     let base = publicBase

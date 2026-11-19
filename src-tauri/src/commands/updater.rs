@@ -1,3 +1,4 @@
+#[cfg(target_os = "linux")]
 use std::path::Path;
 #[cfg(target_os = "linux")]
 use std::path::PathBuf;
@@ -184,6 +185,7 @@ pub fn app_update_environment() -> UpdateEnvironment {
     }
 }
 
+#[cfg(target_os = "linux")]
 fn quote_for_shell(path: &Path) -> String {
     format!("'{}'", path.to_string_lossy().replace('\'', "'\\\"'\\\"'"))
 }

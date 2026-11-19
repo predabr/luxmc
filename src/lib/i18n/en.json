@@ -875,6 +875,7 @@
     "levelInfo": "INFO+",
     "levelWarn": "WARN+",
     "levelError": "ERROR only",
+    "minimumLevel": "Minimum level",
     "refresh": "Refresh",
     "clearAll": "Clear all logs",
     "loadingSessions": "Loading sessions...",

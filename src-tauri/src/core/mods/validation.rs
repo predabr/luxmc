@@ -162,6 +162,7 @@ fn read_mod_metadata_from_reader<R: Read + Seek>(reader: R) -> Option<ModMetadat
 
 pub fn repair_duplicates(root: &Path, preferred: &HashSet<String>) -> AppResult<usize> { repair_duplicates_cancellable(root, preferred, None) }
 
+#[cfg(test)]
 pub(crate) fn select_pack_duplicate_versions(root: &Path, pinned: &HashSet<String>, preferred: &mut HashSet<String>) {
     select_pack_duplicate_versions_for_loader(root,pinned,preferred,"");
 }

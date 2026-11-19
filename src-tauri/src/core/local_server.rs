@@ -808,7 +808,7 @@ impl LocalServerManager {
 
     pub async fn update_version(&self, id: &str, name: String, ram_mb: u32, max_players: u16, mc_version: Option<String>) -> AppResult<LocalServerConfig> {
         let next_version = mc_version.map(|version| version.trim().to_string()).filter(|version| !version.is_empty());
-        let mut config = self.update(id, name, ram_mb, max_players).await?;
+        let config = self.update(id, name, ram_mb, max_players).await?;
         let Some(version) = next_version else { return Ok(config); };
         if version == config.mc_version { return Ok(config); }
         let _guard = self.change()?;

@@ -62,6 +62,7 @@
 	<div class="relative flex items-center gap-1.5 bg-bg-elevated border border-fg/10 rounded-full pl-3.5 pr-8 h-10">
 		<ArrowUpDown class="h-3.5 w-3.5 text-fg/40 shrink-0 pointer-events-none" />
 		<select
+			aria-label={t("instances.sortBy")}
 			class="appearance-none bg-transparent border-0 text-xs font-bold text-fg outline-none cursor-pointer pr-1"
 			bind:value={sortBy}
 			onchange={() => onSortChange?.(sortBy)}
@@ -77,6 +78,7 @@
 	<div class="relative flex items-center gap-1.5 bg-bg-elevated border border-fg/10 rounded-full pl-3.5 pr-8 h-10">
 		<Group class="h-3.5 w-3.5 text-fg/40 shrink-0 pointer-events-none" />
 		<select
+			aria-label={t("instances.filterGroup")}
 			class="appearance-none bg-transparent border-0 text-xs font-bold text-fg outline-none cursor-pointer pr-1"
 			bind:value={groupFilter}
 			onchange={() => onGroupChange?.(groupFilter)}

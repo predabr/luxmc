@@ -1307,6 +1307,7 @@ fn mod_icon_data_url(bytes: &[u8]) -> Option<String> {
     Some(format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(output.into_inner())))
 }
 
+#[allow(dead_code)]
 pub(crate) fn compact_mod_icon(icon: &str) -> String {
     use base64::Engine;
     if icon.len() > 32_768 && icon.len() < 2_700_000 && icon.starts_with("data:image/") {

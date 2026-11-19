@@ -170,6 +170,8 @@
 	import { getIconSrc } from "$lib/utils/icons";
 
 	const instanceId = $derived(page.params.id ?? "");
+	let instanceAlive = $state(true);
+	onMount(() => () => { instanceAlive = false; });
 	const activeProfile = $derived(profiles.list.find(p => p.id === instanceId) ?? null);
 
 	const settingsIcon = $derived(getIconSrc(activeProfile?.icon));
@@ -648,7 +650,7 @@
 		if (!silent) toast(uiText("ui.b007b33cf6aea8c4"), "info");
 		try {
 			const updates = await modsCheckUpdates(id);
-			if (id !== instanceId) return;
+			if (!instanceAlive || id !== instanceId) return;
 			lastModCheck = Date.now();
 			const previous = new Set(availableModUpdates.map(update => update.projectId));
 			availableModUpdates = updates || [];
@@ -677,17 +679,17 @@
 		toast(`Atualizando ${toUpdate.length} mods...`, "info");
 		let count = 0;
 		for (const u of toUpdate) {
-			if (id !== instanceId) break;
+			if (!instanceAlive || id !== instanceId) break;
 			try {
 				await modsUpdate(u.projectId, u.latestVersionId, id);
 				count++;
-				if (id === instanceId) availableModUpdates = availableModUpdates.filter(x => x.projectId !== u.projectId);
+				if (instanceAlive && id === instanceId) availableModUpdates = availableModUpdates.filter(x => x.projectId !== u.projectId);
 			} catch (err) {
 				console.error(uiText("ui.3d6be3dde1520cbd"), u.projectId, err);
 			}
 		}
 		isUpdatingAllMods = false;
-		if (id !== instanceId) return;
+		if (!instanceAlive || id !== instanceId) return;
 		if (count > 0) {
 			playSound("achievement");
 			toast(uiText("ui.680c180aa27692cc", {arg0: (count)}), "success");
@@ -927,7 +929,7 @@
                 try { await instanceModToggle(id, mod.name, enabled); }
                 catch { failed++; }
             }
-            if (id !== instanceId) return;
+            if (!instanceAlive || id !== instanceId) return;
             selectedModNames = [];
             await loadSection('mods', true);
             if (failed) toast(uiText("ui.b610fee7d4ca3c7e", {arg0: (failed)}), 'error');
@@ -1121,7 +1123,7 @@
             await Promise.all(Array.from({ length: 2 }, async () => {
                 while (iconLookups.length) {
                     const lookup = iconLookups.shift()!;
-                    if (lookup.id !== instanceId) continue;
+                    if (!instanceAlive || lookup.id !== instanceId) continue;
                     await instanceContentIcons(lookup.id, lookup.folder, lookup.names, true).then(lookup.apply).catch(() => {});
                 }
             }));
@@ -1149,7 +1151,7 @@
                 const batch = [...iconQueue.values()].filter(entry => entry.id === first.id && entry.folder === first.folder).slice(0, 32);
                 for (const entry of batch) iconQueue.delete(entry.key);
                 const apply = (icons: Awaited<ReturnType<typeof instanceContentIcons>>) => {
-                    if (instanceId !== first.id) return;
+                    if (!instanceAlive || instanceId !== first.id) return;
                     rememberContentIcons(icons);
                     warmIcons(icons);
                     const entries = first.folder === 'mods' ? instanceMods : first.folder === 'resourcepacks' ? resourcePacks : first.folder === 'shaderpacks' ? shaderPacks : first.folder === `saves/${datapackWorld}/datapacks` ? dataPacks : [];
@@ -1203,7 +1205,7 @@
         isLoadingData = true;
         if (section === "mundos") loadingWorlds = true;
         const request = (async () => {
-            const current = () => generation === dataGeneration && id === instanceId && (section !== "ficheiros" || path === fileSubPath);
+            const current = () => instanceAlive && generation === dataGeneration && id === instanceId && (section !== "ficheiros" || path === fileSubPath);
             if (section === "configuracoes") {
                 const specs = await getSystemSpecs();
                 if (!current()) return;
@@ -1260,7 +1262,7 @@
             pendingLoads--;
             isLoadingData = pendingLoads > 0;
             if (section === "mundos" && generation === dataGeneration) loadingWorlds = false;
-            if (refresh && generation === dataGeneration && id === instanceId && (section !== "ficheiros" || path === fileSubPath) && (section !== "datapacks" || !world || world === datapackWorld)) void loadSection(section, true);
+            if (refresh && instanceAlive && generation === dataGeneration && id === instanceId && (section !== "ficheiros" || path === fileSubPath) && (section !== "datapacks" || !world || world === datapackWorld)) void loadSection(section, true);
         });
         sectionRequests.set(key, request);
         await request;
@@ -1344,7 +1346,7 @@
 		const isCurrentlyDisabled = mod.name.endsWith(".disabled");
 		try {
 			await instanceModToggle(id, mod.name, isCurrentlyDisabled);
-			if (id !== instanceId) return;
+			if (!instanceAlive || id !== instanceId) return;
 			await loadSection("mods", true);
 		} catch (e) {
 			toast(uiText("ui.602701edd10dcc87") + String(e), "error");

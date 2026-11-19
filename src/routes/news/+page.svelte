@@ -386,6 +386,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 							{featured.summary}
 						</p>
 
+						{#if featured.highlights.length > 0}
 						<div class="pt-2">
 							<h3 class="text-xs font-bold uppercase tracking-wider text-blue-400 mb-2.5 flex items-center gap-1.5">
 								<Sparkles class="w-3.5 h-3.5" /> {uiText("ui.f3bec1b7ad6df31a")}
@@ -399,6 +400,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 								{/each}
 							</div>
 						</div>
+						{/if}
 					</div>
 
 					<div class="pt-3 flex items-center justify-end">
