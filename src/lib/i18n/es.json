@@ -63,7 +63,15 @@
   "introMotion": {
     "caption": "Tu próximo mundo te espera.",
     "preparing": "Preparando Luxmc...",
-    "ready": "Todo listo."
+    "ready": "Todo listo.",
+    "skip": "Saltar",
+    "welcome": "Bienvenido de nuevo, {{name}}",
+    "instanceOne": "1 instancia lista",
+    "instances": "{{count}} instancias listas",
+    "updateReady": "v{{version}} disponible",
+    "tip1": "Shield revisa cada mod descargado antes de instalarlo.",
+    "tip2": "Los plugins se ejecutan aislados, sin acceso a tus carpetas de Minecraft.",
+    "tip3": "Los fondos animados están en Personalización."
   },
   "roomConnection": {
     "shared": "Mundo compartido",
