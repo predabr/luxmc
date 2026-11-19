@@ -988,7 +988,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 <ErrorBoundary>
 {#if showSplash || appState.showCutscene}
-	<Cutscene onComplete={() => { showSplash = false; appState.showCutscene = false; }} />
+	<Cutscene ready={initialized} onComplete={() => { showSplash = false; appState.showCutscene = false; }} />
 {:else if !initialized}
 	<div class="lux-window-frame flex w-full items-center justify-center bg-bg-overlay/70" in:fade={{ easing: quintOut, duration: 220 }}>
 		<div class="flex flex-col items-center gap-4">

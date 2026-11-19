@@ -61,7 +61,9 @@
     "waitingWindow": "Aguardando a janela do Minecraft..."
   },
   "introMotion": {
-    "caption": "Seu próximo mundo está chegando."
+    "caption": "Seu próximo mundo está chegando.",
+    "preparing": "Preparando o Luxmc...",
+    "ready": "Tudo pronto."
   },
   "roomConnection": {
     "shared": "Mundo compartilhado",

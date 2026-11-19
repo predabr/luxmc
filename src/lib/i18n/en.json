@@ -61,7 +61,9 @@
     "waitingWindow": "Waiting for the Minecraft window..."
   },
   "introMotion": {
-    "caption": "Your next world is waiting."
+    "caption": "Your next world is waiting.",
+    "preparing": "Preparing Luxmc...",
+    "ready": "All set."
   },
   "roomConnection": {
     "shared": "Shared world",
