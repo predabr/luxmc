@@ -28,7 +28,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		Layers,
 		FileText,
 		Database,
-        SlidersHorizontal
+        SlidersHorizontal,
+        ArrowLeft
 	} from "lucide-svelte";
 	import { storageFullReport, storageClearLogs, storageClearCache, storageDeleteInstance } from "$lib/api/system";
     import { storageActivity } from "$lib/stores/storageActivity.svelte";
@@ -45,6 +46,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
 	import MicrosoftLogo from "$lib/components/ui/MicrosoftLogo.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
+	import { goto } from "$app/navigation";
 	import { open } from "@tauri-apps/plugin-dialog";
 	import { openUrl } from "@tauri-apps/plugin-opener";
 	import { useTranslation, setActiveLocale } from "$lib/i18n/useTranslation.svelte";
@@ -492,7 +494,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     <header class="product-header flex flex-wrap items-center gap-4">
         <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-brand-400/20 bg-brand-500/10 text-brand-400"><SlidersHorizontal class="h-6 w-6" /></span>
         <div><p class="page-eyebrow">Luxmc</p><h1 class="mt-1 text-2xl font-semibold tracking-tight text-fg">{uiText("settings.refinement.settingsTitle")}</h1></div>
-        <a href="/workshop" class={launcherButton({variant:"secondary",class:"ml-auto"})}>{uiText("workshop.title")}</a>
+        <div class="ml-auto flex items-center gap-2">
+            <a href="/workshop" class={launcherButton({ variant: "ghost" })}>{uiText("workshop.title")}</a>
+            <button type="button" class={launcherButton({ variant: "secondary" })} onclick={() => goto("/")}>
+                <ArrowLeft class="mr-2 h-4 w-4" />Voltar
+            </button>
+        </div>
     </header>
     <div class="settings-workspace grid items-start gap-5 lg:grid-cols-[190px_minmax(0,1fr)]">
     <div class="settings-navigation grid grid-cols-2 gap-1 sm:grid-cols-4 lg:grid-cols-1 lg:sticky lg:top-3" role="tablist" aria-label={uiText("settings.refinement.settingsTitle")} tabindex="-1" onkeydown={handleSettingsTabKeys}>
