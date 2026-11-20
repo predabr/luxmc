@@ -1,6 +1,7 @@
 <script lang="ts">
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { ChevronDown, SlidersHorizontal, Check, Globe } from "lucide-svelte";
+	import LoaderLogo from "$lib/components/mods/LoaderLogo.svelte";
 	import ProviderLogo from "./ProviderLogo.svelte";
 	import { catalogTypes } from "$lib/utils/catalogTypes";
 	import { profiles } from "$lib/stores/profiles.svelte";
@@ -118,7 +119,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 									class="filter-choice loader-choice px-2.5 py-2 rounded-xl text-xs font-semibold transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer border flex items-center gap-1.5 {selectedLoader?.toLowerCase() === loader.name.toLowerCase() ? 'bg-brand-500/15 text-brand-action border-brand-400/45 font-bold' : 'bg-bg-elevated text-fg/80 border-fg/15 hover:border-fg/30 hover:text-fg'}"
 									onclick={() => selectedLoader = selectedLoader?.toLowerCase() === loader.name.toLowerCase() ? null : loader.name.toLowerCase()}
 								>
-									{#if selectedLoader?.toLowerCase() === loader.name.toLowerCase()}<Check class="h-3 w-3" />{:else}<span class="w-1.5 h-1.5 rounded-full bg-current"></span>{/if}
+									{#if selectedLoader?.toLowerCase() === loader.name.toLowerCase()}<Check class="h-3 w-3" />{:else}<LoaderLogo loader={loader.name} size={14} />{/if}
 									<span class="truncate">{loader.name}</span>
 								</button>
 							{/each}
