@@ -17,7 +17,7 @@
 		onComplete?: () => void;
 	} = $props();
 
-	const MIN_DURATION = 2500;
+	const MIN_DURATION = 5000;
 
 	type Mote = { x: number; y: number; size: number; depth: number; speed: number; alpha: number; phase: number; bokeh: boolean };
 
@@ -26,12 +26,10 @@
 	let logoOut = $state(false);
 	let leaving = $state(false);
 	let minElapsed = $state(false);
-	let canSkip = $state(false);
 	let exitStarted = $state(false);
 	let finished = false;
 	let revealTimer: ReturnType<typeof setTimeout> | undefined;
 	let minTimer: ReturnType<typeof setTimeout> | undefined;
-	let skipTimer: ReturnType<typeof setTimeout> | undefined;
 	let holdTimer: ReturnType<typeof setTimeout> | undefined;
 	let fadeTimer: ReturnType<typeof setTimeout> | undefined;
 	let finishTimer: ReturnType<typeof setTimeout> | undefined;
@@ -49,18 +47,6 @@
 		}, 1080);
 	}
 
-	function skip() {
-		minElapsed = true;
-		beginExit();
-	}
-
-	function handleKey(event: KeyboardEvent) {
-		if (["Escape", " ", "Enter"].includes(event.key) && canSkip) {
-			event.preventDefault();
-			skip();
-		}
-	}
-
 	$effect(() => {
 		if (!ready || !minElapsed) return;
 		holdTimer = setTimeout(beginExit, 320);
@@ -70,22 +56,18 @@
 	onMount(() => {
 		preloadRoute("/", true);
 		revealTimer = setTimeout(() => { revealed = true; }, 120);
-		skipTimer = setTimeout(() => { canSkip = true; }, 700);
 		minTimer = setTimeout(() => { minElapsed = true; }, MIN_DURATION);
 		safetyTimer = setTimeout(() => {
 			minElapsed = true;
 			beginExit();
 		}, 15000);
-		window.addEventListener("keydown", handleKey);
 		return () => {
 			clearTimeout(revealTimer);
 			clearTimeout(minTimer);
-			clearTimeout(skipTimer);
 			clearTimeout(holdTimer);
 			clearTimeout(fadeTimer);
 			clearTimeout(finishTimer);
 			clearTimeout(safetyTimer);
-			window.removeEventListener("keydown", handleKey);
 		};
 	});
 
@@ -222,21 +204,18 @@
 					<span class="cutscene-shine" aria-hidden="true"></span>
 				</div>
 
-				<div class="cutscene-user">
-					{#if greeting && avatarUrl}
-						<img src={avatarUrl} alt="" class="cutscene-avatar" />
-						<span class="cutscene-name">{greeting}</span>
-					{:else}
-						<span class="cutscene-name cutscene-name--guest">{uiText("introMotion.welcomeGuest")}</span>
-					{/if}
-				</div>
+			</div>
+
+			<div class="cutscene-user">
+				{#if greeting && avatarUrl}
+					<img src={avatarUrl} alt="" class="cutscene-avatar" decoding="sync" fetchpriority="high" />
+					<span class="cutscene-name">{greeting}</span>
+				{:else}
+					<span class="cutscene-name cutscene-name--guest">{uiText("introMotion.welcomeGuest")}</span>
+				{/if}
 			</div>
 		</div>
 	</div>
-
-	{#if canSkip && !exitStarted}
-		<button type="button" class="cutscene-skip" onclick={skip} aria-label={uiText("introMotion.skip")}>{uiText("introMotion.skip")}</button>
-	{/if}
 
 	<p class="cutscene-version">v{APP_VERSION}</p>
 </div>
@@ -290,6 +269,7 @@
 		align-items: center;
 		gap: 0.6rem;
 		margin-top: 2rem;
+		opacity: 1;
 	}
 
 	.cutscene-avatar {
@@ -312,29 +292,6 @@
 		font-size: 0.875rem;
 		letter-spacing: 0.04em;
 		color: rgb(206 228 255 / 0.62);
-	}
-
-	.cutscene-skip {
-		position: absolute;
-		bottom: 3rem;
-		left: 50%;
-		transform: translateX(-50%);
-		font-size: 0.625rem;
-		letter-spacing: 0.16em;
-		text-transform: uppercase;
-		padding: 0.35rem 0.8rem;
-		border-radius: 9999px;
-		border: 1px solid rgb(150 200 255 / 0.16);
-		color: rgb(190 216 255 / 0.5);
-		background: rgb(120 180 255 / 0.04);
-		cursor: pointer;
-		transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
-	}
-
-	.cutscene-skip:hover {
-		border-color: rgb(150 200 255 / 0.38);
-		color: rgb(224 240 255 / 0.9);
-		background: rgb(120 180 255 / 0.1);
 	}
 
 	.cutscene-version {
