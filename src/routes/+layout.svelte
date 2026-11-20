@@ -91,6 +91,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
 	import { activeSkinStore, type CapeType } from "$lib/stores/skin.svelte";
+	import { primeAvatar } from "$lib/utils/avatarCache";
 	import { getFullCapeDataUrl } from "$lib/utils/capeTextures";
 	import { createSkinAvatar } from "$lib/utils/textureImage";
 	import { crashDoctor } from "$lib/stores/crashDoctor.svelte";
@@ -961,6 +962,10 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	});
 
 
+	$effect(() => {
+		if (!account.value?.username) return;
+		void primeAvatar(activeSkinStore.current.avatarUrl || account.value?.avatarUrl);
+	});
 </script>
 
 <div class="fixed inset-0 z-0 transition-colors duration-300 pointer-events-none overflow-hidden" style={themeStore.currentBackgroundStyle}>

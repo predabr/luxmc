@@ -4,6 +4,7 @@
 	import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { frameLoop } from "$lib/utils/frameLoop";
 	import { preloadRoute } from "$lib/utils/preloadRoute";
+	import { primeAvatar, getCachedAvatar } from "$lib/utils/avatarCache";
 
 	let {
 		ready = false,
@@ -17,7 +18,7 @@
 		onComplete?: () => void;
 	} = $props();
 
-	const MIN_DURATION = 5000;
+	const MIN_DURATION = 2000;
 
 	type Mote = { x: number; y: number; size: number; depth: number; speed: number; alpha: number; phase: number; bokeh: boolean };
 
@@ -34,6 +35,12 @@
 	let fadeTimer: ReturnType<typeof setTimeout> | undefined;
 	let finishTimer: ReturnType<typeof setTimeout> | undefined;
 	let safetyTimer: ReturnType<typeof setTimeout> | undefined;
+
+	const cachedAvatar = $derived(getCachedAvatar(avatarUrl) ?? avatarUrl);
+
+	$effect(() => {
+		if (avatarUrl) void primeAvatar(avatarUrl);
+	});
 
 	function beginExit() {
 		if (exitStarted || finished) return;
@@ -96,16 +103,16 @@
 			element!.height = Math.round(height * ratio);
 			context!.setTransform(ratio, 0, 0, ratio, 0, 0);
 
-			const count = Math.round(Math.min(96, Math.max(34, width / 16)));
+			const count = Math.round(Math.min(140, Math.max(48, width / 12)));
 			motes = Array.from({ length: count }, () => {
 				const depth = 0.25 + Math.random() * 0.75;
 				return {
 					x: Math.random() * width,
 					y: Math.random() * height,
-					size: 0.7 + depth * 2.2,
+					size: 0.9 + depth * 2.8,
 					depth,
 					speed: 4 + depth * 16,
-					alpha: 0.22 + Math.random() * 0.5,
+					alpha: 0.3 + Math.random() * 0.55,
 					phase: Math.random() * Math.PI * 2,
 					bokeh: false
 				};
@@ -208,7 +215,7 @@
 
 			<div class="cutscene-user">
 				{#if greeting && avatarUrl}
-					<img src={avatarUrl} alt="" class="cutscene-avatar" decoding="sync" fetchpriority="high" />
+					<img src={cachedAvatar} alt="" class="cutscene-avatar" decoding="sync" fetchpriority="high" />
 					<span class="cutscene-name">{greeting}</span>
 				{:else}
 					<span class="cutscene-name cutscene-name--guest">{uiText("introMotion.welcomeGuest")}</span>

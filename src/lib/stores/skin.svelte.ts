@@ -4,6 +4,8 @@ import { account, saveCurrentAccount } from "./account.svelte";
 
 
 let pendingSave: Promise<void> = Promise.resolve();
+import { primeAvatar } from "$lib/utils/avatarCache";
+
 export async function saveAppearance(skinUrl: string, variant: "classic" | "slim", capeUrl: string | null, avatarUrl?: string): Promise<void> {
     const current = account.value;
     if (!current) return Promise.reject(new Error(uiText("ui.bf88bb781c9789c1")));
@@ -91,6 +93,7 @@ function createSkinStore() {
 		},
 		setSkin(skin: Partial<SkinData>) {
 			current = { ...current, ...skin };
+			void primeAvatar(current.avatarUrl);
 			if (typeof window !== "undefined") {
 				try { localStorage.setItem("luxmc_active_skin_data", JSON.stringify(current)); } catch {}
 			}
