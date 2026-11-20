@@ -9,15 +9,11 @@
 		ready = false,
 		greeting = "",
 		avatarUrl = "",
-		instanceCount = 0,
-		updateVersion = "",
 		onComplete = () => {}
 	}: {
 		ready?: boolean;
 		greeting?: string;
 		avatarUrl?: string;
-		instanceCount?: number;
-		updateVersion?: string;
 		onComplete?: () => void;
 	} = $props();
 
@@ -40,17 +36,6 @@
 	let fadeTimer: ReturnType<typeof setTimeout> | undefined;
 	let finishTimer: ReturnType<typeof setTimeout> | undefined;
 	let safetyTimer: ReturnType<typeof setTimeout> | undefined;
-	let tipTimer: ReturnType<typeof setInterval> | undefined;
-	let tipIndex = $state(0);
-
-	const tips = $derived([uiText("introMotion.tip1"), uiText("introMotion.tip2"), uiText("introMotion.tip3")]);
-	const instanceLabel = $derived(
-		instanceCount === 0
-			? ""
-			: instanceCount === 1
-				? uiText("introMotion.instanceOne")
-				: uiText("introMotion.instances", { count: instanceCount })
-	);
 
 	function beginExit() {
 		if (exitStarted || finished) return;
@@ -91,7 +76,6 @@
 			minElapsed = true;
 			beginExit();
 		}, 15000);
-		tipTimer = setInterval(() => { tipIndex = (tipIndex + 1) % 3; }, 2100);
 		window.addEventListener("keydown", handleKey);
 		return () => {
 			clearTimeout(revealTimer);
@@ -101,7 +85,6 @@
 			clearTimeout(fadeTimer);
 			clearTimeout(finishTimer);
 			clearTimeout(safetyTimer);
-			clearInterval(tipTimer);
 			window.removeEventListener("keydown", handleKey);
 		};
 	});
@@ -239,45 +222,28 @@
 					<span class="cutscene-shine" aria-hidden="true"></span>
 				</div>
 
-				<p class="cutscene-caption">{uiText("introMotion.caption")}</p>
-
-				{#if greeting}
-					<div class="cutscene-account">
-						{#if avatarUrl}
-							<img src={avatarUrl} alt="" class="cutscene-avatar" />
-						{/if}
-						<span>{uiText("introMotion.welcome", { name: greeting })}</span>
-					</div>
-				{:else}
-					<p class="cutscene-guest">{uiText("introMotion.welcomeGuest")}</p>
-				{/if}
-
-				<div class="cutscene-facts">
-					{#if instanceLabel}
-						<span class="cutscene-fact">{instanceLabel}</span>
-					{/if}
-					{#if updateVersion}
-						<span class="cutscene-fact cutscene-fact--update">{uiText("introMotion.updateReady", { version: updateVersion })}</span>
+				<div class="cutscene-user">
+					{#if greeting && avatarUrl}
+						<img src={avatarUrl} alt="" class="cutscene-avatar" />
+						<span class="cutscene-name">{greeting}</span>
+					{:else}
+						<span class="cutscene-name cutscene-name--guest">{uiText("introMotion.welcomeGuest")}</span>
 					{/if}
 				</div>
-
-				<p class="cutscene-status" aria-live="polite">{ready ? uiText("introMotion.ready") : uiText("introMotion.preparing")}</p>
-				<p class="cutscene-tip">{tips[tipIndex]}</p>
 			</div>
 		</div>
 	</div>
 
 	{#if canSkip && !exitStarted}
-		<button type="button" class="cutscene-skip" onclick={skip}>{uiText("introMotion.skip")}</button>
+		<button type="button" class="cutscene-skip" onclick={skip} aria-label={uiText("introMotion.skip")}>{uiText("introMotion.skip")}</button>
 	{/if}
 
-	<p class="cutscene-version">LUXMC v{APP_VERSION}</p>
+	<p class="cutscene-version">v{APP_VERSION}</p>
 </div>
 
 <style>
 	.cutscene {
-		background:
-			radial-gradient(ellipse 70% 50% at 50% 38%, #0a1b33 0%, #050c18 45%, #02060d 100%);
+		background: radial-gradient(ellipse 70% 50% at 50% 38%, #0a1b33 0%, #050c18 45%, #02060d 100%);
 	}
 
 	.cutscene-glow {
@@ -319,116 +285,66 @@
 		animation: cutscene-shine 5.5s cubic-bezier(0.45, 0, 0.2, 1) 1.1s infinite;
 	}
 
-	.cutscene-caption {
-		margin-top: 2rem;
-		font-size: 0.8125rem;
-		letter-spacing: 0.01em;
-		color: rgb(214 232 255 / 0.72);
-	}
-
-	.cutscene-account {
+	.cutscene-user {
 		display: flex;
-		flex-direction: column;
 		align-items: center;
-		gap: 0.55rem;
-		margin-top: 1.15rem;
-		font-size: 0.75rem;
-		color: rgb(198 222 255 / 0.66);
+		gap: 0.6rem;
+		margin-top: 2rem;
 	}
 
 	.cutscene-avatar {
-		width: 3.25rem;
-		height: 3.25rem;
-		border-radius: 0.85rem;
-		border: 1px solid rgb(150 200 255 / 0.24);
+		width: 2.2rem;
+		height: 2.2rem;
+		border-radius: 0.6rem;
+		border: 1px solid rgb(150 200 255 / 0.2);
 		background: rgb(10 20 36 / 0.6);
 		box-shadow: 0 10px 26px rgb(2 8 20 / 0.55);
 		object-fit: cover;
 		image-rendering: pixelated;
 	}
 
-	.cutscene-guest {
-		margin-top: 1.15rem;
+	.cutscene-name {
 		font-size: 0.8125rem;
-		letter-spacing: 0.02em;
-		color: rgb(198 222 255 / 0.6);
+		color: rgb(206 228 255 / 0.7);
 	}
 
-	.cutscene-facts {
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: center;
-		gap: 0.4rem;
-		margin-top: 0.85rem;
-	}
-
-	.cutscene-fact {
-		font-size: 0.625rem;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		padding: 0.2rem 0.55rem;
-		border-radius: 9999px;
-		border: 1px solid rgb(150 200 255 / 0.16);
-		background: rgb(120 180 255 / 0.06);
-		color: rgb(186 214 255 / 0.62);
-	}
-
-	.cutscene-fact--update {
-		border-color: rgb(110 231 183 / 0.3);
-		background: rgb(110 231 183 / 0.08);
-		color: rgb(167 243 208 / 0.85);
-	}
-
-	.cutscene-status {
-		margin-top: 1.1rem;
-		font-size: 0.6875rem;
-		letter-spacing: 0.16em;
-		text-transform: uppercase;
-		color: rgb(150 190 240 / 0.42);
-	}
-
-	.cutscene-tip {
-		margin-top: 0.55rem;
-		max-width: 26rem;
-		font-size: 0.6875rem;
-		line-height: 1.5;
-		text-align: center;
-		color: rgb(150 186 230 / 0.34);
-		transition: opacity 0.6s ease;
+	.cutscene-name--guest {
+		font-size: 0.875rem;
+		letter-spacing: 0.04em;
+		color: rgb(206 228 255 / 0.62);
 	}
 
 	.cutscene-skip {
 		position: absolute;
-		bottom: 3.6rem;
+		bottom: 3rem;
 		left: 50%;
 		transform: translateX(-50%);
-		font-size: 0.6875rem;
-		letter-spacing: 0.14em;
+		font-size: 0.625rem;
+		letter-spacing: 0.16em;
 		text-transform: uppercase;
-		padding: 0.4rem 0.9rem;
+		padding: 0.35rem 0.8rem;
 		border-radius: 9999px;
-		border: 1px solid rgb(150 200 255 / 0.18);
-		color: rgb(190 216 255 / 0.55);
-		background: rgb(120 180 255 / 0.05);
+		border: 1px solid rgb(150 200 255 / 0.16);
+		color: rgb(190 216 255 / 0.5);
+		background: rgb(120 180 255 / 0.04);
 		cursor: pointer;
 		transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
 	}
 
 	.cutscene-skip:hover {
-		border-color: rgb(150 200 255 / 0.4);
+		border-color: rgb(150 200 255 / 0.38);
 		color: rgb(224 240 255 / 0.9);
-		background: rgb(120 180 255 / 0.12);
+		background: rgb(120 180 255 / 0.1);
 	}
 
 	.cutscene-version {
 		position: absolute;
-		bottom: 1.7rem;
+		bottom: 1.4rem;
 		left: 50%;
 		transform: translateX(-50%);
-		font-size: 0.6875rem;
-		font-weight: 600;
-		letter-spacing: 0.32em;
-		color: rgb(140 180 230 / 0.26);
+		font-size: 0.625rem;
+		letter-spacing: 0.28em;
+		color: rgb(140 180 230 / 0.24);
 	}
 
 	@keyframes cutscene-logo {
