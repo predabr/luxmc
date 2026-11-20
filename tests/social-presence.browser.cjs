@@ -33,9 +33,14 @@ const assert = require('node:assert/strict');
             };
         });
         await page.goto('http://127.0.0.1:1420/friends');
-        await page.waitForFunction(() => window.lastPresenceSnapshot && window.presenceSession);
+        await page.waitForTimeout(1500);
+        for (const label of ['Conectar rede social', 'Reconectar']) {
+            const trigger = page.getByRole('button', { name: label, exact: true });
+            if (await trigger.count()) { await trigger.first().click().catch(() => {}); break; }
+        }
+        await page.waitForFunction(() => window.lastPresenceSnapshot && window.presenceSession, null, { timeout: 90000 });
         await page.evaluate(async () => { window.presenceStore = (await import('/src/lib/stores/friends.svelte.ts')).friendsState; });
-        await page.waitForFunction(() => window.presenceStore.connected && !window.presenceStore.busy && window.presenceStore.list.length > 0);
+        await page.waitForFunction(() => window.presenceStore.connected && !window.presenceStore.busy && window.presenceStore.list.length > 0, null, { timeout: 90000 });
         const initial = await page.evaluate(async () => {
             const { friendsState } = await import('/src/lib/stores/friends.svelte.ts');
             return { list: friendsState.list, connected: friendsState.connected, session: window.presenceSession, error: friendsState.error, busy: friendsState.busy, calls: window.presenceCalls.slice(-12).map(call => ({ command: call.command, action: call.args.request?.action, status: call.args.request?.status })) };

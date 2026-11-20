@@ -142,6 +142,7 @@ async function setupLauncherDemo(page, { login = false, room = false } = {}) {
                 await avatarReady;
                 const request = args.request || {};
                 if (request.action === 'stream_ticket') return { url: null };
+                if (request.action === 'profile_get') return { profile: { ...(request.targetId ? state.contacts.find(contact => contact.id === request.targetId) || me : me), description: '', banner: '', portrait: '', packs: [], displayName: '', status: '' } };
                 if (request.action === 'register') return { me };
                 if (request.action === 'sync') return { me, friends: structuredClone(state.contacts) };
                 if (request.action === 'search') return { users: state.contacts.filter(contact => contact.username.toLowerCase().includes((request.query || '').toLowerCase())) };
