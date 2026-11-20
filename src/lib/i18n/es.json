@@ -71,7 +71,8 @@
     "updateReady": "v{{version}} disponible",
     "tip1": "Shield revisa cada mod descargado antes de instalarlo.",
     "tip2": "Los plugins se ejecutan aislados, sin acceso a tus carpetas de Minecraft.",
-    "tip3": "Los fondos animados están en Personalización."
+    "tip3": "Los fondos animados están en Personalización.",
+    "welcomeGuest": "Bienvenido"
   },
   "roomConnection": {
     "shared": "Mundo compartido",

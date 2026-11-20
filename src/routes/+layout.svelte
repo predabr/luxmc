@@ -992,7 +992,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	<Cutscene
 		ready={initialized}
 		greeting={account.value?.username ?? ""}
-		avatarUrl={account.value?.avatarUrl ?? (account.value?.uuid ? `https://mc-heads.net/avatar/${account.value.uuid}/64` : "")}
+		avatarUrl={account.value?.username ? (activeSkinStore.current.avatarUrl || account.value?.avatarUrl || (account.value?.uuid ? `https://mc-heads.net/avatar/${account.value.uuid}/112` : "")) : ""}
 		instanceCount={profiles.list.length}
 		updateVersion={updaterStore.updateAvailable ? updaterStore.newVersion ?? "" : ""}
 		onComplete={() => { showSplash = false; appState.showCutscene = false; }}

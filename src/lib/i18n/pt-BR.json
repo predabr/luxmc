@@ -71,7 +71,8 @@
     "updateReady": "v{{version}} disponível",
     "tip1": "O Shield verifica cada mod baixado antes de instalar.",
     "tip2": "Plugins rodam isolados, sem acesso às suas pastas do Minecraft.",
-    "tip3": "Wallpapers animados ficam em Personalização."
+    "tip3": "Wallpapers animados ficam em Personalização.",
+    "welcomeGuest": "Bem-vindo"
   },
   "roomConnection": {
     "shared": "Mundo compartilhado",

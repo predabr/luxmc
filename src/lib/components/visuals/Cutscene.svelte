@@ -31,7 +31,6 @@
 	let leaving = $state(false);
 	let minElapsed = $state(false);
 	let canSkip = $state(false);
-	let progress = $state(0);
 	let exitStarted = $state(false);
 	let finished = false;
 	let revealTimer: ReturnType<typeof setTimeout> | undefined;
@@ -41,7 +40,6 @@
 	let fadeTimer: ReturnType<typeof setTimeout> | undefined;
 	let finishTimer: ReturnType<typeof setTimeout> | undefined;
 	let safetyTimer: ReturnType<typeof setTimeout> | undefined;
-	let progressTimer: ReturnType<typeof setInterval> | undefined;
 	let tipTimer: ReturnType<typeof setInterval> | undefined;
 	let tipIndex = $state(0);
 
@@ -86,7 +84,6 @@
 
 	onMount(() => {
 		preloadRoute("/", true);
-		const started = performance.now();
 		revealTimer = setTimeout(() => { revealed = true; }, 120);
 		skipTimer = setTimeout(() => { canSkip = true; }, 700);
 		minTimer = setTimeout(() => { minElapsed = true; }, MIN_DURATION);
@@ -94,11 +91,6 @@
 			minElapsed = true;
 			beginExit();
 		}, 15000);
-		progressTimer = setInterval(() => {
-			const elapsed = performance.now() - started;
-			const timePart = Math.min(1, elapsed / MIN_DURATION);
-			progress = timePart;
-		}, 80);
 		tipTimer = setInterval(() => { tipIndex = (tipIndex + 1) % 3; }, 2100);
 		window.addEventListener("keydown", handleKey);
 		return () => {
@@ -109,7 +101,6 @@
 			clearTimeout(fadeTimer);
 			clearTimeout(finishTimer);
 			clearTimeout(safetyTimer);
-			clearInterval(progressTimer);
 			clearInterval(tipTimer);
 			window.removeEventListener("keydown", handleKey);
 		};
@@ -248,10 +239,6 @@
 					<span class="cutscene-shine" aria-hidden="true"></span>
 				</div>
 
-				<div class="cutscene-progress" aria-hidden="true">
-					<span class="cutscene-progress-fill" class:cutscene-progress-fill--done={ready && minElapsed} style="transform: scaleX({progress})"></span>
-				</div>
-
 				<p class="cutscene-caption">{uiText("introMotion.caption")}</p>
 
 				{#if greeting}
@@ -261,6 +248,8 @@
 						{/if}
 						<span>{uiText("introMotion.welcome", { name: greeting })}</span>
 					</div>
+				{:else}
+					<p class="cutscene-guest">{uiText("introMotion.welcomeGuest")}</p>
 				{/if}
 
 				<div class="cutscene-facts">
@@ -330,31 +319,8 @@
 		animation: cutscene-shine 5.5s cubic-bezier(0.45, 0, 0.2, 1) 1.1s infinite;
 	}
 
-	.cutscene-progress {
-		position: relative;
-		margin-top: 2rem;
-		height: 1px;
-		width: 11rem;
-		max-width: 56vw;
-		overflow: hidden;
-		background: rgb(150 200 255 / 0.12);
-	}
-
-	.cutscene-progress-fill {
-		position: absolute;
-		inset: 0;
-		display: block;
-		transform-origin: left center;
-		background: linear-gradient(90deg, transparent, rgb(186 226 255 / 0.75) 60%, rgb(236 248 255));
-		transition: transform 0.12s linear, background 0.5s ease;
-	}
-
-	.cutscene-progress-fill--done {
-		background: linear-gradient(90deg, transparent, rgb(120 240 196 / 0.8) 60%, rgb(214 255 238));
-	}
-
 	.cutscene-caption {
-		margin-top: 1.1rem;
+		margin-top: 2rem;
 		font-size: 0.8125rem;
 		letter-spacing: 0.01em;
 		color: rgb(214 232 255 / 0.72);
@@ -362,20 +328,30 @@
 
 	.cutscene-account {
 		display: flex;
+		flex-direction: column;
 		align-items: center;
-		gap: 0.5rem;
-		margin-top: 0.85rem;
+		gap: 0.55rem;
+		margin-top: 1.15rem;
 		font-size: 0.75rem;
-		color: rgb(198 222 255 / 0.6);
+		color: rgb(198 222 255 / 0.66);
 	}
 
 	.cutscene-avatar {
-		width: 1.35rem;
-		height: 1.35rem;
-		border-radius: 0.4rem;
-		border: 1px solid rgb(150 200 255 / 0.22);
+		width: 3.25rem;
+		height: 3.25rem;
+		border-radius: 0.85rem;
+		border: 1px solid rgb(150 200 255 / 0.24);
+		background: rgb(10 20 36 / 0.6);
+		box-shadow: 0 10px 26px rgb(2 8 20 / 0.55);
 		object-fit: cover;
 		image-rendering: pixelated;
+	}
+
+	.cutscene-guest {
+		margin-top: 1.15rem;
+		font-size: 0.8125rem;
+		letter-spacing: 0.02em;
+		color: rgb(198 222 255 / 0.6);
 	}
 
 	.cutscene-facts {

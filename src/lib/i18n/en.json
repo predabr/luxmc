@@ -71,7 +71,8 @@
     "updateReady": "v{{version}} available",
     "tip1": "Shield scans every downloaded mod before installing it.",
     "tip2": "Plugins run sandboxed, with no access to your Minecraft folders.",
-    "tip3": "Animated wallpapers live under Customization."
+    "tip3": "Animated wallpapers live under Customization.",
+    "welcomeGuest": "Welcome"
   },
   "roomConnection": {
     "shared": "Shared world",
