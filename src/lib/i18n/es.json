@@ -4253,10 +4253,10 @@
     "activated": "Detectamos renderizado lento, así que desactivamos la animación de fondo y el desenfoque para mantener el launcher fluido. Puedes cambiarlo en Ajustes."
   },
   "window": {
-    "minimize": "Minimizar",
-    "maximize": "Maximizar",
-    "restore": "Restaurar",
-    "close": "Cerrar"
+    "minimize": "Minimizar ventana",
+    "maximize": "Maximizar ventana",
+    "restore": "Restaurar ventana",
+    "close": "Cerrar ventana"
   },
   "plugins": {
     "tab": "Plugins",

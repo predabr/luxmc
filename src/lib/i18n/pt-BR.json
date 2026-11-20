@@ -4253,10 +4253,10 @@
     "activated": "Detectamos renderização lenta, então a animação de fundo e o desfoque foram desligados para manter o launcher fluido. Você pode mudar isso nas Configurações."
   },
   "window": {
-    "minimize": "Minimizar",
-    "maximize": "Maximizar",
-    "restore": "Restaurar",
-    "close": "Fechar"
+    "minimize": "Minimizar janela",
+    "maximize": "Maximizar janela",
+    "restore": "Restaurar janela",
+    "close": "Fechar janela"
   },
   "plugins": {
     "tab": "Plugins",

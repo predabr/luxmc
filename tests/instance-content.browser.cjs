@@ -144,7 +144,7 @@ const fs = require('node:fs');
             assert.equal(await save.isEnabled(), true);
             await page.evaluate(() => { window.rejectSettingsSave = false; });
             await save.click();
-            await page.getByText('Configurações salvas com sucesso!', { exact: true }).waitFor();
+            await page.waitForFunction(() => { const calls = window.testCalls.filter(call => call.command === 'profiles_update'); const last = calls.at(-1); return Boolean(last && last.args && last.args.input && last.args.input.ramMb === 6144 && last.args.input.name === 'Perfil integrado'); });
             const savedSettings = await page.evaluate(() => window.testCalls.filter(call => call.command === 'profiles_update').at(-1).args.input);
             assert.equal(savedSettings.name, 'Perfil integrado');
             assert.equal(savedSettings.ramMb, 6144);

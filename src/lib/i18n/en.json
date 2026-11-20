@@ -4253,10 +4253,10 @@
     "activated": "Slow rendering detected, so background animation and blur were turned off to keep the launcher smooth. You can change this in Settings."
   },
   "window": {
-    "minimize": "Minimize",
-    "maximize": "Maximize",
-    "restore": "Restore",
-    "close": "Close"
+    "minimize": "Minimize window",
+    "maximize": "Maximize window",
+    "restore": "Restore window",
+    "close": "Close window"
   },
   "plugins": {
     "tab": "Plugins",

@@ -33,7 +33,7 @@ const fs = require('node:fs');
         const content = await page.locator('.catalog-main').boundingBox();
         const filters = await page.locator('.catalog-rail').boundingBox();
         assert.ok(filters.x >= content.x + content.width - 1, 'Filter rail must sit in its own column right of the results');
-        assert.equal(await page.locator('.catalog-navigation button').count(), 6);
+        assert.equal(await page.locator('.catalog-subnav button').count(), 6);
         await page.keyboard.press('Escape');
         assert.equal(await page.locator('.catalog-rail .catalog-filters').isVisible(), true);
 
@@ -53,17 +53,17 @@ const fs = require('node:fs');
         await latestSearch(() => window.catalogCalls.at(-1)?.category === 'Optimization');
         await page.getByRole('button', { name: 'Limpar pesquisa e filtros', exact: true }).click();
         assert.equal(await page.locator('.catalog-rail').getByRole('button', { name: 'Desempenho', exact: true }).getAttribute('aria-pressed'), 'false');
-        // Content type selectable inside the filter panel, kept in sync with the top navigation.
-        await page.locator('.catalog-rail').getByRole('button', { name: 'Data Pack', exact: true }).click();
+        // Content types live only in the sidebar subnav and stay in sync with the page.
+        await page.locator('.catalog-subnav').getByRole('button', { name: 'Data Pack', exact: true }).click();
         await latestSearch(() => window.catalogCalls.at(-1)?.contentType === 'datapack');
-        assert.equal(await page.locator('.catalog-navigation button').nth(4).getAttribute('aria-current'), 'page');
+        assert.equal(await page.locator('.catalog-subnav').getByRole('button', { name: 'Data Pack', exact: true }).getAttribute('aria-current'), 'page');
         await page.evaluate(() => { window.catalogCalls.length = 0; });
-        await page.locator('.catalog-rail').getByRole('button', { name: 'Shader', exact: true }).click();
+        await page.locator('.catalog-subnav').getByRole('button', { name: 'Shader', exact: true }).click();
         await latestSearch(() => window.catalogCalls.some(call => call.contentType === 'shader'));
-        assert.equal(await page.locator('.catalog-navigation button').nth(3).getAttribute('aria-current'), 'page');
-        await page.locator('.catalog-navigation button').nth(1).click();
+        assert.equal(await page.locator('.catalog-subnav').getByRole('button', { name: 'Shader', exact: true }).getAttribute('aria-current'), 'page');
+        await page.locator('.catalog-subnav').getByRole('button', { name: 'Mod', exact: true }).click();
         await latestSearch(() => window.catalogCalls.at(-1)?.contentType === 'mod');
-        await page.locator('.catalog-navigation button').first().click();
+        await page.locator('.catalog-subnav').getByRole('button', { name: 'Modpack', exact: true }).click();
         await page.locator('.catalog-card').filter({ hasText: 'Fabulously Optimized' }).waitFor();
         for (const card of await page.locator('.catalog-card').all()) {
             assert.ok(await card.evaluate(node => {

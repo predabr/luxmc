@@ -36,8 +36,18 @@ const output = process.env.LUXMC_ARTIFACT_DIR || 'docs/validation/modpack-follow
             const style = getComputedStyle(image);
             return image.complete && image.naturalWidth && image.style.opacity === '1' && style.objectFit === 'cover' && style.paddingTop === '0px' && image.clientWidth === image.parentElement.clientWidth && image.clientHeight === image.parentElement.clientHeight;
         }));
-        const coverStyles = await page.locator('.catalog-cover-image').evaluateAll(images => images.map(image => ({ fit: getComputedStyle(image).objectFit, padding: getComputedStyle(image).paddingTop, filled: image.clientWidth === image.parentElement.clientWidth && image.clientHeight === image.parentElement.clientHeight })));
-        assert.ok(coverStyles.every(style => style.fit === 'cover' && style.padding === '0px' && style.filled), JSON.stringify(coverStyles));
+        const coverHandle = await page.waitForFunction(() => {
+            const images = [...document.querySelectorAll('.catalog-cover-image')];
+            if (images.length !== 5) return false;
+            const styles = images.map(image => {
+                const parent = image.parentElement;
+                if (!parent) return null;
+                return { fit: getComputedStyle(image).objectFit, padding: getComputedStyle(image).paddingTop, filled: image.clientWidth === parent.clientWidth && image.clientHeight === parent.clientHeight };
+            });
+            return styles.every(style => style && style.fit === 'cover' && style.padding === '0px' && style.filled) ? styles : false;
+        });
+        const coverStyles = await coverHandle.jsonValue();
+        assert.ok(Array.isArray(coverStyles) && coverStyles.length === 5, JSON.stringify(coverStyles));
         await page.screenshot({ path: `${output}/covers.png`, animations: 'disabled' });
         await page.locator('.catalog-card').filter({ has: page.getByText('RLCraft', { exact: true }) }).click();
         await page.getByRole('button', { name: 'Changelog', exact: true }).click();
