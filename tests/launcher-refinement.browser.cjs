@@ -78,7 +78,7 @@ const {setupLauncherDemo} = require('../scripts/launcher-video-fixture.cjs');
         assert.equal(await page.evaluate(()=>window.refinementCalls.some(call=>['profiles_delete','storage_delete_instance'].includes(call.command))),false);
         await page.getByRole('dialog').getByRole('button',{name:'Cancelar',exact:true}).click();
         await page.goto('http://127.0.0.1:1420/mods');
-        await page.locator('.catalog-navigation').waitFor();
+        await page.locator('.catalog-subnav').waitFor();
         await page.evaluate(()=>{document.documentElement.classList.add('has-custom-wallpaper');document.documentElement.style.setProperty('--interface-opacity','.18');});
         assert.match(await page.locator('.catalog-card').first().evaluate(el=>getComputedStyle(el).backgroundColor),/0\.18/);
         await page.goto('http://127.0.0.1:1420/skins');

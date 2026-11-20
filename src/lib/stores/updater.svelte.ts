@@ -68,8 +68,8 @@ function isNewer(candidate: string, current: string) {
 
 async function fetchReleases(): Promise<ReleaseEntry[]> {
 	const endpoints = [
-		"https://api.github.com/repos/predabr/luxmc/releases?per_page=100",
-		"https://api.github.com/repos/predabr/luxmc/releases/latest"
+		"https://api.github.com/repos/predabr/luxmc/releases/latest",
+		"https://api.github.com/repos/predabr/luxmc/releases?per_page=100"
 	];
 	for (const endpoint of endpoints) {
 		try {

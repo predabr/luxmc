@@ -33,7 +33,9 @@
 		setTimeout(() => (copied = false), 1600);
 	}
 	onMount(() => {
-		void updaterStore.check(false);
+		const timer = setTimeout(() => { if (settings.value.autoCheckUpdates) void updaterStore.check(false); }, 3000);
+		const interval = setInterval(() => { if (settings.value.autoCheckUpdates) void updaterStore.check(false); }, 1_800_000);
+		return () => { clearTimeout(timer); clearInterval(interval); };
 	});
 </script>
 
@@ -58,6 +60,10 @@
 				{/if}
 			</header>
 
+			{#if updaterStore.latestVersion === updaterStore.currentVersion && updaterStore.latestRevision > updaterStore.currentRevision}
+				<p class="mx-4 mt-3 rounded-lg border border-brand-400/20 bg-brand-500/5 px-3 py-2 text-[11.5px] text-brand-300">{uiText("refinement.sameVersion")}</p>
+			{/if}
+
 			{#if updaterStore.isUpdating}
 				<div class="px-4 py-4" role="status" aria-live="polite">
 					<div class="flex items-center justify-between text-[11.5px] text-fg-muted">
@@ -71,7 +77,10 @@
 			{:else}
 				<div class="min-h-0 flex-1 overflow-y-auto px-4 py-3">
 					{#if updaterStore.updateError}
-						<p class="rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-[11.5px] text-danger">{updaterStore.updateError}</p>
+						<div class="rounded-lg border border-danger/25 bg-danger/10 px-3 py-2">
+							<p class="text-[11.5px] font-semibold text-danger">{uiText("ui.7cc311f43f53578b")}</p>
+							<p class="mt-1 text-[11px] leading-relaxed text-danger/80">{updaterStore.updateError}</p>
+						</div>
 					{/if}
 					{#if hasNotes}
 						<div class="update-notes text-[12px] leading-relaxed text-fg-muted">{@html notes}</div>
@@ -85,7 +94,7 @@
 
 				<footer class="flex items-center gap-2 border-t border-fg/10 px-4 py-3">
 					<button type="button" class={button({ variant: "primary", size: "sm", class: "gap-1.5" })} disabled={!updaterStore.downloadUrl} onclick={() => updaterStore.startUpdate()}>
-						<ArrowUpRight class="h-3.5 w-3.5" /> {uiText("updateDesign.install")}
+						<ArrowUpRight class="h-3.5 w-3.5" /> {uiText(updaterStore.updateError ? "ui.45824b20097cc608" : "updateDesign.install")}
 					</button>
 					<button type="button" class={button({ variant: "ghost", size: "sm", class: "gap-1.5" })} onclick={copyNotes}>
 						{#if copied}<Check class="h-3.5 w-3.5" />{:else}<Copy class="h-3.5 w-3.5" />{/if}
