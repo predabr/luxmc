@@ -25,17 +25,32 @@ fn clean_archives_and_absent_mods_pass() {
 }
 
 #[test]
+#[test]
 fn both_webhook_hosts_are_detected_in_large_classes() {
     let root = tempfile::tempdir().unwrap();
+    let token = b"AAAABBBBCCCCDDDDEEEEFFFFGGGGHHHHIIIIJJJJKKKKLLLL";
     for (index, host) in [b"discord.com/api/webhooks".as_slice(), b"discordapp.com/api/webhooks".as_slice()].iter().enumerate() {
         let mut bytes = vec![b'x'; 110_000];
         bytes.extend_from_slice(host);
+        bytes.extend_from_slice(b"/123456789012345678/");
+        bytes.extend_from_slice(token);
         jar(&root.path().join(format!("webhook{index}.jar")), "Example.class", &bytes);
     }
     let result = scan_mods_directory(root.path());
     assert_eq!(result.threats.len(), 2);
     assert!(result.threats.iter().all(|threat| threat.severity == "warning"));
     assert!(enforce_scan(&result).is_ok());
+}
+
+#[test]
+fn webhook_template_without_token_is_not_a_finding() {
+    let root = tempfile::tempdir().unwrap();
+    let mut bytes = vec![b'x'; 40_000];
+    bytes.extend_from_slice(b"https://discord.com/api/webhooks/%s/%s");
+    jar(&root.path().join("bridge.jar"), "WebhookManager.class", &bytes);
+    let result = scan_mods_directory(root.path());
+    assert!(result.is_clean);
+    assert!(result.threats.is_empty());
 }
 
 #[test]

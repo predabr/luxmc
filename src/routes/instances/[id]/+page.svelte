@@ -6,6 +6,7 @@
     import { settings } from '$lib/stores/settings.svelte';
     import ModpackVersions from "$lib/components/instances/ModpackVersions.svelte";
 	import { runtimePlatform } from "$lib/stores/platform.svelte";
+import { shieldThreatText } from "$lib/utils/shieldText";
 	import { pageMotion } from "$lib/actions/pageMotion";
     import { loadersVersions } from '$lib/api/launch';
     import { button as launcherButton } from "$lib/components/ui/button";
@@ -876,6 +877,8 @@
 	let showP2PHost = $state(false);
 	let shieldResult = $state<ShieldScanResult | null>(null);
 	let isScanningShield = $state(false);
+	const shieldCritical = $derived((shieldResult?.threats ?? []).filter((threat) => threat.severity === "critical"));
+	const shieldWarnings = $derived((shieldResult?.threats ?? []).filter((threat) => threat.severity !== "critical"));
 
 	async function runShieldScan() {
 		if (!instanceId || isScanningShield) return;
@@ -888,8 +891,12 @@
 				goto("/instances");
 				return;
 			}
-			if (!shieldResult.isClean && shieldResult.threats.length > 0) {
-				toast(uiText("ui.29f3471b4915d6e0", {arg0: (shieldResult.threats.length)}), "error");
+			const criticalThreats = shieldResult.threats.filter((threat) => threat.severity === "critical");
+			const warningThreats = shieldResult.threats.filter((threat) => threat.severity !== "critical");
+			if (criticalThreats.length > 0) {
+				toast(uiText("shield.criticalToast", { count: criticalThreats.length }), "error");
+			} else if (warningThreats.length > 0) {
+				toast(uiText("shield.warningToast", { count: warningThreats.length }), "info");
 			}
 		} catch {
 			// Silent scan: do not show error toast when clean or idle
@@ -2040,21 +2047,45 @@
 
 
 					<div class="mods-panel-alerts">
-					{#if shieldResult && !shieldResult.isClean}
-						<div class="bg-red-500/15 border border-red-500/40 rounded-2xl p-4 flex items-center justify-between gap-3 mb-4 text-red-200 shadow-md">
+					{#if shieldCritical.length > 0}
+						<div class="bg-red-500/15 border border-red-500/40 rounded-2xl p-4 mb-4 text-red-200 shadow-md">
 							<div class="flex items-center gap-3">
 								<div class="w-9 h-9 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30 flex items-center justify-center shrink-0">
 									<ShieldAlert class="w-5 h-5" />
 								</div>
 								<div>
-									<div class="text-xs font-black text-red-100 flex items-center gap-2">
-										{uiText("ui.1154eb1419b0554c")} {shieldResult.threats.length} {uiText("ui.359a77d94bcc8b33")}
-									</div>
-									<div class="text-[11px] text-red-200/80 mt-0.5">
-										{uiText("ui.16eb14fc759a4af8")}
-									</div>
+									<div class="text-xs font-black text-red-100">{uiText("shield.criticalTitle", { count: shieldCritical.length })}</div>
+									<div class="text-[11px] text-red-200/80 mt-0.5">{uiText("shield.blocked")}</div>
 								</div>
 							</div>
+							<ul class="mt-3 space-y-2">
+								{#each shieldCritical as threat (threat.filePath + threat.threatType)}
+									<li class="rounded-xl bg-red-500/10 border border-red-500/25 px-3 py-2">
+										<p class="text-[11px] font-bold break-all">{threat.fileName} · {shieldThreatText(threat)}</p>
+										<p class="text-[11px] text-red-100/75 mt-0.5 leading-relaxed">{shieldThreatText(threat, true)}</p>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{:else if shieldWarnings.length > 0}
+						<div class="bg-amber-500/12 border border-amber-500/35 rounded-2xl p-4 mb-4 text-amber-100 shadow-md">
+							<div class="flex items-center gap-3">
+								<div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
+									<ShieldAlert class="w-5 h-5" />
+								</div>
+								<div>
+									<div class="text-xs font-black text-amber-50">{uiText("shield.warningTitle", { count: shieldWarnings.length })}</div>
+									<div class="text-[11px] text-amber-100/80 mt-0.5">{uiText("shield.warning")}</div>
+								</div>
+							</div>
+							<ul class="mt-3 space-y-2">
+								{#each shieldWarnings as threat (threat.filePath + threat.threatType)}
+									<li class="rounded-xl bg-amber-500/10 border border-amber-500/25 px-3 py-2">
+										<p class="text-[11px] font-bold break-all">{threat.fileName} · {shieldThreatText(threat)}</p>
+										<p class="text-[11px] text-amber-100/75 mt-0.5 leading-relaxed">{shieldThreatText(threat, true)}</p>
+									</li>
+								{/each}
+							</ul>
 						</div>
 					{/if}
 

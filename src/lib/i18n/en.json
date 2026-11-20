@@ -3797,8 +3797,12 @@
     "known_malwareHelp": "The file or an embedded library matches a documented malicious hash.",
     "fractureiserHelp": "Combined indicators of Fractureiser remote loading were detected.",
     "suspicious_structureHelp": "The JAR contains a suspicious name. A name alone does not prove malware; check its source.",
-    "discord_webhookHelp": "A Discord webhook was detected in the bytecode. It may have a legitimate purpose.",
-    "scan_incompleteHelp": "The inspection could not be completed safely. Check the file and the limits described in the report."
+    "discord_webhookHelp": "A full Discord webhook URL (id and token) is hardcoded, which allows sending data to an external channel. Integration mods usually ask for that URL in their config, so check the source.",
+    "scan_incompleteHelp": "The inspection could not be completed safely. Check the file and the limits described in the report.",
+    "criticalTitle": "Luxmc Shield · {{count}} critical threat(s)",
+    "warningTitle": "Luxmc Shield · {{count}} notice(s)",
+    "criticalToast": "Luxmc Shield found {{count}} critical threat(s) in your mods.",
+    "warningToast": "Luxmc Shield: {{count}} notice(s) to review — nothing blocking."
   },
   "refinement": {
     "gifHelp": "Profile and folder GIFs require Luxmc Plus or Pro. Wallpapers remain free.",

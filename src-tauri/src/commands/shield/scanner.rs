@@ -91,6 +91,27 @@ const KNOWN_SHA1: &[&str] = &[
     "a4b6385d1140c111549d95eab25cb51922eefba2",
 ];
 
+fn find_from(haystack: &[u8], needle: &[u8], start: usize) -> Option<usize> {
+    if needle.is_empty() || haystack.len() < needle.len() || start > haystack.len() - needle.len() { return None; }
+    (start..=haystack.len() - needle.len()).find(|&index| &haystack[index..index + needle.len()] == needle)
+}
+
+fn hardcoded_discord_webhook(bytes: &[u8]) -> bool {
+    const MARKER: &[u8] = b"/api/webhooks/";
+    let mut cursor = 0usize;
+    while let Some(found) = find_from(bytes, MARKER, cursor) {
+        let rest = &bytes[found + MARKER.len()..];
+        let digits = rest.iter().take_while(|byte| byte.is_ascii_digit()).count();
+        if (15..=25).contains(&digits) && rest.get(digits) == Some(&b'/') {
+            let token = &rest[digits + 1..];
+            let length = token.iter().take_while(|byte| byte.is_ascii_alphanumeric() || **byte == b'_' || **byte == b'-').count();
+            if length >= 30 { return true; }
+        }
+        cursor = found + MARKER.len();
+    }
+    false
+}
+
 fn contains(bytes: &[u8], needle: &[u8]) -> bool {
     memchr::memmem::find(bytes, needle).is_some()
 }
@@ -157,7 +178,7 @@ fn inspect_archive<R: Read + Seek>(archive: &mut zip::ZipArchive<R>, evidence: &
             inspect_archive(&mut embedded, evidence, depth + 1)?;
         } else {
             evidence.bytecode_bytes = evidence.bytecode_bytes.saturating_add(bytes.len() as u64);
-            evidence.webhook |= contains(&bytes, b"discord.com/api/webhooks") || contains(&bytes, b"discordapp.com/api/webhooks");
+            evidence.webhook |= hardcoded_discord_webhook(&bytes);
             evidence.fractureiser |= (contains(&bytes, b"85.217.144.130") || contains(&bytes, b"107.189.3.101") || contains(&bytes, b"files-8ie.pages.dev")) && (contains(&bytes, b"java/net/URLClassLoader") || contains(&bytes, b"java.net.URLClassLoader"));
             evidence.fractureiser |= contains(&bytes, b"dev/neko/nekoclient") || contains(&bytes, b"dev/neko/nekoinjector") || (contains(&bytes, b"neko.run") && contains(&bytes, b"dev/neko"));
             evidence.skyrage |= contains(&bytes, b"skyrage.de") || contains(&bytes, b"95.214.27.172") || contains(&bytes, b"vmd-gnu") || contains(&bytes, b"microsoft-vm-core") || contains(&bytes, b"MicrosoftEdgeUpdateTaskMachineVM") || contains(&bytes, b"MicrosoftEdgeUpdateTaskMachineCore");
@@ -223,7 +244,7 @@ fn scan_file(
     if evidence.fractureiser { findings.push(("critical", "Indicadores de Fractureiser", "O bytecode combina indicadores documentados de carregamento remoto do Fractureiser.")); }
     if evidence.skyrage { findings.push(("critical", "Indicadores de SkyRage", "O bytecode contém indicadores documentados do malware SkyRage: C&C skyrage.de, roubo de credenciais ou persistência vmd-gnu.")); }
     if evidence.suspicious_name { findings.push(("warning", "Estrutura suspeita", "O JAR contém L10.class, updater.jar, lib.jar ou libWebGL64.jar, nomes usados pelo SkyRage. O nome isolado não comprova malware; confira a origem do mod.")); }
-    if evidence.webhook { findings.push(("warning", "Webhook Discord embutido", "O bytecode contém um webhook do Discord. Pode ser legítimo; confira a finalidade e a origem do mod.")); }
+    if evidence.webhook { findings.push(("warning", "Webhook Discord embutido", "O bytecode embute uma URL completa de webhook do Discord (id e token), capaz de enviar dados para um canal externo. Mods de integração normalmente pedem essa URL na configuração, em vez de trazê-la no código.")); }
     if findings.is_empty() {
         cache_update(path, Some(hash.clone()));
         persisted_remember(persisted, persisted_dirty, path, &hash);
